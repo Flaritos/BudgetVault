@@ -13,8 +13,11 @@ struct SettingsPlaceholderView: View {
     @AppStorage("weeklyDigestEnabled") private var weeklyDigestEnabled = false
     @AppStorage("billDueReminders") private var billDueReminders = false
     @AppStorage("reviewPromptCount") private var reviewPromptCount = 0
+    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled = false
 
     @State private var showRecurring = false
+    @State private var showRestartAlert = false
+    @State private var cloudSync = CloudSyncService()
     @State private var showPaywall = false
     @State private var showCurrencyPicker = false
     @State private var showCSVImport = false
@@ -31,7 +34,7 @@ struct SettingsPlaceholderView: View {
                 dataSection
                 notificationsSection
                 premiumSection
-                // iCloud: HIDDEN until Step 8
+                iCloudSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -235,6 +238,49 @@ struct SettingsPlaceholderView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - iCloud
+
+    private var iCloudSection: some View {
+        Section("iCloud Sync") {
+            Toggle("iCloud Sync", isOn: Binding(
+                get: { iCloudSyncEnabled },
+                set: { newValue in
+                    iCloudSyncEnabled = newValue
+                    showRestartAlert = true
+                }
+            ))
+
+            if iCloudSyncEnabled {
+                HStack {
+                    Text("Last Sync")
+                    Spacer()
+                    if cloudSync.isSyncing {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text(cloudSync.lastSyncText)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let error = cloudSync.syncError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            Text("Data stays on Apple's servers only. No third-party servers.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .alert("Restart Required", isPresented: $showRestartAlert) {
+            Button("OK") {}
+        } message: {
+            Text("Enabling or disabling iCloud sync requires restarting the app. Please quit and relaunch BudgetVault.")
         }
     }
 

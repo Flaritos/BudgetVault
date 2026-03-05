@@ -11,7 +11,19 @@ struct BudgetVaultApp: App {
 
     init() {
         let schema = Schema(versionedSchema: BudgetVaultSchemaV1.self)
-        let config = ModelConfiguration("BudgetVault", schema: schema)
+        let iCloudEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
+
+        let config: ModelConfiguration
+        if iCloudEnabled {
+            config = ModelConfiguration(
+                "BudgetVault",
+                schema: schema,
+                cloudKitDatabase: .private("iCloud.com.budgetvault.app")
+            )
+        } else {
+            config = ModelConfiguration("BudgetVault", schema: schema)
+        }
+
         do {
             container = try ModelContainer(for: schema, migrationPlan: BudgetVaultMigrationPlan.self, configurations: [config])
         } catch {
