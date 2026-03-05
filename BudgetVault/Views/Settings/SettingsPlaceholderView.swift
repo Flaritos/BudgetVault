@@ -166,7 +166,12 @@ struct SettingsPlaceholderView: View {
         Section("Notifications") {
             Toggle("Daily Reminder", isOn: $dailyReminderEnabled)
                 .onChange(of: dailyReminderEnabled) { _, enabled in
-                    if enabled { requestNotificationPermission() }
+                    if enabled {
+                        requestNotificationPermission()
+                        NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
+                    } else {
+                        NotificationService.cancelDailyReminder()
+                    }
                 }
 
             if dailyReminderEnabled {
@@ -175,11 +180,19 @@ struct SettingsPlaceholderView: View {
                         Text(formatHour(hour)).tag(hour)
                     }
                 }
+                .onChange(of: dailyReminderHour) { _, newHour in
+                    NotificationService.scheduleDailyReminder(hour: newHour)
+                }
             }
 
             Toggle("Weekly Summary", isOn: $weeklyDigestEnabled)
                 .onChange(of: weeklyDigestEnabled) { _, enabled in
-                    if enabled { requestNotificationPermission() }
+                    if enabled {
+                        requestNotificationPermission()
+                        NotificationService.scheduleWeeklySummary(spentText: "", categoryCount: 0)
+                    } else {
+                        NotificationService.cancelWeeklySummary()
+                    }
                 }
 
             Toggle("Bill Due Reminders", isOn: $billDueReminders)

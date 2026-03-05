@@ -9,9 +9,12 @@ struct DashboardPlaceholderView: View {
     @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
+    @AppStorage("lastSummaryViewed") private var lastSummaryViewed = ""
+
     @State private var viewModel = DashboardViewModel()
     @State private var showTransactionEntry = false
     @State private var editingTransaction: Transaction?
+    @State private var showMonthlySummary = false
 
     private var currentBudget: Budget? {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -23,6 +26,18 @@ struct DashboardPlaceholderView: View {
         return budget.categories
             .filter { !$0.isHidden }
             .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private var previousBudget: Budget? {
+        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+        let (pm, py) = DateHelpers.previousMonth(from: m, year: y)
+        return allBudgets.first { $0.month == pm && $0.year == py }
+    }
+
+    private var showSummaryBanner: Bool {
+        guard let prev = previousBudget else { return false }
+        let key = "\(prev.year)-\(prev.month)"
+        return lastSummaryViewed != key
     }
 
     private var recentTransactions: [Transaction] {
@@ -86,6 +101,11 @@ struct DashboardPlaceholderView: View {
                     TransactionEditView(transaction: transaction, budget: budget, categories: visibleCategories)
                 }
             }
+            .sheet(isPresented: $showMonthlySummary) {
+                if let prev = previousBudget {
+                    MonthlySummaryView(budget: prev)
+                }
+            }
         }
     }
 
@@ -102,6 +122,28 @@ struct DashboardPlaceholderView: View {
     private func dashboardContent(budget: Budget) -> some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Monthly summary banner
+                if showSummaryBanner, let prev = previousBudget {
+                    Button {
+                        showMonthlySummary = true
+                        lastSummaryViewed = "\(prev.year)-\(prev.month)"
+                    } label: {
+                        HStack {
+                            Image(systemName: "star.circle.fill")
+                                .foregroundStyle(.yellow)
+                            Text("Your \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) summary is ready!")
+                                .font(.subheadline)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                        }
+                        .padding(12)
+                        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .tint(.primary)
+                    .padding(.horizontal)
+                }
+
                 // Remaining budget header
                 remainingHeader(budget: budget)
 

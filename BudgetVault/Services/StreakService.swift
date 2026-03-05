@@ -1,0 +1,75 @@
+import Foundation
+
+enum StreakService {
+
+    private static let calendar = Calendar.current
+
+    /// Call on every scenePhase .active to handle freeze logic and Monday reset.
+    static func processOnForeground() {
+        let today = calendar.startOfDay(for: Date())
+        let todayStr = dateString(today)
+        let lastLogDate = UserDefaults.standard.string(forKey: "lastLogDate") ?? ""
+        var streak = UserDefaults.standard.integer(forKey: "currentStreak")
+        let isPremium = UserDefaults.standard.bool(forKey: "isPremium")
+        var freezes = UserDefaults.standard.integer(forKey: "streakFreezesRemaining")
+
+        // Reset freeze to 1 every Monday for premium users
+        if isPremium {
+            let weekday = calendar.component(.weekday, from: today)
+            let lastFreezeReset = UserDefaults.standard.string(forKey: "lastFreezeReset") ?? ""
+            if weekday == 2 && lastFreezeReset != todayStr { // Monday
+                freezes = 1
+                UserDefaults.standard.set(freezes, forKey: "streakFreezesRemaining")
+                UserDefaults.standard.set(todayStr, forKey: "lastFreezeReset")
+            }
+        }
+
+        // Check if yesterday was missed and we can use a freeze
+        if streak > 0 && lastLogDate != todayStr {
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+            let yesterdayStr = dateString(yesterday)
+
+            if lastLogDate != yesterdayStr {
+                // Missed yesterday
+                if freezes > 0 {
+                    // Use freeze — preserve streak
+                    freezes -= 1
+                    UserDefaults.standard.set(freezes, forKey: "streakFreezesRemaining")
+                } else {
+                    // No freeze — check if we missed more than 1 day (streak broken)
+                    let daysBefore2 = calendar.date(byAdding: .day, value: -2, to: today)!
+                    let daysBefore2Str = dateString(daysBefore2)
+                    if lastLogDate != yesterdayStr && lastLogDate != daysBefore2Str {
+                        // Streak is broken
+                        streak = 0
+                        UserDefaults.standard.set(streak, forKey: "currentStreak")
+                    }
+                }
+            }
+        }
+
+        // Schedule streak-at-risk notification if no log today
+        if streak > 0 && lastLogDate != todayStr {
+            NotificationService.scheduleStreakAtRisk(streakCount: streak)
+        } else {
+            NotificationService.cancelStreakAtRisk()
+        }
+
+        // Write to widget suite
+        let suite = UserDefaults(suiteName: WidgetDataService.suiteName)
+        suite?.set(streak, forKey: "currentStreak")
+    }
+
+    /// Check if current streak just hit a milestone.
+    static func checkMilestone() -> Int? {
+        let streak = UserDefaults.standard.integer(forKey: "currentStreak")
+        let milestones = [7, 14, 30, 60, 90]
+        return milestones.contains(streak) ? streak : nil
+    }
+
+    private static func dateString(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+}

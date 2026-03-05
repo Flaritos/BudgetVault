@@ -41,6 +41,7 @@ struct BudgetVaultApp: App {
                 performMonthRollover()
                 processRecurringExpenses()
                 updateWidgetData()
+                StreakService.processOnForeground()
             }
         }
     }
