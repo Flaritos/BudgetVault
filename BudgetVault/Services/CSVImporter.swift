@@ -83,7 +83,7 @@ enum CSVImporter {
         let columns = parseCSVLine(header).map { $0.lowercased() }
         let dateIdx = columns.firstIndex { $0.contains("date") } ?? 0
         let categoryIdx = columns.firstIndex { $0.contains("category") }
-        let noteIdx = columns.firstIndex { $0.contains("note") ?? $0.contains("memo") ?? $0.contains("description") }
+        let noteIdx = columns.firstIndex { $0.contains("note") || $0.contains("memo") || $0.contains("description") }
         let amountIdx = columns.firstIndex { $0.contains("amount") } ?? 1
         let typeIdx = columns.firstIndex { $0.contains("type") }
 

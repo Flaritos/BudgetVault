@@ -52,7 +52,13 @@ struct DashboardPlaceholderView: View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
                 if let budget = currentBudget {
-                    if visibleCategories.isEmpty && recentTransactions.isEmpty {
+                    if budget.totalIncomeCents == 0 {
+                        EmptyStateView(
+                            icon: "dollarsign.circle",
+                            title: "Set Your Income",
+                            message: "Set your monthly income in the Budget tab to get started."
+                        )
+                    } else if visibleCategories.isEmpty && recentTransactions.isEmpty {
                         EmptyStateView(
                             icon: "plus.circle.fill",
                             title: "No Expenses Yet",

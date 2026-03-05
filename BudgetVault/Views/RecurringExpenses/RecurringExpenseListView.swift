@@ -3,7 +3,7 @@ import SwiftData
 
 struct RecurringExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage("isPremium") private var isPremium = false // TODO: Step 7a — replace with StoreKit entitlement
+    @AppStorage("isPremium") private var isPremium = false
 
     @Query(sort: \RecurringExpense.nextDueDate) private var allExpenses: [RecurringExpense]
     @Query(sort: \Transaction.date, order: .reverse) private var recentTransactions: [Transaction]

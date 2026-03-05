@@ -33,7 +33,12 @@ struct TransactionEntryView: View {
                     .padding(.top, 8)
 
                 // Category picker (expense only)
-                if !isIncome {
+                if !isIncome && categories.isEmpty {
+                    Text("Create a category in the Budget tab first.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                } else if !isIncome {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(categories, id: \.id) { category in

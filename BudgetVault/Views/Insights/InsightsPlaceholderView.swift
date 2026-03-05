@@ -3,7 +3,7 @@ import SwiftData
 
 struct InsightsPlaceholderView: View {
     @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("isPremium") private var isPremium = false // TODO: Step 7a — replace with StoreKit entitlement
+    @AppStorage("isPremium") private var isPremium = false
 
     @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]

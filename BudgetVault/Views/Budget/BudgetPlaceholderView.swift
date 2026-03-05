@@ -4,7 +4,7 @@ import SwiftData
 struct BudgetPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("isPremium") private var isPremium = false // TODO: Step 7a — replace with StoreKit entitlement
+    @AppStorage("isPremium") private var isPremium = false
 
     @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
 
