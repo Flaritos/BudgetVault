@@ -1,0 +1,18 @@
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Generated Xcode project (regenerated from project.yml)
+BudgetVault.xcodeproj/
+
+# Dependencies
+Pods/
+.build/

@@ -1,0 +1,193 @@
+import SwiftUI
+import SwiftData
+
+struct HistoryPlaceholderView: View {
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage("resetDay") private var resetDay = 1
+
+    @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
+    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+
+    @State private var searchText = ""
+    @State private var filterMode: FilterMode = .all
+    @State private var selectedCategoryID: UUID?
+    @State private var editingTransaction: Transaction?
+
+    enum FilterMode: String, CaseIterable {
+        case all = "All"
+        case expenses = "Expenses"
+        case income = "Income"
+    }
+
+    private var currentBudget: Budget? {
+        let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+        return allBudgets.first { $0.month == month && $0.year == year }
+    }
+
+    private var categories: [Category] {
+        currentBudget?.categories.filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder } ?? []
+    }
+
+    private var filteredTransactions: [Transaction] {
+        guard let budget = currentBudget else { return [] }
+
+        var transactions = allTransactions
+            .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
+
+        switch filterMode {
+        case .all: break
+        case .expenses: transactions = transactions.filter { !$0.isIncome }
+        case .income: transactions = transactions.filter { $0.isIncome }
+        }
+
+        if let catID = selectedCategoryID {
+            transactions = transactions.filter { $0.category?.id == catID }
+        }
+
+        if !searchText.isEmpty {
+            transactions = transactions.filter {
+                $0.note.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+
+        return transactions.sorted { $0.date > $1.date }
+    }
+
+    private var groupedByDay: [(date: Date, transactions: [Transaction])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: filteredTransactions) { tx in
+            calendar.startOfDay(for: tx.date)
+        }
+        return grouped.sorted { $0.key > $1.key }
+            .map { (date: $0.key, transactions: $0.value) }
+    }
+
+    private var csvText: String {
+        var lines = ["Date,Category,Note,Amount,Type"]
+        for tx in filteredTransactions.sorted(by: { $0.date < $1.date }) {
+            let dateStr = tx.date.formatted(date: .numeric, time: .omitted)
+            let cat = tx.category?.name ?? ""
+            let note = tx.note.replacingOccurrences(of: ",", with: ";")
+            let amount = String(format: "%.2f", Double(tx.amountCents) / 100.0)
+            let type = tx.isIncome ? "Income" : "Expense"
+            lines.append("\(dateStr),\(cat),\(note),\(amount),\(type)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if filteredTransactions.isEmpty && searchText.isEmpty && filterMode == .all {
+                    EmptyStateView(
+                        icon: "clock.fill",
+                        title: "No Transactions",
+                        message: "Start logging to see your history here."
+                    )
+                } else if filteredTransactions.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                } else {
+                    transactionList
+                }
+            }
+            .navigationTitle("History")
+            .searchable(text: $searchText, prompt: "Search notes")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(item: csvText, preview: SharePreview("Transactions.csv")) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Export transactions")
+                }
+            }
+            .sheet(item: $editingTransaction) { transaction in
+                if let budget = currentBudget {
+                    TransactionEditView(transaction: transaction, budget: budget, categories: categories)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var transactionList: some View {
+        List {
+            // Filter chips
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Filter", selection: $filterMode) {
+                        ForEach(FilterMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if filterMode != .income {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                chipButton(label: "All", isSelected: selectedCategoryID == nil) {
+                                    selectedCategoryID = nil
+                                }
+                                ForEach(categories, id: \.id) { cat in
+                                    chipButton(label: cat.emoji, isSelected: selectedCategoryID == cat.id) {
+                                        selectedCategoryID = cat.id
+                                    }
+                                    .accessibilityLabel(cat.name)
+                                }
+                            }
+                        }
+                    }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .padding(.horizontal)
+            }
+
+            // Grouped transactions
+            ForEach(groupedByDay, id: \.date) { group in
+                Section {
+                    ForEach(group.transactions, id: \.id) { transaction in
+                        Button {
+                            editingTransaction = transaction
+                        } label: {
+                            TransactionRowView(transaction: transaction)
+                        }
+                        .tint(.primary)
+                    }
+                } header: {
+                    HStack {
+                        Text(group.date, style: .date)
+                        Spacer()
+                        Text(daySubtotal(group.transactions))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    @ViewBuilder
+    private func chipButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.1), in: Capsule())
+                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+        }
+    }
+
+    private func daySubtotal(_ transactions: [Transaction]) -> String {
+        let spent = transactions.filter { !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+        let earned = transactions.filter { $0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+
+        if earned > 0 && spent > 0 {
+            return "-\(CurrencyFormatter.format(cents: spent)) / +\(CurrencyFormatter.format(cents: earned))"
+        } else if earned > 0 {
+            return "+\(CurrencyFormatter.format(cents: earned))"
+        }
+        return "-\(CurrencyFormatter.format(cents: spent))"
+    }
+}
