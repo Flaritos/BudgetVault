@@ -78,6 +78,9 @@ struct DashboardPlaceholderView: View {
                     TransactionEntryView(budget: budget, categories: visibleCategories)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openTransactionEntry)) { _ in
+                showTransactionEntry = true
+            }
             .sheet(item: $editingTransaction) { transaction in
                 if let budget = currentBudget {
                     TransactionEditView(transaction: transaction, budget: budget, categories: visibleCategories)

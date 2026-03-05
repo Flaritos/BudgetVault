@@ -127,9 +127,8 @@ struct TransactionEntryView: View {
         try? modelContext.save()
 
         HapticManager.notification(.success)
-
-        // Update streak
         DashboardViewModel().updateStreak()
+        WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: "resetDay"))
 
         dismiss()
     }

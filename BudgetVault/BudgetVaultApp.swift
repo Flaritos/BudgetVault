@@ -40,6 +40,7 @@ struct BudgetVaultApp: App {
             if newPhase == .active {
                 performMonthRollover()
                 processRecurringExpenses()
+                updateWidgetData()
             }
         }
     }
@@ -114,5 +115,12 @@ struct BudgetVaultApp: App {
     @MainActor
     private func processRecurringExpenses() {
         let _ = RecurringExpenseScheduler.processOverdue(context: container.mainContext)
+    }
+
+    // MARK: - Widget Data
+
+    @MainActor
+    private func updateWidgetData() {
+        WidgetDataService.update(from: container.mainContext, resetDay: resetDay)
     }
 }
