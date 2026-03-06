@@ -81,6 +81,7 @@ struct BudgetVaultApp: App {
                             processRecurringExpenses(container: container)
                             updateWidgetData(container: container)
                             StreakService.processOnForeground()
+                            Task { await storeKit.checkEntitlements() }
                         }
                     }
             } else {

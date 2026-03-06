@@ -18,6 +18,9 @@ struct DashboardPlaceholderView: View {
     @State private var editingTransaction: Transaction?
     @State private var showMonthlySummary = false
     @State private var showPaywall = false
+    @State private var showMonthlyWrapped = false
+    @State private var showAchievements = false
+    @State private var newAchievementBanner: String?
     @AppStorage("isPremium") private var isPremium = false
 
     private var currentBudget: Budget? {
@@ -42,6 +45,13 @@ struct DashboardPlaceholderView: View {
         guard let prev = previousBudget else { return false }
         let key = "\(prev.year)-\(prev.month)"
         return lastSummaryViewed != key
+    }
+
+    private var showWrappedCard: Bool {
+        // Show when month is >= 80% complete or when viewing a completed month
+        guard let budget = currentBudget else { return false }
+        let fraction = dayProgressFraction(budget: budget)
+        return fraction >= 0.8 || previousBudget != nil
     }
 
     private var recentTransactions: [Transaction] {
@@ -124,6 +134,50 @@ struct DashboardPlaceholderView: View {
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
             }
+            .sheet(isPresented: $showMonthlyWrapped) {
+                if let budget = currentBudget {
+                    MonthlyWrappedView(budget: budget, allTransactions: allTransactions)
+                        .presentationDragIndicator(.visible)
+                }
+            }
+            .sheet(isPresented: $showAchievements) {
+                AchievementGridView()
+                    .presentationDragIndicator(.visible)
+            }
+            .task {
+                // Check spending alerts
+                if let budget = currentBudget {
+                    NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
+
+                    // Check achievements
+                    let newBadges = AchievementService.checkAchievements(
+                        budget: budget,
+                        transactions: allTransactions
+                    )
+                    if let first = newBadges.first {
+                        newAchievementBanner = first.title
+                        try? await Task.sleep(for: .seconds(3))
+                        newAchievementBanner = nil
+                    }
+                }
+            }
+            .overlay(alignment: .top) {
+                if let badge = newAchievementBanner {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trophy.fill")
+                            .foregroundStyle(.yellow)
+                        Text("Achievement Unlocked: \(badge)")
+                            .font(.subheadline.bold())
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .shadow(radius: 4, y: 2)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.spring(duration: 0.4), value: newAchievementBanner)
+                }
+            }
         }
     }
 
@@ -178,6 +232,14 @@ struct DashboardPlaceholderView: View {
                 if !goalCategories.isEmpty {
                     savingsGoalsSection
                 }
+
+                // Monthly Wrapped card (premium)
+                if showWrappedCard {
+                    wrappedCard
+                }
+
+                // Recent achievements
+                achievementsPreview
 
                 // Upcoming bills
                 upcomingBills
@@ -361,8 +423,14 @@ struct DashboardPlaceholderView: View {
             Text("of \(CurrencyFormatter.format(cents: budgeted))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            if category.rollOverUnspent {
+                Text("Rolls over")
+                    .font(.caption2)
+                    .foregroundStyle(BudgetVaultTheme.info)
+            }
         }
-        .frame(width: 150, height: 185)
+        .frame(width: 150, height: category.rollOverUnspent ? 200 : 185)
         .background(
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 .fill(Color(hex: category.color).opacity(0.08))
@@ -485,6 +553,84 @@ struct DashboardPlaceholderView: View {
                 .accessibilityElement(children: .combine)
             }
         }
+    }
+
+    // MARK: - Monthly Wrapped Card
+
+    @ViewBuilder
+    private var wrappedCard: some View {
+        Button {
+            if isPremium {
+                showMonthlyWrapped = true
+            } else {
+                showPaywall = true
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "party.popper.fill")
+                    .font(.title3)
+                    .foregroundStyle(BudgetVaultTheme.electricBlue)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Monthly Wrapped")
+                        .font(.subheadline.bold())
+                    Text("See your spending highlights")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if !isPremium {
+                    Image(systemName: "lock.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+        }
+        .tint(.primary)
+        .padding(.horizontal)
+        .accessibilityLabel("Monthly Wrapped\(isPremium ? "" : ", premium required")")
+    }
+
+    // MARK: - Achievements Preview
+
+    @ViewBuilder
+    private var achievementsPreview: some View {
+        Button {
+            showAchievements = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "trophy.fill")
+                    .font(.title3)
+                    .foregroundStyle(.yellow)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Achievements")
+                        .font(.subheadline.bold())
+                    Text("View your badges")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+        }
+        .tint(.primary)
+        .padding(.horizontal)
+        .accessibilityLabel("Achievements. View your badges.")
     }
 
     // MARK: - Helpers

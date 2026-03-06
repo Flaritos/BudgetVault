@@ -5,7 +5,8 @@ enum BudgetVaultSchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
 
     static var models: [any PersistentModel.Type] {
-        [Budget.self, Category.self, Transaction.self, RecurringExpense.self]
+        [Budget.self, Category.self, Transaction.self, RecurringExpense.self,
+         DebtAccount.self, DebtPayment.self, NetWorthAccount.self, NetWorthSnapshot.self]
     }
 
     // MARK: - Budget
@@ -248,6 +249,145 @@ enum BudgetVaultSchemaV1: VersionedSchema {
             }
         }
     }
+
+    // MARK: - DebtAccount
+
+    @Model
+    final class DebtAccount {
+        var id: UUID = UUID()
+        var name: String = ""
+        var emoji: String = "💳"
+        var originalBalanceCents: Int64 = 0
+        var currentBalanceCents: Int64 = 0
+        var interestRate: Double = 0  // APR as percentage (e.g., 19.99)
+        var minimumPaymentCents: Int64 = 0
+        var dueDay: Int = 1  // day of month
+        var createdAt: Date = Date.now
+        var isActive: Bool = true
+
+        @Relationship(deleteRule: .cascade, inverse: \DebtPayment.debtAccount)
+        var payments: [DebtPayment]? = []
+
+        init(name: String, emoji: String = "💳", originalBalanceCents: Int64, currentBalanceCents: Int64, interestRate: Double = 0, minimumPaymentCents: Int64 = 0, dueDay: Int = 1) {
+            self.id = UUID()
+            self.name = name
+            self.emoji = emoji
+            self.originalBalanceCents = originalBalanceCents
+            self.currentBalanceCents = currentBalanceCents
+            self.interestRate = interestRate
+            self.minimumPaymentCents = minimumPaymentCents
+            self.dueDay = dueDay
+            self.createdAt = Date.now
+        }
+
+        // MARK: Computed
+
+        var paidOffPercentage: Double {
+            guard originalBalanceCents > 0 else { return 0 }
+            let paid = originalBalanceCents - currentBalanceCents
+            return min(max(Double(paid) / Double(originalBalanceCents), 0), 1.0)
+        }
+
+        var totalPaidCents: Int64 { originalBalanceCents - currentBalanceCents }
+
+        var originalBalance: Decimal { Decimal(originalBalanceCents) / 100 }
+        var currentBalance: Decimal { Decimal(currentBalanceCents) / 100 }
+        var minimumPayment: Decimal { Decimal(minimumPaymentCents) / 100 }
+
+        /// Estimate months to payoff at minimum payment with interest
+        var estimatedMonthsToPayoff: Int? {
+            guard currentBalanceCents > 0, minimumPaymentCents > 0 else { return nil }
+            let monthlyRate = interestRate / 100.0 / 12.0
+            if monthlyRate <= 0 {
+                // No interest — simple division
+                return Int(ceil(Double(currentBalanceCents) / Double(minimumPaymentCents)))
+            }
+            // Standard amortization: n = -ln(1 - r*P/M) / ln(1+r)
+            let r = monthlyRate
+            let principal = Double(currentBalanceCents) / 100.0
+            let payment = Double(minimumPaymentCents) / 100.0
+            let factor = 1.0 - (r * principal / payment)
+            guard factor > 0 else { return nil } // Payment too low to cover interest
+            let months = -log(factor) / log(1.0 + r)
+            return Int(ceil(months))
+        }
+    }
+
+    // MARK: - DebtPayment
+
+    @Model
+    final class DebtPayment {
+        var id: UUID = UUID()
+        var amountCents: Int64 = 0
+        var date: Date = Date.now
+        var note: String = ""
+
+        var debtAccount: DebtAccount?
+
+        init(amountCents: Int64, date: Date = .now, note: String = "") {
+            self.id = UUID()
+            self.amountCents = amountCents
+            self.date = date
+            self.note = note
+        }
+
+        // MARK: Computed
+
+        var amount: Decimal { Decimal(amountCents) / 100 }
+    }
+
+    // MARK: - NetWorthAccount
+
+    @Model
+    final class NetWorthAccount {
+        var id: UUID = UUID()
+        var name: String = ""
+        var emoji: String = "🏦"
+        var balanceCents: Int64 = 0
+        var accountType: String = "asset"  // "asset" or "liability"
+        var lastUpdated: Date = Date.now
+        var isActive: Bool = true
+
+        init(name: String, emoji: String = "🏦", balanceCents: Int64 = 0, accountType: String = "asset") {
+            self.id = UUID()
+            self.name = name
+            self.emoji = emoji
+            self.balanceCents = balanceCents
+            self.accountType = accountType
+            self.lastUpdated = Date.now
+        }
+
+        // MARK: Computed
+
+        var balance: Decimal { Decimal(balanceCents) / 100 }
+        var isAsset: Bool { accountType == "asset" }
+        var isLiability: Bool { accountType == "liability" }
+    }
+
+    // MARK: - NetWorthSnapshot
+
+    @Model
+    final class NetWorthSnapshot {
+        var id: UUID = UUID()
+        var date: Date = Date.now
+        var totalAssetsCents: Int64 = 0
+        var totalLiabilitiesCents: Int64 = 0
+        var netWorthCents: Int64 = 0
+
+        init(date: Date = .now, totalAssetsCents: Int64, totalLiabilitiesCents: Int64) {
+            self.id = UUID()
+            self.date = date
+            self.totalAssetsCents = totalAssetsCents
+            self.totalLiabilitiesCents = totalLiabilitiesCents
+            self.netWorthCents = totalAssetsCents - totalLiabilitiesCents
+        }
+
+        // MARK: Computed
+
+        var totalAssets: Decimal { Decimal(totalAssetsCents) / 100 }
+        var totalLiabilities: Decimal { Decimal(totalLiabilitiesCents) / 100 }
+        var netWorth: Decimal { Decimal(netWorthCents) / 100 }
+    }
 }
 
 // MARK: - Migration Plan
@@ -266,3 +406,7 @@ typealias Budget = BudgetVaultSchemaV1.Budget
 typealias Category = BudgetVaultSchemaV1.Category
 typealias Transaction = BudgetVaultSchemaV1.Transaction
 typealias RecurringExpense = BudgetVaultSchemaV1.RecurringExpense
+typealias DebtAccount = BudgetVaultSchemaV1.DebtAccount
+typealias DebtPayment = BudgetVaultSchemaV1.DebtPayment
+typealias NetWorthAccount = BudgetVaultSchemaV1.NetWorthAccount
+typealias NetWorthSnapshot = BudgetVaultSchemaV1.NetWorthSnapshot

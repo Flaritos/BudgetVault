@@ -679,7 +679,9 @@ struct OnboardingView: View {
         let budget = Budget(month: month, year: year, totalIncomeCents: incomeCents, resetDay: resetDay)
         modelContext.insert(budget)
 
-        for (index, cat) in selectedCategories.enumerated() {
+        // Free tier: cap at 4 categories (onboarding always runs before any purchase)
+        let categoriesToCreate = Array(selectedCategories.prefix(4))
+        for (index, cat) in categoriesToCreate.enumerated() {
             let catCents = Int64(Double(incomeCents) * cat.pct)
             let category = Category(name: cat.name, emoji: cat.emoji, budgetedAmountCents: catCents, color: cat.color, sortOrder: index)
             category.budget = budget

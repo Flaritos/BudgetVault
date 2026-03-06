@@ -118,4 +118,50 @@ enum NotificationService {
     static func cancelWeeklySummary() {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
     }
+
+    // MARK: - Spending Alerts (Category-Level)
+
+    /// Checks each category in the budget and schedules local notifications
+    /// when spending reaches 80% or exceeds 100% of the budgeted amount.
+    /// Should be called when the app enters the foreground (e.g., from Dashboard .task).
+    static func checkAndScheduleCategoryAlerts(budget: Budget) {
+        let center = UNUserNotificationCenter.current()
+        let categories = (budget.categories ?? []).filter { !$0.isHidden && $0.budgetedAmountCents > 0 }
+
+        for category in categories {
+            let spent = category.spentCents(in: budget)
+            let budgeted = category.budgetedAmountCents
+            let pct = Double(spent) / Double(budgeted)
+            let identifier = "categoryAlert-\(category.id.uuidString)"
+
+            // Remove any existing alert for this category
+            center.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+            guard pct >= 0.8 else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.sound = .default
+
+            let spentFormatted = formatCentsForNotification(spent)
+            let budgetedFormatted = formatCentsForNotification(budgeted)
+
+            if pct >= 1.0 {
+                content.title = "\(category.emoji) \(category.name) Over Budget"
+                content.body = "\(spentFormatted) of \(budgetedFormatted) spent"
+            } else {
+                content.title = "\(category.emoji) \(category.name) at \(Int(pct * 100))%"
+                content.body = "\(spentFormatted) of \(budgetedFormatted) spent"
+            }
+
+            // Fire in 2 seconds (immediate feedback when app foregrounds)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            center.add(request)
+        }
+    }
+
+    private static func formatCentsForNotification(_ cents: Int64) -> String {
+        let dollars = Double(cents) / 100.0
+        return String(format: "$%.2f", dollars)
+    }
 }

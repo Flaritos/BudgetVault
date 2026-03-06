@@ -245,8 +245,12 @@ struct BudgetPlaceholderView: View {
                             .swipeActions(edge: .trailing) {
                                 if isCurrentPeriod {
                                     Button("Restore") {
-                                        category.isHidden = false
-                                        SafeSave.save(modelContext)
+                                        if !isPremium && visibleCategories.count >= 4 {
+                                            showPaywall = true
+                                        } else {
+                                            category.isHidden = false
+                                            SafeSave.save(modelContext)
+                                        }
                                     }
                                     .tint(.blue)
                                 }

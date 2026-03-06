@@ -126,8 +126,12 @@ struct RecurringExpenseListView: View {
                         .tint(.primary)
                         .swipeActions(edge: .trailing) {
                             Button("Activate") {
-                                expense.isActive = true
-                                SafeSave.save(modelContext)
+                                if !isPremium && activeExpenses.count >= 3 {
+                                    showPaywall = true
+                                } else {
+                                    expense.isActive = true
+                                    SafeSave.save(modelContext)
+                                }
                             }
                             .tint(BudgetVaultTheme.positive)
                         }

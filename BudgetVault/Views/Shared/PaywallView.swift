@@ -10,7 +10,7 @@ struct PaywallView: View {
         ("square.grid.2x2", "Unlimited Categories", "vs 4 free"),
         ("repeat", "Unlimited Recurring", "vs 3 free"),
         ("doc.text", "Full CSV Import/Export", "Full history"),
-        ("chart.xyaxis.line", "Historical Charts", "Compare months & trends"),
+        ("chart.xyaxis.line", "Historical Charts", "Month comparisons & AI insights"),
         ("flame", "Streak Freeze", "1 per week"),
     ]
 
@@ -61,7 +61,7 @@ struct PaywallView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "tag.fill")
                             .foregroundStyle(BudgetVaultTheme.positive)
-                        Text("Save $80+/year vs subscriptions")
+                        Text("Save $100+/year vs subscriptions")
                             .font(.caption.bold())
                             .foregroundStyle(BudgetVaultTheme.positive)
                     }
@@ -105,15 +105,34 @@ struct PaywallView: View {
                         Text("one-time purchase")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("Compare to leading budget apps at $99/year")
+                        Text("Compare to leading budget apps at $100+/year")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 8)
 
-                    // Purchase button
-                    purchaseButton
+                    // Product load error (Bug 5)
+                    if let loadError = storeKit.productLoadError, storeKit.premiumProduct == nil {
+                        VStack(spacing: 12) {
+                            Text(loadError)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Try Again") {
+                                storeKit.retryLoadProducts()
+                            }
+                            .buttonStyle(PrimaryButtonStyle())
+                        }
                         .padding(.horizontal, 32)
+                    } else if storeKit.premiumProduct == nil {
+                        // Products still loading (Bug 8)
+                        ProgressView("Loading products...")
+                            .padding(.vertical, 8)
+                    } else {
+                        // Purchase button
+                        purchaseButton
+                            .padding(.horizontal, 32)
+                    }
 
                     // Restore
                     Button("Restore Purchases") {
@@ -150,6 +169,14 @@ struct PaywallView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text(storeKit.errorMessage ?? "Something went wrong.")
+            }
+            .alert("Purchase Pending", isPresented: .init(
+                get: { storeKit.showPendingAlert },
+                set: { if !$0 { storeKit.showPendingAlert = false } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your purchase is pending approval. You'll get access once it's approved.")
             }
             .onChange(of: storeKit.purchaseState) { _, newState in
                 if newState == .success {

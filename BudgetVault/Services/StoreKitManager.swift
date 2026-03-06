@@ -19,6 +19,7 @@ final class StoreKitManager {
     var purchaseState: PurchaseState = .idle
     var errorMessage: String?
     var productLoadError: String?
+    var showPendingAlert = false
 
     enum PurchaseState {
         case idle, loading, success, error
@@ -99,7 +100,7 @@ final class StoreKitManager {
 
             case .pending:
                 purchaseState = .idle
-                errorMessage = "Purchase is pending approval."
+                showPendingAlert = true
 
             @unknown default:
                 purchaseState = .idle

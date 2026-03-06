@@ -92,6 +92,11 @@ struct InsightsPlaceholderView: View {
                     .padding(.horizontal)
 
                     if let budget = currentBudget {
+                        // PREMIUM: Spending Heatmap (above charts)
+                        premiumSection("Spending Heatmap") {
+                            SpendingHeatmapView(budget: budget, allTransactions: periodTransactions)
+                        }
+
                         // FREE: Trend chart (only shown for single-month ranges)
                         if selectedRange == .thisMonth || selectedRange == .lastMonth {
                             let trendBudget = selectedRange == .lastMonth ? (previousBudget ?? budget) : budget
@@ -187,6 +192,11 @@ struct InsightsPlaceholderView: View {
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
+            }
+            .task {
+                if let budget = currentBudget {
+                    NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
+                }
             }
         }
     }

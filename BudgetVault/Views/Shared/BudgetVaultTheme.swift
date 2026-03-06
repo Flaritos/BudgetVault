@@ -67,6 +67,28 @@ enum BudgetVaultTheme {
     static let heroAmount = Font.system(size: 54, weight: .heavy, design: .rounded)
     static let cardAmount = Font.system(size: 20, weight: .bold, design: .rounded)
     static let rowAmount = Font.system(size: 16, weight: .semibold, design: .rounded)
+
+    // MARK: - User Accent Color
+
+    static var userAccentColor: Color {
+        let hex = UserDefaults.standard.string(forKey: "accentColorHex") ?? "#2563EB"
+        return Color(hex: hex)
+    }
+
+    // MARK: - Accent Color Options
+
+    static let accentColorOptions: [(name: String, hex: String)] = [
+        ("Electric Blue", "#2563EB"),
+        ("Emerald", "#10B981"),
+        ("Purple", "#8B5CF6"),
+        ("Rose", "#F43F5E"),
+        ("Amber", "#F59E0B"),
+        ("Teal", "#14B8A6"),
+        ("Indigo", "#6366F1"),
+        ("Orange", "#F97316"),
+        ("Slate", "#64748B"),
+        ("Crimson", "#DC2626"),
+    ]
 }
 
 // MARK: - Color Extension

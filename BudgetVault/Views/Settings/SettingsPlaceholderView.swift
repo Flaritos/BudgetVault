@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import StoreKit
 
 struct SettingsPlaceholderView: View {
@@ -16,6 +17,8 @@ struct SettingsPlaceholderView: View {
     @AppStorage("reviewPromptCount") private var reviewPromptCount = 0
     @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled = false
 
+    @AppStorage("accentColorHex") private var accentColorHex = "#2563EB"
+
     @State private var showRecurring = false
     @State private var showRestartAlert = false
     @State private var cloudSync = CloudSyncService()
@@ -25,6 +28,12 @@ struct SettingsPlaceholderView: View {
     @State private var exportURL: URL?
     @State private var showExportShare = false
     @State private var tempCurrency = ""
+    @State private var showThemePicker = false
+    @State private var showBudgetTemplates = false
+    @State private var showDebtTracking = false
+    @State private var showNetWorth = false
+    @State private var showAchievements = false
+    @State private var templateAppliedAlert = false
     @Environment(StoreKitManager.self) private var storeKit
     @State private var showNotificationDeniedAlert = false
 
@@ -70,6 +79,26 @@ struct SettingsPlaceholderView: View {
                 if let url = exportURL {
                     ShareSheetView(url: url)
                 }
+            }
+            .sheet(isPresented: $showThemePicker) {
+                ThemePickerView()
+            }
+            .sheet(isPresented: $showBudgetTemplates) {
+                BudgetTemplateSheetView()
+            }
+            .sheet(isPresented: $showDebtTracking) {
+                DebtTrackingView()
+            }
+            .sheet(isPresented: $showNetWorth) {
+                NetWorthView()
+            }
+            .sheet(isPresented: $showAchievements) {
+                AchievementGridView()
+            }
+            .alert("Template Applied", isPresented: $templateAppliedAlert) {
+                Button("OK") {}
+            } message: {
+                Text("Missing categories from the template have been added to your current budget.")
             }
         }
     }
@@ -155,6 +184,32 @@ struct SettingsPlaceholderView: View {
                 }
             }
 
+            Button {
+                if isPremium {
+                    showThemePicker = true
+                } else {
+                    showPaywall = true
+                }
+            } label: {
+                HStack {
+                    Text("Accent Color")
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Circle()
+                        .fill(Color(hex: accentColorHex))
+                        .frame(width: 22, height: 22)
+                    if !isPremium {
+                        Image(systemName: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
             Picker("Budget Reset Day", selection: $resetDay) {
                 ForEach(1...28, id: \.self) { day in
                     Text("\(day)").tag(day)
@@ -202,6 +257,54 @@ struct SettingsPlaceholderView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+            }
+
+            Button {
+                showBudgetTemplates = true
+            } label: {
+                Label("Budget Templates", systemImage: "doc.on.doc")
+            }
+
+            Button {
+                if isPremium {
+                    showDebtTracking = true
+                } else {
+                    showPaywall = true
+                }
+            } label: {
+                HStack {
+                    Label("Debt Tracking", systemImage: "creditcard.fill")
+                    if !isPremium {
+                        Spacer()
+                        Image(systemName: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Button {
+                if isPremium {
+                    showNetWorth = true
+                } else {
+                    showPaywall = true
+                }
+            } label: {
+                HStack {
+                    Label("Net Worth", systemImage: "chart.line.uptrend.xyaxis")
+                    if !isPremium {
+                        Spacer()
+                        Image(systemName: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Button {
+                showAchievements = true
+            } label: {
+                Label("Achievements", systemImage: "trophy.fill")
             }
         }
     }
@@ -417,5 +520,144 @@ struct SettingsPlaceholderView: View {
         components.minute = 0
         guard let date = Calendar.current.date(from: components) else { return "\(hour):00" }
         return Self.hourFormatter.string(from: date)
+    }
+}
+
+// MARK: - Budget Template Sheet
+
+struct BudgetTemplateSheetView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("resetDay") private var resetDay = 1
+
+    @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
+
+    @State private var showAppliedAlert = false
+    @State private var appliedTemplateName = ""
+
+    private var currentBudget: Budget? {
+        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+        return allBudgets.first { $0.month == m && $0.year == y }
+    }
+
+    private let templates: [(name: String, icon: String, categories: [(name: String, emoji: String, color: String)])] = [
+        ("Single", "person.fill", [
+            ("Rent", "\u{1F3E0}", "#5856D6"),
+            ("Groceries", "\u{1F6D2}", "#34C759"),
+            ("Transport", "\u{1F697}", "#FF9500"),
+            ("Dining Out", "\u{1F37D}\u{FE0F}", "#FF2D55"),
+            ("Entertainment", "\u{1F3AC}", "#AF52DE"),
+            ("Savings", "\u{1F3E6}", "#007AFF"),
+        ]),
+        ("Couple", "person.2.fill", [
+            ("Housing", "\u{1F3E0}", "#5856D6"),
+            ("Groceries", "\u{1F6D2}", "#34C759"),
+            ("Dining Out", "\u{1F37D}\u{FE0F}", "#FF2D55"),
+            ("Transport", "\u{1F697}", "#FF9500"),
+            ("Date Night", "\u{2764}\u{FE0F}", "#AF52DE"),
+            ("Savings", "\u{1F3E6}", "#007AFF"),
+        ]),
+        ("Family", "person.3.fill", [
+            ("Housing", "\u{1F3E0}", "#5856D6"),
+            ("Groceries", "\u{1F6D2}", "#34C759"),
+            ("Kids", "\u{1F476}", "#FF2D55"),
+            ("Transport", "\u{1F697}", "#FF9500"),
+            ("Utilities", "\u{1F4A1}", "#FFCC00"),
+            ("Savings", "\u{1F3E6}", "#007AFF"),
+        ]),
+        ("College Student", "graduationcap.fill", [
+            ("Tuition", "\u{1F393}", "#5856D6"),
+            ("Food", "\u{1F355}", "#34C759"),
+            ("Books", "\u{1F4DA}", "#FF9500"),
+            ("Transport", "\u{1F68C}", "#007AFF"),
+        ]),
+        ("Debt Payoff", "arrow.down.circle.fill", [
+            ("Essentials", "\u{1F3E0}", "#34C759"),
+            ("Debt Payment", "\u{1F4B3}", "#FF2D55"),
+            ("Savings", "\u{1F3E6}", "#007AFF"),
+            ("Minimal Fun", "\u{1F3AE}", "#AF52DE"),
+        ]),
+        ("Freelancer", "laptopcomputer", [
+            ("Business", "\u{1F4BC}", "#5856D6"),
+            ("Taxes", "\u{1F4C4}", "#FF9500"),
+            ("Personal", "\u{1F3E0}", "#34C759"),
+            ("Savings", "\u{1F3E6}", "#007AFF"),
+            ("Healthcare", "\u{1FA7A}", "#FF2D55"),
+        ]),
+    ]
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("Applying a template adds any missing categories to your current budget. Existing categories are not removed.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(templates, id: \.name) { template in
+                    Button {
+                        applyTemplate(template)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: template.icon)
+                                .font(.title3)
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 32)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(template.name)
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.primary)
+                                Text(template.categories.map(\.emoji).joined(separator: " "))
+                                    .font(.caption)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "plus.circle")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Budget Templates")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .alert("Template Applied", isPresented: $showAppliedAlert) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text("Categories from \"\(appliedTemplateName)\" have been added to your budget.")
+            }
+        }
+    }
+
+    private func applyTemplate(_ template: (name: String, icon: String, categories: [(name: String, emoji: String, color: String)])) {
+        guard let budget = currentBudget else { return }
+        let existingNames = Set((budget.categories ?? []).map { $0.name.lowercased() })
+        let maxSortOrder = (budget.categories ?? []).map(\.sortOrder).max() ?? 0
+        var nextOrder = maxSortOrder + 1
+
+        for cat in template.categories {
+            guard !existingNames.contains(cat.name.lowercased()) else { continue }
+            let newCategory = Category(
+                name: cat.name,
+                emoji: cat.emoji,
+                budgetedAmountCents: 0,
+                color: cat.color,
+                sortOrder: nextOrder
+            )
+            newCategory.budget = budget
+            modelContext.insert(newCategory)
+            nextOrder += 1
+        }
+
+        try? modelContext.save()
+        appliedTemplateName = template.name
+        showAppliedAlert = true
     }
 }
