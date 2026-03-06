@@ -20,6 +20,8 @@
 	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>BudgetVault uses Face ID to protect your financial data.</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>

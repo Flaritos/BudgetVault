@@ -11,9 +11,4 @@ final class DashboardViewModel {
         return "Over Budget"
     }
 
-    func statusColor(for percentRemaining: Double) -> String {
-        if percentRemaining > 0.5 { return "green" }
-        if percentRemaining > 0.25 { return "yellow" }
-        return "red"
-    }
 }

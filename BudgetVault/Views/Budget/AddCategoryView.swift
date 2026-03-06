@@ -11,6 +11,7 @@ struct AddCategoryView: View {
     @State private var emoji = "📦"
     @State private var color = "#007AFF"
     @State private var amountText = ""
+    @State private var showDuplicateWarning = false
 
     private let emojiOptions = ["📦", "🏠", "🛒", "🚗", "🎬", "💊", "📚", "🎮", "👕", "🐾", "✈️", "🍕", "☕", "🎵", "💇", "🏋️", "🎁", "📱", "🔧", "💡"]
 
@@ -95,11 +96,23 @@ struct AddCategoryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        addCategory()
+                        let trimmed = name.trimmingCharacters(in: .whitespaces)
+                        let duplicate = budget.categories.contains { $0.name.lowercased() == trimmed.lowercased() }
+                        if duplicate {
+                            showDuplicateWarning = true
+                        } else {
+                            addCategory()
+                        }
                     }
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+        }
+        .alert("Duplicate Category", isPresented: $showDuplicateWarning) {
+            Button("Add Anyway") { addCategory() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("A category named \"\(name.trimmingCharacters(in: .whitespaces))\" already exists in this budget.")
         }
     }
 

@@ -146,6 +146,14 @@ struct BudgetPlaceholderView: View {
                 MoveMoneyView(categories: visibleCategories)
                     .presentationDragIndicator(.visible)
             }
+            .onChange(of: isPremium) { _, newValue in
+                if newValue && showPaywall {
+                    showPaywall = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showAddCategory = true
+                    }
+                }
+            }
         }
     }
 
@@ -176,6 +184,7 @@ struct BudgetPlaceholderView: View {
                 }
                 .tint(.primary)
                 .disabled(!isCurrentPeriod)
+                .accessibilityLabel("Monthly Income: \(CurrencyFormatter.format(cents: budget.totalIncomeCents)), tap to edit")
 
                 // Unallocated
                 HStack {
@@ -184,7 +193,7 @@ struct BudgetPlaceholderView: View {
                     Spacer()
                     Text(CurrencyFormatter.format(cents: unallocatedCents))
                         .font(.subheadline.bold())
-                        .foregroundStyle(unallocatedCents >= 0 ? .green : .red)
+                        .foregroundStyle(unallocatedCents >= 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
                 }
                 .accessibilityLabel("Unallocated: \(CurrencyFormatter.format(cents: unallocatedCents)), \(unallocatedCents >= 0 ? "positive" : "negative")")
             }
@@ -208,7 +217,15 @@ struct BudgetPlaceholderView: View {
                             showAddCategory = true
                         }
                     } label: {
-                        Label("Add Category", systemImage: "plus.circle")
+                        HStack {
+                            Label("Add Category", systemImage: "plus.circle")
+                            if !isPremium {
+                                Spacer()
+                                Text("\(visibleCategories.count)/4 categories")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
             }
@@ -262,6 +279,7 @@ struct BudgetPlaceholderView: View {
                         .foregroundStyle(isCurrentPeriod ? Color.accentColor : .secondary)
                 }
                 .disabled(!isCurrentPeriod)
+                .accessibilityLabel("Edit \(category.name) budget: \(CurrencyFormatter.format(cents: category.budgetedAmountCents))")
             }
 
             // Spent progress
@@ -269,7 +287,7 @@ struct BudgetPlaceholderView: View {
             let pct = category.percentSpent(in: budget)
             HStack {
                 ProgressView(value: min(pct, 1.0))
-                    .tint(pct > 0.9 ? .red : pct > 0.75 ? .yellow : .green)
+                    .tint(pct > 0.9 ? BudgetVaultTheme.negative : pct > 0.75 ? BudgetVaultTheme.caution : BudgetVaultTheme.positive)
                 Text(CurrencyFormatter.format(cents: spent))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -295,7 +313,7 @@ struct BudgetPlaceholderView: View {
                     category.isHidden = true
                     SafeSave.save(modelContext)
                 }
-                .tint(.orange)
+                .tint(BudgetVaultTheme.caution)
             }
         }
     }
@@ -402,7 +420,7 @@ struct BudgetPlaceholderView: View {
             .onAppear {
                 isSavingsGoal = category.goalType == "savings"
                 if let goal = category.goalAmountCents {
-                    goalAmountText = String(goal / 100)
+                    goalAmountText = String(format: "%.2f", Double(goal) / 100.0)
                 } else {
                     goalAmountText = ""
                 }

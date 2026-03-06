@@ -209,15 +209,17 @@ struct OnboardingView: View {
         ZStack {
             subtleTopGradient
 
-            VStack {
-                LinearGradient(
-                    colors: [BudgetVaultTheme.navyDark.opacity(0.08), Color.clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: UIScreen.main.bounds.height * 0.3)
-                .allowsHitTesting(false)
-                Spacer()
+            GeometryReader { geometry in
+                VStack {
+                    LinearGradient(
+                        colors: [BudgetVaultTheme.navyDark.opacity(0.08), Color.clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: geometry.size.height * 0.3)
+                    .allowsHitTesting(false)
+                    Spacer()
+                }
             }
             .ignoresSafeArea()
 
@@ -602,7 +604,7 @@ struct OnboardingView: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                 showCelebrationCheck = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
                 if currentPage == 5 {
                     withAnimation { currentPage = 6 }
                 }

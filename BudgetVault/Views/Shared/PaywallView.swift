@@ -10,8 +10,7 @@ struct PaywallView: View {
         ("square.grid.2x2", "Unlimited Categories", "vs 4 free"),
         ("repeat", "Unlimited Recurring", "vs 3 free"),
         ("doc.text", "Full CSV Import/Export", "Full history"),
-        ("app.badge", "Custom App Icons", "3 alternatives"),
-        ("chart.xyaxis.line", "Historical Charts", "Compare months"),
+        ("chart.xyaxis.line", "Historical Charts", "Compare months & trends"),
         ("flame", "Streak Freeze", "1 per week"),
     ]
 
@@ -61,14 +60,14 @@ struct PaywallView: View {
                     // Save vs subscriptions callout
                     HStack(spacing: 6) {
                         Image(systemName: "tag.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(BudgetVaultTheme.positive)
                         Text("Save $80+/year vs subscriptions")
                             .font(.caption.bold())
-                            .foregroundStyle(.green)
+                            .foregroundStyle(BudgetVaultTheme.positive)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.12), in: Capsule())
+                    .background(BudgetVaultTheme.positive.opacity(0.12), in: Capsule())
 
                     // Feature list
                     VStack(alignment: .leading, spacing: 12) {
@@ -154,7 +153,8 @@ struct PaywallView: View {
             }
             .onChange(of: storeKit.purchaseState) { _, newState in
                 if newState == .success {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         dismiss()
                     }
                 }
@@ -178,8 +178,12 @@ struct PaywallView: View {
                     ProgressView()
                         .tint(.white)
                 case .success:
-                    Image(systemName: "checkmark")
-                        .font(.headline)
+                    VStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 28))
+                        Text("Welcome to Premium!")
+                            .font(.subheadline.bold())
+                    }
                 }
             }
             .frame(maxWidth: .infinity)

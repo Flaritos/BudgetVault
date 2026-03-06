@@ -20,7 +20,9 @@ struct TransactionEditView: View {
         self.transaction = transaction
         self.budget = budget
         self.categories = categories
-        _amountText = State(initialValue: Self.formatCentsToString(transaction.amountCents))
+        let dollars = transaction.amountCents / 100
+        let remainder = transaction.amountCents % 100
+        _amountText = State(initialValue: remainder == 0 ? "\(dollars)" : String(format: "%d.%02d", dollars, remainder))
         _isIncome = State(initialValue: transaction.isIncome)
         _selectedCategory = State(initialValue: transaction.category)
         _date = State(initialValue: transaction.date)
@@ -150,12 +152,4 @@ struct TransactionEditView: View {
         dismiss()
     }
 
-    private static func formatCentsToString(_ cents: Int64) -> String {
-        let dollars = cents / 100
-        let remainder = cents % 100
-        if remainder == 0 {
-            return "\(dollars)"
-        }
-        return String(format: "%d.%02d", dollars, remainder)
-    }
 }

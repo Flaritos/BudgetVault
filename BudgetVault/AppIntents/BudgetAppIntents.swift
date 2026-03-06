@@ -15,6 +15,8 @@ struct AddExpenseIntent: AppIntent {
     @Parameter(title: "Note")
     var note: String?
 
+    // TODO: DashboardPlaceholderView.onReceive(.openTransactionEntry) currently ignores userInfo.
+    // Update the receiver to read amount/category/note from userInfo and pre-populate TransactionEntryView.
     func perform() async throws -> some IntentResult {
         await MainActor.run {
             var userInfo: [String: Any] = [:]

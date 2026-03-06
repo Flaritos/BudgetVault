@@ -6,7 +6,8 @@ struct InsightsPlaceholderView: View {
     @AppStorage("resetDay") private var resetDay = 1
     @AppStorage("isPremium") private var isPremium = false
 
-    @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
+    @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
+    // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var showPaywall = false
@@ -59,7 +60,7 @@ struct InsightsPlaceholderView: View {
     }
 
     private var periodTransactions: [Transaction] {
-        return allTransactions.filter { $0.date >= dateRangeStart && $0.date < dateRangeEnd }
+        return Array(allTransactions.lazy.filter { $0.date >= dateRangeStart && $0.date < dateRangeEnd })
     }
 
     private var monthlyTotals: [(month: String, spent: Int64)] {
@@ -284,7 +285,7 @@ struct InsightsPlaceholderView: View {
                                 Text(CurrencyFormatter.format(cents: abs(delta)))
                                     .font(.caption2)
                             }
-                            .foregroundStyle(delta > 0 ? .red : delta < 0 ? .green : .secondary)
+                            .foregroundStyle(delta > 0 ? BudgetVaultTheme.negative : delta < 0 ? BudgetVaultTheme.positive : .secondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(8)
@@ -387,10 +388,10 @@ struct InsightsPlaceholderView: View {
 
     private func severityColor(_ severity: Insight.Severity) -> Color {
         switch severity {
-        case .warning: .red
+        case .warning: BudgetVaultTheme.negative
         case .info: .blue
-        case .success: .green
-        case .nudge: .orange
+        case .success: BudgetVaultTheme.positive
+        case .nudge: BudgetVaultTheme.caution
         }
     }
 
@@ -445,6 +446,7 @@ struct InsightsPlaceholderView: View {
         .frame(width: 320)
         .background(.white)
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .environment(\.colorScheme, .light)
 
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3

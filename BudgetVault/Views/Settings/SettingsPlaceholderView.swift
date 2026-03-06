@@ -7,6 +7,7 @@ struct SettingsPlaceholderView: View {
     @AppStorage("selectedCurrency") private var selectedCurrency = "USD"
     @AppStorage("resetDay") private var resetDay = 1
     @AppStorage("userName") private var userName = ""
+    // Synced by StoreKitManager.checkEntitlements() on every launch
     @AppStorage("isPremium") private var isPremium = false
     @AppStorage("dailyReminderEnabled") private var dailyReminderEnabled = false
     @AppStorage("dailyReminderHour") private var dailyReminderHour = 20
@@ -269,13 +270,13 @@ struct SettingsPlaceholderView: View {
             if isPremium || storeKit.isPremium {
                 HStack {
                     Image(systemName: "checkmark.seal.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(BudgetVaultTheme.positive)
                     Text("BudgetVault Premium")
                         .font(.subheadline.bold())
                     Spacer()
                     Text("Active")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(BudgetVaultTheme.positive)
                 }
             } else {
                 Button {
@@ -283,7 +284,7 @@ struct SettingsPlaceholderView: View {
                 } label: {
                     HStack {
                         Image(systemName: "star.fill")
-                            .foregroundStyle(.yellow)
+                            .foregroundStyle(BudgetVaultTheme.caution)
                         Text("Upgrade to Premium")
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -342,7 +343,7 @@ struct SettingsPlaceholderView: View {
                 if let error = cloudSync.syncError {
                     Text(error)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(BudgetVaultTheme.negative)
                 }
             }
 
@@ -368,6 +369,7 @@ struct SettingsPlaceholderView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // TODO: Replace with actual App Store URL after submission
             ShareLink(item: URL(string: "https://apps.apple.com/app/budgetvault/id000000000")!,
                        subject: Text("BudgetVault"),
                        message: Text("I use BudgetVault to manage my budget \u{2014} private, on-device, and no subscription. Check it out!")) {
@@ -403,13 +405,17 @@ struct SettingsPlaceholderView: View {
         }
     }
 
-    private func formatHour(_ hour: Int) -> String {
+    private static let hourFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+
+    private func formatHour(_ hour: Int) -> String {
         var components = DateComponents()
         components.hour = hour
         components.minute = 0
         guard let date = Calendar.current.date(from: components) else { return "\(hour):00" }
-        return formatter.string(from: date)
+        return Self.hourFormatter.string(from: date)
     }
 }

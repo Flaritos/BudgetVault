@@ -78,6 +78,9 @@ struct NumberPadView: View {
             return
         }
 
+        // Cap at 10 characters to prevent absurd values (up to $99,999,999.99)
+        if text.count >= 10 { return }
+
         text.append(key)
     }
 

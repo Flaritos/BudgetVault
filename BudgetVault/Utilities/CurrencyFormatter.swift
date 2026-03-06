@@ -3,8 +3,8 @@ import SwiftUI
 
 struct CurrencyFormatter {
 
-    private static var cachedFormatter: NumberFormatter?
-    private static var cachedCurrencyCode: String?
+    private nonisolated(unsafe) static var cachedFormatter: NumberFormatter?
+    private nonisolated(unsafe) static var cachedCurrencyCode: String?
 
     private static func formatter(for currencyCode: String) -> NumberFormatter {
         let code = currencyCode.isEmpty ? (UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD") : currencyCode

@@ -56,6 +56,13 @@ struct RecurringExpenseListView: View {
                 }
                 .accessibilityLabel("Add recurring expense")
             }
+            if !isPremium {
+                ToolbarItem(placement: .bottomBar) {
+                    Text("\(activeExpenses.count)/3 active")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .sheet(isPresented: $showForm) {
             RecurringExpenseFormView(expense: nil)
@@ -65,6 +72,14 @@ struct RecurringExpenseListView: View {
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
+        }
+        .onChange(of: isPremium) { _, newValue in
+            if newValue && showPaywall {
+                showPaywall = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showForm = true
+                }
+            }
         }
     }
 
@@ -85,7 +100,7 @@ struct RecurringExpenseListView: View {
                                 expense.isActive = false
                                 SafeSave.save(modelContext)
                             }
-                            .tint(.orange)
+                            .tint(BudgetVaultTheme.caution)
                         }
                     }
                 }
@@ -114,7 +129,7 @@ struct RecurringExpenseListView: View {
                                 expense.isActive = true
                                 SafeSave.save(modelContext)
                             }
-                            .tint(.green)
+                            .tint(BudgetVaultTheme.positive)
                         }
                     }
                 }

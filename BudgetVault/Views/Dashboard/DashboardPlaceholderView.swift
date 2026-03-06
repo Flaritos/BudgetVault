@@ -6,7 +6,8 @@ struct DashboardPlaceholderView: View {
     @AppStorage("resetDay") private var resetDay = 1
     @AppStorage("currentStreak") private var currentStreak = 0
 
-    @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
+    @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
+    // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @Query(sort: \RecurringExpense.nextDueDate) private var recurringExpenses: [RecurringExpense]
 
@@ -45,10 +46,10 @@ struct DashboardPlaceholderView: View {
 
     private var recentTransactions: [Transaction] {
         guard let budget = currentBudget else { return [] }
-        return allTransactions
+        return Array(allTransactions
+            .lazy
             .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
-            .prefix(5)
-            .map { $0 }
+            .prefix(5))
     }
 
     var body: some View {
@@ -59,8 +60,7 @@ struct DashboardPlaceholderView: View {
                         EmptyStateView(
                             icon: "dollarsign.circle",
                             title: "Set Your Income",
-                            message: "Set your monthly income in the Budget tab to get started.",
-                            actionLabel: "Set Up Budget"
+                            message: "Set your monthly income in the Budget tab to get started."
                         )
                     } else if visibleCategories.isEmpty && recentTransactions.isEmpty {
                         EmptyStateView(
@@ -160,6 +160,7 @@ struct DashboardPlaceholderView: View {
                     }
                     .tint(.primary)
                     .padding(.horizontal)
+                    .accessibilityLabel("Monthly summary for \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) is ready. Tap to view.")
                 }
 
                 // Hero budget card
@@ -211,6 +212,7 @@ struct DashboardPlaceholderView: View {
                     }
                     .tint(.primary)
                     .padding(.horizontal)
+                    .accessibilityLabel("Unlock Premium Insights. Track trends, compare months, and more.")
                 }
             }
             .padding(.bottom, 80) // space for FAB
@@ -480,6 +482,7 @@ struct DashboardPlaceholderView: View {
                     }
                 }
                 .padding(.horizontal)
+                .accessibilityElement(children: .combine)
             }
         }
     }
@@ -514,11 +517,4 @@ struct DashboardPlaceholderView: View {
         return max(calendar.dateComponents([.day], from: today, to: end).day ?? 1, 1)
     }
 
-    private func statusSwiftUIColor(_ name: String) -> Color {
-        switch name {
-        case "green": BudgetVaultTheme.positive
-        case "yellow": BudgetVaultTheme.caution
-        default: BudgetVaultTheme.negative
-        }
-    }
 }

@@ -6,6 +6,7 @@ struct ContentView: View {
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
     @AppStorage("hasLoggedFirstTransaction") private var hasLoggedFirstTransaction = false
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var authService = BiometricAuthService()
 
     var body: some View {
@@ -23,6 +24,11 @@ struct ContentView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
                 }
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background && biometricLockEnabled {
+                authService.isAuthenticated = false
             }
         }
     }

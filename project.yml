@@ -23,6 +23,7 @@ targets:
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: BudgetVault/BudgetVault.entitlements
     info:
       path: BudgetVault/Info.plist
       properties:
@@ -36,6 +37,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations~iphone:
           - UIInterfaceOrientationPortrait
+        NSFaceIDUsageDescription: "BudgetVault uses Face ID to protect your financial data."
         SKAdNetworkItems:
           - SKAdNetworkIdentifier: YXJlcGIud.skadnetwork
     dependencies:
@@ -60,3 +62,4 @@ targets:
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: BudgetVaultWidget/BudgetVaultWidget.entitlements

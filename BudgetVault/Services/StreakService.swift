@@ -32,18 +32,13 @@ enum StreakService {
             if lastLogDate != yesterdayStr {
                 // Missed yesterday
                 if freezes > 0 {
-                    // Use freeze — preserve streak
+                    // Use freeze -- preserve streak
                     freezes -= 1
                     UserDefaults.standard.set(freezes, forKey: "streakFreezesRemaining")
                 } else {
-                    // No freeze — check if we missed more than 1 day (streak broken)
-                    let daysBefore2 = calendar.date(byAdding: .day, value: -2, to: today)!
-                    let daysBefore2Str = DateHelpers.dateString(daysBefore2)
-                    if lastLogDate != yesterdayStr && lastLogDate != daysBefore2Str {
-                        // Streak is broken
-                        streak = 0
-                        UserDefaults.standard.set(streak, forKey: "currentStreak")
-                    }
+                    // No freeze -- streak is broken
+                    streak = 0
+                    UserDefaults.standard.set(streak, forKey: "currentStreak")
                 }
             }
         }

@@ -8,6 +8,7 @@ struct TransactionEntryView: View {
     let budget: Budget
     let categories: [Category]
 
+    // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
     @Query(sort: \Transaction.date, order: .reverse) private var allRecentTransactions: [Transaction]
 
     @State private var amountText = ""
@@ -162,7 +163,7 @@ struct TransactionEntryView: View {
                 if showSavedBanner {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(BudgetVaultTheme.positive)
                         Text("Saved!")
                             .font(.subheadline.bold())
                     }

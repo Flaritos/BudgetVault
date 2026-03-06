@@ -161,6 +161,7 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var id: UUID = UUID()
         var amountCents: Int64 = 0
         var note: String = ""
+        // TODO: iOS 18 - Add @Attribute(.index) for query performance
         var date: Date = Date.now
         var isIncome: Bool = false
         var isRecurring: Bool = false

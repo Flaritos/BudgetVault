@@ -170,7 +170,7 @@ struct MonthlySummaryView: View {
 
             Text("Under budget in \(underBudgetCount)/\(categories.count) categories")
                 .font(.caption)
-                .foregroundStyle(delta >= 0 ? .green : .red)
+                .foregroundStyle(delta >= 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
 
             if !topCategories.isEmpty {
                 Divider()
@@ -195,6 +195,7 @@ struct MonthlySummaryView: View {
         .padding(24)
         .frame(width: 300)
         .background(.white, in: RoundedRectangle(cornerRadius: 16))
+        .environment(\.colorScheme, .light)
         .accessibilityLabel("Achievement card: stayed under budget in \(underBudgetCount) of \(categories.count) categories for \(DateHelpers.monthYearString(month: budget.month, year: budget.year))")
     }
 }

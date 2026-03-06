@@ -5,7 +5,8 @@ struct HistoryPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("resetDay") private var resetDay = 1
 
-    @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
+    @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
+    // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var searchText = ""
@@ -38,8 +39,9 @@ struct HistoryPlaceholderView: View {
     private var filteredTransactions: [Transaction] {
         guard let budget = currentBudget else { return [] }
 
-        var transactions = allTransactions
-            .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
+        var transactions = Array(allTransactions
+            .lazy
+            .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart })
 
         switch filterMode {
         case .all: break
@@ -73,8 +75,8 @@ struct HistoryPlaceholderView: View {
         var lines = ["Date,Category,Note,Amount,Type"]
         for tx in filteredTransactions.sorted(by: { $0.date < $1.date }) {
             let dateStr = tx.date.formatted(date: .numeric, time: .omitted)
-            let cat = tx.category?.name ?? ""
-            let note = tx.note.replacingOccurrences(of: ",", with: ";")
+            let cat = Self.csvEscape(tx.category?.name ?? "")
+            let note = Self.csvEscape(tx.note)
             let amount = String(format: "%.2f", Double(tx.amountCents) / 100.0)
             let type = tx.isIncome ? "Income" : "Expense"
             lines.append("\(dateStr),\(cat),\(note),\(amount),\(type)")
@@ -239,6 +241,13 @@ struct HistoryPlaceholderView: View {
             viewingMonth = m
             viewingYear = y
         }
+    }
+
+    private static func csvEscape(_ field: String) -> String {
+        if field.contains(",") || field.contains("\"") || field.contains("\n") {
+            return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
+        return field
     }
 
     private func daySubtotal(_ transactions: [Transaction]) -> String {

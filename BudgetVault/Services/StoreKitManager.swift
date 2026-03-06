@@ -4,6 +4,7 @@ import SwiftUI
 private typealias StoreTransaction = StoreKit.Transaction
 
 @Observable
+@MainActor
 final class StoreKitManager {
 
     static let premiumProductID = "com.budgetvault.premium"
@@ -17,6 +18,7 @@ final class StoreKitManager {
     var isPremium = false
     var purchaseState: PurchaseState = .idle
     var errorMessage: String?
+    var productLoadError: String?
 
     enum PurchaseState {
         case idle, loading, success, error
@@ -34,7 +36,7 @@ final class StoreKitManager {
         products.first { $0.id == Self.tipProductID }
     }
 
-    private var updateTask: Task<Void, Never>?
+    private nonisolated(unsafe) var updateTask: Task<Void, Never>?
 
     init() {
         updateTask = Task { [weak self] in
@@ -54,16 +56,26 @@ final class StoreKitManager {
     // MARK: - Load Products
 
     func loadProducts() async {
+        productLoadError = nil
         do {
             products = try await Product.products(for: [Self.premiumProductID, Self.tipProductID])
+            if products.isEmpty {
+                productLoadError = "Unable to load products. Check your connection."
+            }
         } catch {
             print("Failed to load products: \(error)")
+            productLoadError = "Unable to load products. Check your connection."
+        }
+    }
+
+    func retryLoadProducts() {
+        Task {
+            await loadProducts()
         }
     }
 
     // MARK: - Purchase
 
-    @MainActor
     func purchase(_ product: Product) async {
         purchaseState = .loading
         errorMessage = nil
@@ -99,7 +111,6 @@ final class StoreKitManager {
 
     // MARK: - Restore
 
-    @MainActor
     func restorePurchases() async {
         do {
             try await AppStore.sync()
@@ -111,7 +122,6 @@ final class StoreKitManager {
 
     // MARK: - Entitlements
 
-    @MainActor
     func checkEntitlements() async {
         var hasPremium = false
 

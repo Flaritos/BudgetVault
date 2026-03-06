@@ -18,14 +18,37 @@ enum RecurringExpenseScheduler {
 
         guard let overdueExpenses = try? context.fetch(descriptor) else { return 0 }
 
+        // Fetch the current-period budget to resolve categories against
+        let resetDay = max(1, min(UserDefaults.standard.integer(forKey: "resetDay"), 28))
+        let currentPeriod = DateHelpers.budgetPeriod(containing: today, resetDay: resetDay)
+        let cm = currentPeriod.0
+        let cy = currentPeriod.1
+        let currentBudgetDescriptor = FetchDescriptor<Budget>(
+            predicate: #Predicate<Budget> { $0.month == cm && $0.year == cy }
+        )
+        let currentBudget = try? context.fetch(currentBudgetDescriptor).first
+
         for expense in overdueExpenses {
             while expense.nextDueDate <= today && transactionsCreated < maxPerLaunch {
+                // H1: Resolve category to the current budget period
+                var resolvedCategory = expense.category
+                if let cat = resolvedCategory, cat.budget?.id != currentBudget?.id {
+                    // Category belongs to an old budget — find equivalent in current budget by name
+                    if let match = currentBudget?.categories.first(where: { $0.name == cat.name }) {
+                        resolvedCategory = match
+                    } else {
+                        // No matching category in current budget — skip this posting
+                        expense.advanceNextDueDate()
+                        continue
+                    }
+                }
+
                 let transaction = Transaction(
                     amountCents: expense.amountCents,
                     note: expense.name,
                     date: expense.nextDueDate,
                     isIncome: false,
-                    category: expense.category
+                    category: resolvedCategory
                 )
                 transaction.isRecurring = true
                 transaction.recurringExpense = expense

@@ -145,7 +145,7 @@ enum CSVImporter {
                 category = newCat
             }
 
-            let cents = Int64(row.amount * 100)
+            let cents = Int64((row.amount * 100).rounded())
             let tx = Transaction(amountCents: cents, note: row.note, date: row.date, isIncome: row.isIncome, category: category)
             context.insert(tx)
             txCount += 1

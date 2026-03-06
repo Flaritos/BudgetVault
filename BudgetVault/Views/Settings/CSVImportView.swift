@@ -108,7 +108,7 @@ struct CSVImportView: View {
             }
 
             Section("Preview (first 5 rows)") {
-                ForEach(parsedRows.prefix(5), id: \.note) { row in
+                ForEach(Array(parsedRows.prefix(5).enumerated()), id: \.offset) { _, row in
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(row.category)
@@ -116,7 +116,7 @@ struct CSVImportView: View {
                             Spacer()
                             Text(String(format: "$%.2f", row.amount))
                                 .font(.subheadline)
-                                .foregroundStyle(row.isIncome ? .green : .primary)
+                                .foregroundStyle(row.isIncome ? BudgetVaultTheme.positive : .primary)
                         }
                         HStack {
                             Text(row.note)
@@ -199,7 +199,7 @@ struct CSVImportView: View {
             Spacer()
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.green)
+                .foregroundStyle(BudgetVaultTheme.positive)
             Text("Import Complete")
                 .font(.title2.bold())
             if let result = importResult {

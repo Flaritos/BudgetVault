@@ -16,6 +16,22 @@ final class CloudSyncService {
         ) { [weak self] notification in
             self?.handleSyncEvent(notification)
         }
+
+        // M13: SwiftData's CloudKit integration fires this notification reliably
+        NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleRemoteChange()
+        }
+    }
+
+    private func handleRemoteChange() {
+        // Mark sync as completed when we receive remote changes
+        lastSyncDate = Date()
+        isSyncing = false
+        syncError = nil
     }
 
     private func handleSyncEvent(_ notification: Notification) {
