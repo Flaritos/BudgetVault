@@ -27,26 +27,33 @@ struct MonthlySummaryView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     // Header
-                    Text(DateHelpers.monthYearString(month: budget.month, year: budget.year))
-                        .font(.title.bold())
+                    VStack(spacing: 16) {
+                        Text(DateHelpers.monthYearString(month: budget.month, year: budget.year))
+                            .font(.title.bold())
+                            .foregroundStyle(.white)
 
-                    // Income vs Spent
-                    HStack(spacing: 32) {
-                        VStack {
-                            Text("Income")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(CurrencyFormatter.format(cents: budget.totalIncomeCents))
-                                .font(.system(.title3, design: .rounded).bold())
-                        }
-                        VStack {
-                            Text("Spent")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(CurrencyFormatter.format(cents: totalSpent))
-                                .font(.system(.title3, design: .rounded).bold())
+                        HStack(spacing: 32) {
+                            VStack {
+                                Text("Income")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.7))
+                                Text(CurrencyFormatter.format(cents: budget.totalIncomeCents))
+                                    .font(.system(.title3, design: .rounded).bold())
+                                    .foregroundStyle(.white)
+                            }
+                            VStack {
+                                Text("Spent")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.7))
+                                Text(CurrencyFormatter.format(cents: totalSpent))
+                                    .font(.system(.title3, design: .rounded).bold())
+                                    .foregroundStyle(.white)
+                            }
                         }
                     }
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: .infinity)
+                    .background(BudgetVaultTheme.heroBrandGradient)
 
                     // Delta
                     HStack {
@@ -129,27 +136,63 @@ struct MonthlySummaryView: View {
         return Image(systemName: "square")
     }
 
+    private var topCategories: [Category] {
+        categories
+            .sorted { $0.spentCents(in: budget) > $1.spentCents(in: budget) }
+            .filter { $0.spentCents(in: budget) > 0 }
+            .prefix(5)
+            .map { $0 }
+    }
+
     private var shareCardView: some View {
         VStack(spacing: 12) {
             Image(systemName: "vault.fill")
                 .font(.system(size: 32))
                 .foregroundStyle(.blue)
 
-            Text("I stayed under budget in \(underBudgetCount)/\(categories.count) categories!")
-                .font(.headline)
-                .multilineTextAlignment(.center)
-
             Text(DateHelpers.monthYearString(month: budget.month, year: budget.year))
+                .font(.title3.bold())
+
+            HStack(spacing: 24) {
+                VStack {
+                    Text("Income")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(CurrencyFormatter.format(cents: budget.totalIncomeCents))
+                        .font(.subheadline.bold())
+                }
+                VStack {
+                    Text("Spent")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(CurrencyFormatter.format(cents: totalSpent))
+                        .font(.subheadline.bold())
+                }
+            }
+
+            Text("Under budget in \(underBudgetCount)/\(categories.count) categories")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(delta >= 0 ? .green : .red)
 
-            Text("BudgetVault")
+            if !topCategories.isEmpty {
+                Divider()
+                ForEach(topCategories, id: \.id) { cat in
+                    HStack {
+                        Text(cat.emoji)
+                        Text(cat.name)
+                            .font(.caption)
+                        Spacer()
+                        Text(CurrencyFormatter.format(cents: cat.spentCents(in: budget)))
+                            .font(.caption.bold())
+                    }
+                }
+            }
+
+            Divider()
+
+            Text("Tracked with BudgetVault")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-
-            Text("https://budgetvault.com")
-                .font(.caption2)
-                .foregroundStyle(.blue)
         }
         .padding(24)
         .frame(width: 300)

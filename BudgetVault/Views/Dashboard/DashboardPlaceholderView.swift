@@ -226,55 +226,58 @@ struct DashboardPlaceholderView: View {
         let daysRemaining = daysRemainingInPeriod(budget: budget)
         let dailyAllowanceCents = budget.remainingCents > 0 ? budget.remainingCents / Int64(max(daysRemaining, 1)) : 0
 
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 12) {
-                Text(CurrencyFormatter.format(cents: budget.remainingCents))
-                    .font(BudgetVaultTheme.heroAmount)
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText())
-
-                Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.8))
-
-                Text("You can spend \(CurrencyFormatter.format(cents: dailyAllowanceCents))/day")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.9))
-
-                ProgressView(value: dayProgressFraction(budget: budget))
-                    .tint(.white)
-                    .padding(.horizontal, 24)
-
-                Text(budgetDayProgress(budget: budget))
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-
-                // Status badge
-                Text(status)
-                    .font(.caption.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(.white.opacity(0.2), in: Capsule())
-            }
-            .padding(.vertical, 24)
-            .frame(maxWidth: .infinity)
-
-            // Streak badge
+        VStack(spacing: 12) {
+            // Streak badge row
             if currentStreak > 0 {
-                HStack(spacing: 2) {
-                    Text("\u{1F525}")
-                    Text("\(currentStreak)")
-                        .font(.caption.bold())
-                        .foregroundStyle(.white)
+                HStack {
+                    Spacer()
+                    HStack(spacing: 2) {
+                        Text("\u{1F525}")
+                        Text("\(currentStreak)")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.white.opacity(0.2), in: Capsule())
+                    .accessibilityLabel("Logging streak: \(currentStreak) days")
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(.white.opacity(0.2), in: Capsule())
-                .padding(16)
-                .accessibilityLabel("Logging streak: \(currentStreak) days")
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
             }
+
+            Text(CurrencyFormatter.format(cents: budget.remainingCents))
+                .font(BudgetVaultTheme.heroAmount)
+                .foregroundStyle(.white)
+                .contentTransition(.numericText())
+                .padding(.top, currentStreak > 0 ? 0 : 24)
+
+            Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.8))
+
+            Text("You can spend \(CurrencyFormatter.format(cents: dailyAllowanceCents))/day")
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.white.opacity(0.9))
+
+            ProgressView(value: dayProgressFraction(budget: budget))
+                .tint(.white)
+                .padding(.horizontal, 24)
+
+            Text(budgetDayProgress(budget: budget))
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+
+            // Status badge
+            Text(status)
+                .font(.caption.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.2), in: Capsule())
+                .padding(.bottom, 24)
         }
+        .frame(maxWidth: .infinity)
         .background(BudgetVaultTheme.budgetGradient(for: pct))
         .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL, style: .continuous))
         .shadow(color: .black.opacity(0.15), radius: 16, y: 8)

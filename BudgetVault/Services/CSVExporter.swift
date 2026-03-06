@@ -34,4 +34,29 @@ enum CSVExporter {
         try? csv.write(to: tempURL, atomically: true, encoding: .utf8)
         return tempURL
     }
+
+    static func exportBudgetTemplate(budget: Budget) -> String {
+        let categories = budget.categories
+            .filter { !$0.isHidden }
+            .sorted { $0.sortOrder < $1.sortOrder }
+
+        var lines = [
+            "# Shared from BudgetVault - budgetvault.app",
+            "Category,Emoji,Percentage"
+        ]
+
+        let totalIncome = budget.totalIncomeCents
+        for cat in categories {
+            let pct: Double
+            if totalIncome > 0 {
+                pct = Double(cat.budgetedAmountCents) / Double(totalIncome) * 100.0
+            } else {
+                pct = 0
+            }
+            let name = cat.name.replacingOccurrences(of: "\"", with: "\"\"")
+            lines.append("\"\(name)\",\"\(cat.emoji)\",\(String(format: "%.1f", pct))%")
+        }
+
+        return lines.joined(separator: "\n")
+    }
 }

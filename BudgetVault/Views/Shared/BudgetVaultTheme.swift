@@ -1,8 +1,26 @@
 import SwiftUI
 
 enum BudgetVaultTheme {
+    // MARK: - Brand Colors
+    static let navyDark = Color(hex: "#0F1B33")
+    static let navyMid = Color(hex: "#1A2744")
+    static let electricBlue = Color(hex: "#2563EB")
+    static let brightBlue = Color(hex: "#3B82F6")
+
+    static let brandGradient = LinearGradient(
+        colors: [navyDark, electricBlue],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let heroBrandGradient = LinearGradient(
+        colors: [navyDark, brightBlue],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     // MARK: - Gradients
-    static let healthyGradient: [Color] = [Color(hex: "#34D399"), Color(hex: "#059669")]
+    static let healthyGradient: [Color] = [navyDark, electricBlue]
     static let warningGradient: [Color] = [Color(hex: "#FBBF24"), Color(hex: "#D97706")]
     static let dangerGradient: [Color] = [Color(hex: "#F87171"), Color(hex: "#DC2626")]
     static let premiumGradient: [Color] = [Color(hex: "#818CF8"), Color(hex: "#6366F1")]

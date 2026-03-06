@@ -324,6 +324,12 @@ struct SettingsPlaceholderView: View {
                     .foregroundStyle(.secondary)
             }
 
+            ShareLink(item: URL(string: "https://apps.apple.com/app/budgetvault/id000000000")!,
+                       subject: Text("BudgetVault"),
+                       message: Text("I use BudgetVault to manage my budget \u{2014} private, on-device, and no subscription. Check it out!")) {
+                Label("Share BudgetVault", systemImage: "heart.fill")
+            }
+
             Link(destination: URL(string: "https://budgetvault.app/privacy")!) {
                 Label("Privacy Policy", systemImage: "hand.raised.fill")
             }

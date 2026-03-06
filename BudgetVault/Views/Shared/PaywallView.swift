@@ -30,30 +30,35 @@ struct PaywallView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // App icon
-                    Image(systemName: "vault.fill")
-                        .font(.system(size: 60))
-                        .foregroundStyle(Color.accentColor)
-                        .padding(.top, 24)
+                    // Hero header
+                    VStack(spacing: 12) {
+                        Image(systemName: "vault.fill")
+                            .font(.system(size: 60))
+                            .foregroundStyle(.white)
+                            .padding(.top, 32)
 
-                    Text("Unlock BudgetVault Premium")
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
+                        Text("Unlock BudgetVault Premium")
+                            .font(.title2.bold())
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
 
-                    // Launch pricing banner
-                    if storeKit.isLaunchPricing {
-                        VStack(spacing: 4) {
-                            Text("Launch Special: \(displayPrice) — limited time")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.white)
-                            Text("\(daysRemaining) days left at this price")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.9))
+                        if storeKit.isLaunchPricing {
+                            VStack(spacing: 4) {
+                                Text("Launch Special: \(displayPrice) — limited time")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.white)
+                                Text("\(daysRemaining) days left at this price")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.9))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(.white.opacity(0.2), in: Capsule())
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.orange, in: Capsule())
                     }
+                    .padding(.bottom, 24)
+                    .frame(maxWidth: .infinity)
+                    .background(BudgetVaultTheme.brandGradient)
 
                     // Save vs subscriptions callout
                     HStack(spacing: 6) {

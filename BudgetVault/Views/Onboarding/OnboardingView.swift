@@ -15,6 +15,10 @@ struct OnboardingView: View {
     @State private var selectedTemplate: BudgetTemplate = .single
     @State private var selectedCategories: [(name: String, emoji: String, color: String, pct: Double)] = BudgetTemplate.single.categories
     @State private var budgetCreated = false
+    @State private var showCelebrationCheck = false
+    @State private var stepIconScales: [Int: CGFloat] = [:]
+
+    private let totalPages = 7
 
     // MARK: - Budget Templates
 
@@ -75,7 +79,8 @@ struct OnboardingView: View {
             currencyPage.tag(2)
             templatePage.tag(3)
             budgetSetupPage.tag(4)
-            notificationPage.tag(5)
+            celebrationPage.tag(5)
+            notificationPage.tag(6)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .indexViewStyle(.page(backgroundDisplayMode: .always))
@@ -83,81 +88,136 @@ struct OnboardingView: View {
         .onAppear { tempCurrency = selectedCurrency }
     }
 
+    // MARK: - Brand Overlay
+
+    private var subtleTopGradient: some View {
+        VStack {
+            LinearGradient(
+                colors: [BudgetVaultTheme.navyDark.opacity(0.05), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 120)
+            .allowsHitTesting(false)
+            Spacer()
+        }
+        .ignoresSafeArea()
+    }
+
     // MARK: - Page 0: Welcome + Privacy
 
     private var welcomePage: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        ZStack {
+            BudgetVaultTheme.brandGradient
+                .ignoresSafeArea()
 
-            Image(systemName: "vault.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(Color.accentColor)
+            VStack(spacing: 24) {
+                Spacer()
 
-            Text("Welcome to BudgetVault")
-                .font(.largeTitle.bold())
-                .multilineTextAlignment(.center)
+                Image(systemName: "vault.fill")
+                    .font(.system(size: 100, weight: .light))
+                    .foregroundStyle(.white.opacity(0.95))
+                    .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
 
-            Text("Your budget stays on your device. No accounts, no servers, no tracking.")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                Text("Welcome to BudgetVault")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
 
-            Spacer()
+                Text("Your budget. Your device. No one else.")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.75))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
 
-            Button {
-                withAnimation { currentPage = 1 }
-            } label: {
-                Text("Get Started")
+                Spacer()
+
+                Button {
+                    withAnimation { currentPage = 1 }
+                } label: {
+                    Text("Get Started")
+                        .font(.headline)
+                        .foregroundStyle(BudgetVaultTheme.electricBlue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
             }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
         }
     }
 
     // MARK: - Page 1: Envelope Explainer
 
     private var envelopeExplainerPage: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        ZStack {
+            subtleTopGradient
 
-            Image(systemName: "tray.2.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(Color.accentColor)
-                .symbolEffect(.pulse)
-
-            Text("Envelope Budgeting")
-                .font(.title2.bold())
-
-            VStack(alignment: .leading, spacing: 16) {
-                explainerStep(number: "1", text: "Divide your income into spending categories")
-                explainerStep(number: "2", text: "Spend from each envelope throughout the month")
-                explainerStep(number: "3", text: "When an envelope is empty, stop or move money")
+            VStack {
+                LinearGradient(
+                    colors: [BudgetVaultTheme.navyDark.opacity(0.08), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: UIScreen.main.bounds.height * 0.3)
+                .allowsHitTesting(false)
+                Spacer()
             }
-            .padding(.horizontal, 32)
+            .ignoresSafeArea()
 
-            Text("It's the method behind YNAB, used by millions \u{2014} now private and on your device.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 24) {
+                Spacer()
+
+                Image(systemName: "tray.2.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(BudgetVaultTheme.electricBlue)
+                    .symbolEffect(.pulse)
+
+                Text("Envelope Budgeting")
+                    .font(.title2.bold())
+
+                VStack(alignment: .leading, spacing: 16) {
+                    explainerStep(number: "1", text: "Divide your income into spending categories", index: 0)
+                    explainerStep(number: "2", text: "Spend from each envelope throughout the month", index: 1)
+                    explainerStep(number: "3", text: "When an envelope is empty, stop or move money", index: 2)
+                }
                 .padding(.horizontal, 32)
+                .onAppear {
+                    for i in 0..<3 {
+                        stepIconScales[i] = 0.3
+                    }
+                    for i in 0..<3 {
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.6).delay(Double(i) * 0.15)) {
+                            stepIconScales[i] = 1.0
+                        }
+                    }
+                }
 
-            Spacer()
+                Text("It's the method behind YNAB, used by millions \u{2014} now private and on your device.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
 
-            Button { withAnimation { currentPage = 2 } } label: { Text("Continue") }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                Spacer()
+
+                Button { withAnimation { currentPage = 2 } } label: { Text("Continue") }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 40)
+            }
         }
     }
 
-    private func explainerStep(number: String, text: String) -> some View {
+    private func explainerStep(number: String, text: String, index: Int) -> some View {
         HStack(spacing: 12) {
             Text(number)
                 .font(.headline)
+                .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
-                .background(Color.accentColor.opacity(0.15), in: Circle())
+                .background(BudgetVaultTheme.electricBlue, in: Circle())
+                .scaleEffect(stepIconScales[index] ?? 1.0)
             Text(text)
                 .font(.subheadline)
         }
@@ -166,245 +226,345 @@ struct OnboardingView: View {
     // MARK: - Page 2: Currency
 
     private var currencyPage: some View {
-        VStack(spacing: 16) {
-            Text("Choose Your Currency")
-                .font(.title2.bold())
-                .padding(.top, 32)
+        ZStack {
+            subtleTopGradient
 
-            CurrencyPickerView(selectedCurrency: $tempCurrency)
+            VStack(spacing: 16) {
+                Text("Choose Your Currency")
+                    .font(.title2.bold())
+                    .padding(.top, 32)
 
-            Button {
-                selectedCurrency = tempCurrency
-                withAnimation { currentPage = 3 }
-            } label: {
-                Text("Continue")
+                CurrencyPickerView(selectedCurrency: $tempCurrency)
+
+                Button {
+                    selectedCurrency = tempCurrency
+                    withAnimation { currentPage = 3 }
+                } label: {
+                    Text("Continue")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
             }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
         }
     }
 
     // MARK: - Page 3: Template Selection + Category Customization
 
     private var templatePage: some View {
-        VStack(spacing: 16) {
-            Text("Choose a Template")
-                .font(.title2.bold())
-                .padding(.top, 32)
+        ZStack {
+            subtleTopGradient
 
-            Text("Pick a starting point, then customize your categories.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+            VStack(spacing: 16) {
+                Text("Choose a Template")
+                    .font(.title2.bold())
+                    .padding(.top, 32)
 
-            // Template grid
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(BudgetTemplate.allCases, id: \.rawValue) { template in
-                    Button {
-                        selectedTemplate = template
-                        selectedCategories = template.categories
-                    } label: {
-                        VStack(spacing: 8) {
-                            Image(systemName: template.icon)
-                                .font(.title2)
-                            Text(template.rawValue)
-                                .font(.subheadline.bold())
+                Text("Pick a starting point, then customize your categories.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(BudgetTemplate.allCases, id: \.rawValue) { template in
+                        let isSelected = selectedTemplate == template
+                        Button {
+                            selectedTemplate = template
+                            selectedCategories = template.categories
+                        } label: {
+                            VStack(spacing: 8) {
+                                Image(systemName: template.icon)
+                                    .font(.title2)
+                                Text(template.rawValue)
+                                    .font(.subheadline.bold())
+
+                                if !template.categories.isEmpty {
+                                    HStack(spacing: 2) {
+                                        ForEach(template.categories.indices, id: \.self) { i in
+                                            let cat = template.categories[i]
+                                            RoundedRectangle(cornerRadius: 2)
+                                                .fill(Color(hex: cat.color))
+                                                .frame(width: max(4, CGFloat(cat.pct) * 80), height: 6)
+                                        }
+                                    }
+                                    .padding(.top, 2)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(isSelected ? BudgetVaultTheme.electricBlue.opacity(0.1) : Color(.secondarySystemBackground))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(isSelected ? BudgetVaultTheme.electricBlue : Color.clear, lineWidth: 2)
+                            )
+                            .shadow(color: isSelected ? BudgetVaultTheme.electricBlue.opacity(0.3) : Color.clear, radius: 8, y: 2)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(selectedTemplate == template ? Color.accentColor.opacity(0.15) : Color(.secondarySystemBackground))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(selectedTemplate == template ? Color.accentColor : Color.clear, lineWidth: 2)
-                        )
+                        .foregroundStyle(isSelected ? BudgetVaultTheme.electricBlue : .primary)
                     }
-                    .foregroundStyle(selectedTemplate == template ? Color.accentColor : .primary)
                 }
-            }
-            .padding(.horizontal, 24)
+                .padding(.horizontal, 24)
 
-            // Category list
-            if !selectedCategories.isEmpty {
-                List {
-                    ForEach(selectedCategories.indices, id: \.self) { index in
-                        HStack(spacing: 12) {
-                            Text(selectedCategories[index].emoji)
-                                .font(.title3)
-                            TextField("Category name", text: Binding(
-                                get: { selectedCategories[index].name },
-                                set: { selectedCategories[index].name = $0 }
-                            ))
-                            .textFieldStyle(.plain)
-                            Spacer()
-                            Text("\(Int(selectedCategories[index].pct * 100))%")
-                                .foregroundStyle(.secondary)
-                                .font(.subheadline)
+                if !selectedCategories.isEmpty {
+                    List {
+                        ForEach(selectedCategories.indices, id: \.self) { index in
+                            HStack(spacing: 12) {
+                                Text(selectedCategories[index].emoji)
+                                    .font(.title3)
+                                TextField("Category name", text: Binding(
+                                    get: { selectedCategories[index].name },
+                                    set: { selectedCategories[index].name = $0 }
+                                ))
+                                .textFieldStyle(.plain)
+                                Spacer()
+                                Text("\(Int(selectedCategories[index].pct * 100))%")
+                                    .foregroundStyle(.secondary)
+                                    .font(.subheadline)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    selectedCategories.remove(at: index)
+                                } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
+                            }
                         }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                selectedCategories.remove(at: index)
-                            } label: {
-                                Label("Remove", systemImage: "trash")
+
+                        Button {
+                            selectedCategories.append(("New Category", "\u{1F4E6}", "#8E8E93", 0.05))
+                        } label: {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                Text("Add Category")
+                                    .foregroundStyle(Color.accentColor)
                             }
                         }
                     }
-
-                    Button {
-                        selectedCategories.append(("New Category", "\u{1F4E6}", "#8E8E93", 0.05))
-                    } label: {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(Color.accentColor)
-                            Text("Add Category")
-                                .foregroundStyle(Color.accentColor)
+                    .listStyle(.plain)
+                } else {
+                    List {
+                        Button {
+                            selectedCategories.append(("New Category", "\u{1F4E6}", "#8E8E93", 0.05))
+                        } label: {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                Text("Add Category")
+                                    .foregroundStyle(Color.accentColor)
+                            }
                         }
                     }
+                    .listStyle(.plain)
                 }
-                .listStyle(.plain)
-            } else {
-                // Custom template with empty list
-                List {
-                    Button {
-                        selectedCategories.append(("New Category", "\u{1F4E6}", "#8E8E93", 0.05))
-                    } label: {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(Color.accentColor)
-                            Text("Add Category")
-                                .foregroundStyle(Color.accentColor)
-                        }
-                    }
-                }
-                .listStyle(.plain)
-            }
 
-            Button {
-                withAnimation { currentPage = 4 }
-            } label: {
-                Text("Continue")
+                Button {
+                    withAnimation { currentPage = 4 }
+                } label: {
+                    Text("Continue")
+                }
+                .buttonStyle(PrimaryButtonStyle(isEnabled: !selectedCategories.isEmpty))
+                .disabled(selectedCategories.isEmpty)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
             }
-            .buttonStyle(PrimaryButtonStyle(isEnabled: !selectedCategories.isEmpty))
-            .disabled(selectedCategories.isEmpty)
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
         }
     }
 
     // MARK: - Page 4: Income Entry + Preview
 
     private var budgetSetupPage: some View {
-        VStack(spacing: 24) {
-            Text("Set Your Monthly Income")
-                .font(.title2.bold())
-                .padding(.top, 32)
+        ZStack {
+            subtleTopGradient
 
-            let totalPct = selectedCategories.reduce(0.0) { $0 + $1.pct }
-            let pctString = String(format: "%.0f", totalPct * 100)
-            Text("We'll allocate \(pctString)% across your \(selectedCategories.count) categories. You can customize everything later.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+            VStack(spacing: 24) {
+                Text("Set Your Monthly Income")
+                    .font(.title2.bold())
+                    .padding(.top, 32)
 
-            HStack {
-                Text(currencySymbol)
-                    .font(.title)
+                let totalPct = selectedCategories.reduce(0.0) { $0 + $1.pct }
+                let pctString = String(format: "%.0f", totalPct * 100)
+                Text("We'll allocate \(pctString)% across your \(selectedCategories.count) categories. You can customize everything later.")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                TextField("0", text: $monthlyIncome)
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .keyboardType(.decimalPad)
                     .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 40)
+                    .padding(.horizontal, 32)
 
-            if let cents = MoneyHelpers.parseCurrencyString(monthlyIncome), cents > 0 {
-                let allocated = selectedCategories.reduce(Int64(0)) { $0 + Int64(Double(cents) * $1.pct) }
-                let totalPctVal = selectedCategories.reduce(0.0) { $0 + $1.pct }
-                VStack(spacing: 8) {
-                    ForEach(selectedCategories.indices, id: \.self) { index in
-                        let cat = selectedCategories[index]
-                        let catCents = Int64(Double(cents) * cat.pct)
-                        HStack {
-                            Text("\(cat.emoji) \(cat.name) (\(Int(cat.pct * 100))%)")
-                            Spacer()
-                            Text(CurrencyFormatter.format(cents: catCents))
-                                .foregroundStyle(.secondary)
-                        }
-                        .font(.subheadline)
-                    }
-
-                    if totalPctVal < 1.0 {
-                        let unallocatedPct = Int((1.0 - totalPctVal) * 100)
-                        HStack {
-                            Text("Unallocated (\(unallocatedPct)%)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(CurrencyFormatter.format(cents: cents - allocated))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.top, 4)
-                    }
+                HStack {
+                    Text(currencySymbol)
+                        .font(.title)
+                        .foregroundStyle(.secondary)
+                    TextField("0", text: $monthlyIncome)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 40)
-            }
 
-            Spacer()
+                if let cents = MoneyHelpers.parseCurrencyString(monthlyIncome), cents > 0 {
+                    let maxPct = selectedCategories.map(\.pct).max() ?? 1.0
+                    let totalPctVal = selectedCategories.reduce(0.0) { $0 + $1.pct }
+                    let allocated = selectedCategories.reduce(Int64(0)) { $0 + Int64(Double(cents) * $1.pct) }
+                    VStack(spacing: 10) {
+                        ForEach(selectedCategories.indices, id: \.self) { index in
+                            let cat = selectedCategories[index]
+                            let catCents = Int64(Double(cents) * cat.pct)
+                            let barFraction = maxPct > 0 ? cat.pct / maxPct : 0
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("\(cat.emoji) \(cat.name) (\(Int(cat.pct * 100))%)")
+                                    Spacer()
+                                    Text(CurrencyFormatter.format(cents: catCents))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .font(.subheadline)
 
-            Button {
-                completeOnboarding()
-            } label: {
-                Text("Create My Budget")
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .fill(Color(.systemGray5))
+                                            .frame(height: 6)
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .fill(Color(hex: cat.color))
+                                            .frame(width: max(4, geo.size.width * barFraction), height: 6)
+                                    }
+                                }
+                                .frame(height: 6)
+                            }
+                        }
+
+                        if totalPctVal < 1.0 {
+                            let unallocatedPct = Int((1.0 - totalPctVal) * 100)
+                            HStack {
+                                Text("Unallocated (\(unallocatedPct)%)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(CurrencyFormatter.format(cents: cents - allocated))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                    .padding(.horizontal, 40)
+                }
+
+                Spacer()
+
+                Button {
+                    completeOnboarding()
+                } label: {
+                    Text("Create My Budget")
+                }
+                .buttonStyle(PrimaryButtonStyle(isEnabled: isValidIncome))
+                .disabled(!isValidIncome)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
             }
-            .buttonStyle(PrimaryButtonStyle(isEnabled: isValidIncome))
-            .disabled(!isValidIncome)
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
         }
     }
 
-    // MARK: - Page 5: Notifications
+    // MARK: - Page 5: Celebration
+
+    private var celebrationPage: some View {
+        ZStack {
+            BudgetVaultTheme.brandGradient
+                .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                ZStack {
+                    Circle()
+                        .fill(.white.opacity(0.15))
+                        .frame(width: 140, height: 140)
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 100))
+                        .foregroundStyle(.white)
+                        .scaleEffect(showCelebrationCheck ? 1.0 : 0.3)
+                        .opacity(showCelebrationCheck ? 1.0 : 0.0)
+                }
+
+                Text("You're All Set!")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+
+                Text("Your first budget is ready to go.")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.75))
+
+                Spacer()
+
+                Button {
+                    withAnimation { currentPage = 6 }
+                } label: {
+                    Text("Continue")
+                        .font(.headline)
+                        .foregroundStyle(BudgetVaultTheme.electricBlue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                showCelebrationCheck = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                if currentPage == 5 {
+                    withAnimation { currentPage = 6 }
+                }
+            }
+        }
+    }
+
+    // MARK: - Page 6: Notifications
 
     private var notificationPage: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        ZStack {
+            subtleTopGradient
 
-            Image(systemName: "bell.badge.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.orange)
+            VStack(spacing: 24) {
+                Spacer()
 
-            Text("Stay on Track")
-                .font(.title2.bold())
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.orange)
 
-            Text("A daily reminder helps you log expenses before you forget. Most BudgetVault users log at 8pm.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                Text("Stay on Track")
+                    .font(.title2.bold())
 
-            Button {
-                requestNotificationPermission()
-            } label: {
-                Text("Enable Daily Reminder")
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 40)
-
-            Button {
-                finishOnboarding()
-            } label: {
-                Text("Not Now")
+                Text("A daily reminder helps you log expenses before you forget. Most BudgetVault users log at 8pm.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-            }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
 
-            Spacer()
+                Button {
+                    requestNotificationPermission()
+                } label: {
+                    Text("Enable Daily Reminder")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal, 40)
+
+                Button {
+                    finishOnboarding()
+                } label: {
+                    Text("Not Now")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
         }
     }
 

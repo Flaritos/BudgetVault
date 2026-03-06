@@ -11,6 +11,8 @@ struct InsightsPlaceholderView: View {
 
     @State private var showPaywall = false
     @State private var selectedRange: DateRange = .thisMonth
+    @State private var showShareSheet = false
+    @State private var shareUIImage: UIImage?
 
     enum DateRange: String, CaseIterable {
         case thisMonth = "This Month"
@@ -166,6 +168,22 @@ struct InsightsPlaceholderView: View {
                 .padding()
             }
             .navigationTitle("Insights")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if currentBudget != nil {
+                        Button {
+                            renderAndShare()
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showShareSheet) {
+                if let img = shareUIImage {
+                    ActivityView(items: [img])
+                }
+            }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
             }
@@ -375,4 +393,74 @@ struct InsightsPlaceholderView: View {
         case .nudge: .orange
         }
     }
+
+    @MainActor
+    private func renderAndShare() {
+        guard let budget = currentBudget else { return }
+        let topCats = budget.categories
+            .filter { !$0.isHidden }
+            .sorted { $0.spentCents(in: budget) > $1.spentCents(in: budget) }
+            .prefix(5)
+
+        let card = VStack(spacing: 12) {
+            Text("Insights - \(DateHelpers.monthYearString(month: budget.month, year: budget.year))")
+                .font(.headline)
+
+            HStack(spacing: 24) {
+                VStack {
+                    Text("Income")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(CurrencyFormatter.format(cents: budget.totalIncomeCents))
+                        .font(.subheadline.bold())
+                }
+                VStack {
+                    Text("Spent")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(CurrencyFormatter.format(cents: budget.totalSpentCents()))
+                        .font(.subheadline.bold())
+                }
+            }
+
+            Divider()
+
+            ForEach(Array(topCats), id: \.id) { cat in
+                HStack {
+                    Text(cat.emoji)
+                    Text(cat.name)
+                        .font(.caption)
+                    Spacer()
+                    Text(CurrencyFormatter.format(cents: cat.spentCents(in: budget)))
+                        .font(.caption.bold())
+                }
+            }
+
+            Text("Tracked with BudgetVault")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(width: 320)
+        .background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        if let image = renderer.uiImage {
+            shareUIImage = image
+            showShareSheet = true
+        }
+    }
+}
+
+private struct ActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

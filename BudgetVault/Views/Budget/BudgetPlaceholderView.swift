@@ -247,7 +247,7 @@ struct BudgetPlaceholderView: View {
 
     @ViewBuilder
     private func categoryRow(category: Category, budget: Budget) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             HStack {
                 Text("\(category.emoji) \(category.name)")
                     .font(.body)
@@ -284,6 +284,7 @@ struct BudgetPlaceholderView: View {
                         SafeSave.save(modelContext)
                     }
                 ))
+                .toggleStyle(.switch)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
