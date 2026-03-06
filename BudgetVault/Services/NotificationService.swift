@@ -5,33 +5,47 @@ enum NotificationService {
 
     // MARK: - Daily Reminder
 
+    private static let dailyMessages = [
+        "Don't forget to log today's expenses!",
+        "Quick check: anything to log?",
+        "Keep your streak alive!",
+        "A minute now saves budget surprises later.",
+        "How did you spend today? Log it!",
+        "Stay on track -- log your expenses.",
+        "Your budget is waiting for today's update!",
+    ]
+
     static func scheduleDailyReminder(hour: Int) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["dailyReminder"])
 
-        let messages = [
-            "Don't forget to log today's expenses!",
-            "Quick check: anything to log?",
-            "Keep your streak alive! 🔥",
-        ]
-        let message = messages.randomElement() ?? messages[0]
+        // Remove all existing daily reminder notifications
+        let identifiers = (1...7).map { "dailyReminder-\($0)" }
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
 
-        let content = UNMutableNotificationContent()
-        content.title = "BudgetVault"
-        content.body = message
-        content.sound = .default
+        // Schedule one notification per weekday, each with a different message
+        for weekday in 1...7 {
+            let message = dailyMessages[weekday - 1]
 
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = 0
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            let content = UNMutableNotificationContent()
+            content.title = "BudgetVault"
+            content.body = message
+            content.sound = .default
+            content.userInfo = ["type": "dailyReminder"]
 
-        let request = UNNotificationRequest(identifier: "dailyReminder", content: content, trigger: trigger)
-        center.add(request)
+            var components = DateComponents()
+            components.hour = hour
+            components.minute = 0
+            components.weekday = weekday
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+
+            let request = UNNotificationRequest(identifier: "dailyReminder-\(weekday)", content: content, trigger: trigger)
+            center.add(request)
+        }
     }
 
     static func cancelDailyReminder() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["dailyReminder"])
+        let identifiers = (1...7).map { "dailyReminder-\($0)" }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 
     // MARK: - Streak at Risk
@@ -82,13 +96,13 @@ enum NotificationService {
 
     // MARK: - Weekly Summary
 
-    static func scheduleWeeklySummary(spentText: String, categoryCount: Int) {
+    static func scheduleWeeklySummary() {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
 
         let content = UNMutableNotificationContent()
         content.title = "Weekly Summary"
-        content.body = "This week you spent \(spentText) across \(categoryCount) categories."
+        content.body = "Your weekly spending summary is ready. Open BudgetVault to see how you did!"
         content.sound = .default
 
         // Sunday at 6pm

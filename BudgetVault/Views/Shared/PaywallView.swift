@@ -3,17 +3,28 @@ import StoreKit
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var storeKit = StoreKitManager()
+    @Environment(StoreKitManager.self) private var storeKit
 
     private let features: [(icon: String, title: String, detail: String)] = [
         ("brain.head.profile", "AI Insights", "Smart spending analysis"),
-        ("square.grid.2x2", "Unlimited Categories", "vs 6 free"),
+        ("square.grid.2x2", "Unlimited Categories", "vs 4 free"),
         ("repeat", "Unlimited Recurring", "vs 3 free"),
         ("doc.text", "Full CSV Import/Export", "Full history"),
         ("app.badge", "Custom App Icons", "3 alternatives"),
         ("chart.xyaxis.line", "Historical Charts", "Compare months"),
         ("flame", "Streak Freeze", "1 per week"),
     ]
+
+    private var daysRemaining: Int {
+        let now = Date()
+        let end = StoreKitManager.launchPricingEndDate
+        let components = Calendar.current.dateComponents([.day], from: now, to: end)
+        return max(components.day ?? 0, 0)
+    }
+
+    private var displayPrice: String {
+        storeKit.premiumProduct?.displayPrice ?? (storeKit.isLaunchPricing ? "$9.99" : "$19.99")
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,21 +42,40 @@ struct PaywallView: View {
 
                     // Launch pricing banner
                     if storeKit.isLaunchPricing {
-                        Text("Launch Special: \(storeKit.premiumProduct?.displayPrice ?? "$9.99") — limited time")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.orange, in: Capsule())
+                        VStack(spacing: 4) {
+                            Text("Launch Special: \(displayPrice) — limited time")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.white)
+                            Text("\(daysRemaining) days left at this price")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.orange, in: Capsule())
                     }
+
+                    // Save vs subscriptions callout
+                    HStack(spacing: 6) {
+                        Image(systemName: "tag.fill")
+                            .foregroundStyle(.green)
+                        Text("Save $80+/year vs subscriptions")
+                            .font(.caption.bold())
+                            .foregroundStyle(.green)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.green.opacity(0.12), in: Capsule())
 
                     // Feature list
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(features, id: \.title) { feature in
                             HStack(spacing: 12) {
                                 Image(systemName: feature.icon)
-                                    .foregroundStyle(Color.accentColor)
-                                    .frame(width: 28)
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(Color.accentColor, in: Circle())
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(feature.title)
                                         .font(.subheadline.bold())
@@ -60,8 +90,16 @@ struct PaywallView: View {
 
                     // Price
                     VStack(spacing: 4) {
-                        Text(storeKit.premiumProduct?.displayPrice ?? "$19.99")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                        HStack(spacing: 8) {
+                            if storeKit.isLaunchPricing {
+                                Text("$19.99")
+                                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                                    .strikethrough()
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(displayPrice)
+                                .font(.system(size: 36, weight: .bold, design: .rounded))
+                        }
                         Text("one-time purchase")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -131,7 +169,7 @@ struct PaywallView: View {
             Group {
                 switch storeKit.purchaseState {
                 case .idle, .error:
-                    Text("Purchase")
+                    Text("Unlock Premium for \(displayPrice)")
                         .font(.headline)
                 case .loading:
                     ProgressView()
@@ -142,10 +180,8 @@ struct PaywallView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-            .foregroundStyle(.white)
         }
+        .buttonStyle(PrimaryButtonStyle(isEnabled: storeKit.purchaseState != .loading && storeKit.purchaseState != .success))
         .disabled(storeKit.purchaseState == .loading || storeKit.purchaseState == .success)
     }
 }

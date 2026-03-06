@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 struct MonthlySummaryView: View {
     let budget: Budget
@@ -92,12 +93,8 @@ struct MonthlySummaryView: View {
                     // Share button
                     ShareLink(item: shareCardImage, preview: SharePreview("Monthly Summary", image: shareCardImage)) {
                         Label("Share Achievement", systemImage: "square.and.arrow.up")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-                            .foregroundStyle(.white)
                     }
+                    .buttonStyle(PrimaryButtonStyle())
                     .padding(.horizontal)
                 }
                 .padding()
@@ -107,6 +104,14 @@ struct MonthlySummaryView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
+                }
+            }
+            .onAppear {
+                // Prompt for review if user was under budget
+                if budget.remainingCents > 0 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        ReviewPromptService.requestIfAppropriate()
+                    }
                 }
             }
         }

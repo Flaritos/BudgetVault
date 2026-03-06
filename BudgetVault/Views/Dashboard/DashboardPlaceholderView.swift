@@ -15,6 +15,8 @@ struct DashboardPlaceholderView: View {
     @State private var showTransactionEntry = false
     @State private var editingTransaction: Transaction?
     @State private var showMonthlySummary = false
+    @State private var showPaywall = false
+    @AppStorage("isPremium") private var isPremium = false
 
     private var currentBudget: Budget? {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -56,13 +58,16 @@ struct DashboardPlaceholderView: View {
                         EmptyStateView(
                             icon: "dollarsign.circle",
                             title: "Set Your Income",
-                            message: "Set your monthly income in the Budget tab to get started."
+                            message: "Set your monthly income in the Budget tab to get started.",
+                            actionLabel: "Set Up Budget"
                         )
                     } else if visibleCategories.isEmpty && recentTransactions.isEmpty {
                         EmptyStateView(
                             icon: "plus.circle.fill",
                             title: "No Expenses Yet",
-                            message: "Tap + to log your first expense."
+                            message: "Tap + to log your first expense.",
+                            actionLabel: "Add Expense",
+                            action: { showTransactionEntry = true }
                         )
                     } else {
                         dashboardContent(budget: budget)
@@ -97,6 +102,7 @@ struct DashboardPlaceholderView: View {
             .sheet(isPresented: $showTransactionEntry) {
                 if let budget = currentBudget {
                     TransactionEntryView(budget: budget, categories: visibleCategories)
+                        .presentationDragIndicator(.visible)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openTransactionEntry)) { _ in
@@ -105,12 +111,17 @@ struct DashboardPlaceholderView: View {
             .sheet(item: $editingTransaction) { transaction in
                 if let budget = currentBudget {
                     TransactionEditView(transaction: transaction, budget: budget, categories: visibleCategories)
+                        .presentationDragIndicator(.visible)
                 }
             }
             .sheet(isPresented: $showMonthlySummary) {
                 if let prev = previousBudget {
                     MonthlySummaryView(budget: prev)
+                        .presentationDragIndicator(.visible)
                 }
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
             }
         }
     }
@@ -144,7 +155,7 @@ struct DashboardPlaceholderView: View {
                                 .font(.caption)
                         }
                         .padding(12)
-                        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     }
                     .tint(.primary)
                     .padding(.horizontal)
@@ -161,6 +172,33 @@ struct DashboardPlaceholderView: View {
                 // Recent transactions
                 if !recentTransactions.isEmpty {
                     recentTransactionsSection
+                }
+
+                // Premium teaser
+                if !isPremium {
+                    Button {
+                        showPaywall = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.yellow)
+                            VStack(alignment: .leading) {
+                                Text("Unlock Premium Insights")
+                                    .font(.subheadline.bold())
+                                Text("Track trends, compare months, and more")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(12)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .tint(.primary)
+                    .padding(.horizontal)
                 }
             }
             .padding(.bottom, 80) // space for FAB
@@ -180,6 +218,7 @@ struct DashboardPlaceholderView: View {
                 Text(CurrencyFormatter.format(cents: budget.remainingCents))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(statusSwiftUIColor(colorName))
+                    .contentTransition(.numericText())
 
                 if currentStreak > 0 {
                     Spacer()
@@ -196,13 +235,21 @@ struct DashboardPlaceholderView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(budgetDayProgress(budget: budget))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             Text(status)
                 .font(.caption.bold())
                 .foregroundStyle(statusSwiftUIColor(colorName))
         }
         .padding(.horizontal)
         .accessibilityElement(children: .combine)
-        .accessibilityValue("\(CurrencyFormatter.format(cents: budget.remainingCents)) remaining, \(status)")
+        .accessibilityValue("\(CurrencyFormatter.format(cents: budget.remainingCents)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)), \(status)")
     }
 
     // MARK: - Envelope Cards
@@ -247,6 +294,8 @@ struct DashboardPlaceholderView: View {
         }
         .frame(width: 120, height: 160)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.secondary.opacity(0.1)))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(category.emoji) \(category.name): spent \(CurrencyFormatter.format(cents: spent)) of \(CurrencyFormatter.format(cents: budgeted))")
     }
@@ -275,10 +324,21 @@ struct DashboardPlaceholderView: View {
 
     // MARK: - Helpers
 
+    private func budgetDayProgress(budget: Budget) -> String {
+        let calendar = Calendar.current
+        let today = Date()
+        let start = budget.periodStart
+        let end = budget.nextPeriodStart
+        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
+        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 0)
+        let dayNumber = min(elapsed + 1, totalDays)
+        return "Day \(dayNumber) of \(totalDays)"
+    }
+
     private func statusSwiftUIColor(_ name: String) -> Color {
         switch name {
         case "green": .green
-        case "yellow": .yellow
+        case "yellow": .orange
         default: .red
         }
     }

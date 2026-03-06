@@ -1,5 +1,19 @@
 import SwiftUI
 
+struct NumberPadKeyStyle: ButtonStyle {
+    var isDelete: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                Color.secondary.opacity(isDelete ? 0.12 : 0.08),
+                in: RoundedRectangle(cornerRadius: 10)
+            )
+            .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
 struct NumberPadView: View {
     @Binding var text: String
 
@@ -28,6 +42,7 @@ struct NumberPadView: View {
                                     .frame(maxWidth: .infinity, minHeight: 52)
                             }
                         }
+                        .buttonStyle(NumberPadKeyStyle(isDelete: key == "delete.backward"))
                         .foregroundStyle(.primary)
                         .accessibilityLabel(accessibilityLabel(for: key))
                     }

@@ -151,7 +151,7 @@ enum CSVImporter {
             txCount += 1
         }
 
-        try? context.save()
+        SafeSave.save(context)
         return (txCount, monthsCreated.count)
     }
 

@@ -22,12 +22,8 @@ struct BiometricLockView: View {
                 Task { await authService.authenticate() }
             } label: {
                 Label("Unlock with \(authService.biometricName)", systemImage: authService.biometricIcon)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
             }
+            .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
             .accessibilityHint("Authenticate to access your budget")
 

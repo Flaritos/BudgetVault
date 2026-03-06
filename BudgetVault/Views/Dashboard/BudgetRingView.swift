@@ -4,6 +4,8 @@ struct BudgetRingView: View {
     let spent: Int64
     let budgeted: Int64
 
+    @State private var animatedProgress: Double = 0
+
     private var progress: Double {
         guard budgeted > 0 else { return 0 }
         return min(Double(spent) / Double(budgeted), 1.0)
@@ -11,7 +13,7 @@ struct BudgetRingView: View {
 
     private var ringColor: Color {
         if progress < 0.5 { return .green }
-        if progress < 0.75 { return .yellow }
+        if progress < 0.75 { return .orange }
         return .red
     }
 
@@ -20,9 +22,19 @@ struct BudgetRingView: View {
             Circle()
                 .stroke(Color.gray.opacity(0.2), lineWidth: 4)
             Circle()
-                .trim(from: 0, to: progress)
+                .trim(from: 0, to: animatedProgress)
                 .stroke(ringColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                animatedProgress = progress
+            }
+        }
+        .onChange(of: progress) { _, newValue in
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                animatedProgress = newValue
+            }
         }
     }
 }

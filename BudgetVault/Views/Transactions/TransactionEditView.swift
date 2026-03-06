@@ -42,7 +42,12 @@ struct TransactionEditView: View {
                     .foregroundStyle(amountText.isEmpty ? .secondary : .primary)
                     .padding(.top, 8)
 
-                if !isIncome {
+                if !isIncome && categories.isEmpty {
+                    Text("Create a category in the Budget tab first.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                } else if !isIncome {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(categories, id: \.id) { category in
@@ -50,13 +55,20 @@ struct TransactionEditView: View {
                                     selectedCategory = category
                                     HapticManager.selection()
                                 } label: {
-                                    Text(category.emoji)
-                                        .font(.title2)
-                                        .frame(width: 44, height: 44)
-                                        .background(
-                                            Circle()
-                                                .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
-                                        )
+                                    VStack(spacing: 4) {
+                                        Text(category.emoji)
+                                            .font(.title2)
+                                            .frame(width: 44, height: 44)
+                                            .background(
+                                                Circle()
+                                                    .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
+                                            )
+                                        Text(category.name)
+                                            .font(.caption2)
+                                            .lineLimit(1)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .frame(width: 56)
                                 }
                                 .accessibilityLabel(category.name)
                                 .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
@@ -83,12 +95,8 @@ struct TransactionEditView: View {
                     saveChanges()
                 } label: {
                     Text("Save Changes")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(canSave ? Color.accentColor : Color.gray, in: RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(.white)
                 }
+                .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
                 .disabled(!canSave)
                 .padding(.horizontal)
 
@@ -110,7 +118,7 @@ struct TransactionEditView: View {
             .confirmationDialog("Delete this transaction?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     modelContext.delete(transaction)
-                    try? modelContext.save()
+                    SafeSave.save(modelContext)
                     HapticManager.notification(.warning)
                     dismiss()
                 }
@@ -137,7 +145,7 @@ struct TransactionEditView: View {
         transaction.category = isIncome ? nil : selectedCategory
         transaction.date = date
         transaction.note = note
-        try? modelContext.save()
+        SafeSave.save(modelContext)
         HapticManager.notification(.success)
         dismiss()
     }

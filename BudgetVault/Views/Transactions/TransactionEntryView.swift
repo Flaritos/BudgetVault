@@ -13,6 +13,7 @@ struct TransactionEntryView: View {
     @State private var selectedCategory: Category?
     @State private var date = Date()
     @State private var note = ""
+    @State private var showSavedBanner = false
 
     var body: some View {
         NavigationStack {
@@ -46,13 +47,20 @@ struct TransactionEntryView: View {
                                     selectedCategory = category
                                     HapticManager.selection()
                                 } label: {
-                                    Text(category.emoji)
-                                        .font(.title2)
-                                        .frame(width: 44, height: 44)
-                                        .background(
-                                            Circle()
-                                                .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
-                                        )
+                                    VStack(spacing: 4) {
+                                        Text(category.emoji)
+                                            .font(.title2)
+                                            .frame(width: 44, height: 44)
+                                            .background(
+                                                Circle()
+                                                    .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
+                                            )
+                                        Text(category.name)
+                                            .font(.caption2)
+                                            .lineLimit(1)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .frame(width: 56)
                                 }
                                 .accessibilityLabel(category.name)
                                 .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
@@ -77,16 +85,41 @@ struct TransactionEntryView: View {
                 NumberPadView(text: $amountText)
                     .padding(.horizontal, 24)
 
+                // Saved banner
+                if showSavedBanner {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Saved!")
+                            .font(.subheadline.bold())
+                    }
+                    .transition(.opacity)
+                    .task {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        withAnimation { showSavedBanner = false }
+                    }
+                }
+
                 // Save button
                 Button {
                     saveTransaction()
                 } label: {
                     Text("Save")
-                        .font(.headline)
+                }
+                .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
+                .disabled(!canSave)
+                .padding(.horizontal)
+
+                // Save & Add Another button
+                Button {
+                    saveAndAddAnother()
+                } label: {
+                    Text("Save & Add Another")
+                        .font(.subheadline)
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(canSave ? Color.accentColor : Color.gray, in: RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(.white)
+                        .padding(10)
+                        .background(canSave ? Color.accentColor.opacity(0.15) : Color.gray.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(canSave ? Color.accentColor : .gray)
                 }
                 .disabled(!canSave)
                 .padding(.horizontal)
@@ -129,12 +162,35 @@ struct TransactionEntryView: View {
             category: isIncome ? nil : selectedCategory
         )
         modelContext.insert(transaction)
-        try? modelContext.save()
+        SafeSave.save(modelContext)
 
         HapticManager.notification(.success)
-        DashboardViewModel().updateStreak()
+        StreakService.recordLogEntry()
         WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: "resetDay"))
 
         dismiss()
+    }
+
+    private func saveAndAddAnother() {
+        guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else { return }
+
+        let transaction = Transaction(
+            amountCents: cents,
+            note: note,
+            date: date,
+            isIncome: isIncome,
+            category: isIncome ? nil : selectedCategory
+        )
+        modelContext.insert(transaction)
+        SafeSave.save(modelContext)
+
+        HapticManager.notification(.success)
+        StreakService.recordLogEntry()
+        WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: "resetDay"))
+
+        // Reset form but keep category
+        amountText = ""
+        note = ""
+        withAnimation { showSavedBanner = true }
     }
 }

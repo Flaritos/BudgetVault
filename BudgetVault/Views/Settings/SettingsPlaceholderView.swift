@@ -24,7 +24,8 @@ struct SettingsPlaceholderView: View {
     @State private var exportURL: URL?
     @State private var showExportShare = false
     @State private var tempCurrency = ""
-    @State private var storeKit = StoreKitManager()
+    @Environment(StoreKitManager.self) private var storeKit
+    @State private var showNotificationDeniedAlert = false
 
     var body: some View {
         NavigationStack {
@@ -167,6 +168,7 @@ struct SettingsPlaceholderView: View {
             Toggle("Daily Reminder", isOn: $dailyReminderEnabled)
                 .onChange(of: dailyReminderEnabled) { _, enabled in
                     if enabled {
+                        checkNotificationPermission()
                         requestNotificationPermission()
                         NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
                     } else {
@@ -188,8 +190,9 @@ struct SettingsPlaceholderView: View {
             Toggle("Weekly Summary", isOn: $weeklyDigestEnabled)
                 .onChange(of: weeklyDigestEnabled) { _, enabled in
                     if enabled {
+                        checkNotificationPermission()
                         requestNotificationPermission()
-                        NotificationService.scheduleWeeklySummary(spentText: "", categoryCount: 0)
+                        NotificationService.scheduleWeeklySummary()
                     } else {
                         NotificationService.cancelWeeklySummary()
                     }
@@ -197,8 +200,21 @@ struct SettingsPlaceholderView: View {
 
             Toggle("Bill Due Reminders", isOn: $billDueReminders)
                 .onChange(of: billDueReminders) { _, enabled in
-                    if enabled { requestNotificationPermission() }
+                    if enabled {
+                        checkNotificationPermission()
+                        requestNotificationPermission()
+                    }
                 }
+        }
+        .alert("Notifications Disabled", isPresented: $showNotificationDeniedAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Notifications are disabled for BudgetVault. Please enable them in Settings to receive reminders.")
         }
     }
 
@@ -308,16 +324,24 @@ struct SettingsPlaceholderView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Privacy policy placeholder
-            Button {
-                // Will open SafariView with privacy policy URL
-            } label: {
+            Link(destination: URL(string: "https://budgetvault.app/privacy")!) {
                 Label("Privacy Policy", systemImage: "hand.raised.fill")
             }
         }
     }
 
     // MARK: - Helpers
+
+    private func checkNotificationPermission() {
+        Task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            if settings.authorizationStatus == .denied {
+                await MainActor.run {
+                    showNotificationDeniedAlert = true
+                }
+            }
+        }
+    }
 
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in

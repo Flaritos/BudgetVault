@@ -110,13 +110,13 @@ struct RecurringExpenseFormView: View {
                     Button("Save") {
                         save()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || (MoneyHelpers.parseCurrencyString(amountText) ?? 0) <= 0)
                 }
             }
             .confirmationDialog("Delete this recurring expense?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     if let expense { modelContext.delete(expense) }
-                    try? modelContext.save()
+                    SafeSave.save(modelContext)
                     dismiss()
                 }
             }
@@ -143,7 +143,7 @@ struct RecurringExpenseFormView: View {
             )
             modelContext.insert(newExpense)
         }
-        try? modelContext.save()
+        SafeSave.save(modelContext)
         HapticManager.notification(.success)
         dismiss()
     }

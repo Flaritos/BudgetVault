@@ -60,7 +60,8 @@ struct InsightsPlaceholderView: View {
                         EmptyStateView(
                             icon: "lightbulb.fill",
                             title: "No Data",
-                            message: "Start logging expenses to see insights."
+                            message: "Start logging expenses to see insights.",
+                            actionLabel: "Start Logging"
                         )
                     }
                 }
@@ -81,8 +82,8 @@ struct InsightsPlaceholderView: View {
             content()
         } else {
             ZStack {
-                content()
-                    .blur(radius: 8)
+                // Show placeholder skeleton instead of computing real content and blurring
+                premiumPlaceholderSkeleton(title: title)
 
                 VStack(spacing: 8) {
                     Image(systemName: "lock.fill")
@@ -101,6 +102,39 @@ struct InsightsPlaceholderView: View {
             .accessibilityAddTraits(.isButton)
             .onTapGesture { showPaywall = true }
         }
+    }
+
+    // MARK: - Premium Placeholder Skeleton
+
+    @ViewBuilder
+    private func premiumPlaceholderSkeleton(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+
+            ForEach(0..<3, id: \.self) { _ in
+                HStack {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.quaternary)
+                        .frame(width: 24, height: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(.quaternary)
+                            .frame(width: 120, height: 12)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(.quaternary)
+                            .frame(width: 80, height: 10)
+                    }
+                    Spacer()
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(.quaternary)
+                        .frame(width: 50, height: 12)
+                }
+                .padding(8)
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Comparison Cards

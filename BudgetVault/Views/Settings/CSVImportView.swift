@@ -75,12 +75,8 @@ struct CSVImportView: View {
                 showFilePicker = true
             } label: {
                 Label("Choose CSV File", systemImage: "folder")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
             }
+            .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
             Spacer()
         }

@@ -12,6 +12,9 @@ struct HistoryPlaceholderView: View {
     @State private var filterMode: FilterMode = .all
     @State private var selectedCategoryID: UUID?
     @State private var editingTransaction: Transaction?
+    @State private var viewingMonth: Int = 0
+    @State private var viewingYear: Int = 0
+    @State private var csvExportText: String?
 
     enum FilterMode: String, CaseIterable {
         case all = "All"
@@ -20,8 +23,12 @@ struct HistoryPlaceholderView: View {
     }
 
     private var currentBudget: Budget? {
-        let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
-        return allBudgets.first { $0.month == month && $0.year == year }
+        return allBudgets.first { $0.month == viewingMonth && $0.year == viewingYear }
+    }
+
+    private var isCurrentPeriod: Bool {
+        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+        return viewingMonth == m && viewingYear == y
     }
 
     private var categories: [Category] {
@@ -62,7 +69,7 @@ struct HistoryPlaceholderView: View {
             .map { (date: $0.key, transactions: $0.value) }
     }
 
-    private var csvText: String {
+    private func generateCSV() -> String {
         var lines = ["Date,Category,Note,Amount,Type"]
         for tx in filteredTransactions.sorted(by: { $0.date < $1.date }) {
             let dateStr = tx.date.formatted(date: .numeric, time: .omitted)
@@ -90,19 +97,61 @@ struct HistoryPlaceholderView: View {
                     transactionList
                 }
             }
-            .navigationTitle("History")
+            .navigationTitle(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear))
+            .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Search notes")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: csvText, preview: SharePreview("Transactions.csv")) {
-                        Image(systemName: "square.and.arrow.up")
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        navigateMonth(-1)
+                    } label: {
+                        Image(systemName: "chevron.left")
                     }
-                    .accessibilityLabel("Export transactions")
+                    .accessibilityLabel("Previous month")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 12) {
+                        Button {
+                            csvExportText = generateCSV()
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel("Export transactions")
+
+                        Button {
+                            navigateMonth(1)
+                        } label: {
+                            Image(systemName: "chevron.right")
+                        }
+                        .disabled(isCurrentPeriod)
+                        .accessibilityLabel("Next month")
+                    }
+                }
+            }
+            .onAppear {
+                if viewingMonth == 0 {
+                    let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+                    viewingMonth = m
+                    viewingYear = y
                 }
             }
             .sheet(item: $editingTransaction) { transaction in
                 if let budget = currentBudget {
                     TransactionEditView(transaction: transaction, budget: budget, categories: categories)
+                }
+            }
+            .sheet(isPresented: Binding(
+                get: { csvExportText != nil },
+                set: { if !$0 { csvExportText = nil } }
+            )) {
+                if let csv = csvExportText {
+                    NavigationStack {
+                        ShareLink(item: csv, preview: SharePreview("Transactions.csv")) {
+                            Label("Share CSV", systemImage: "square.and.arrow.up")
+                        }
+                        .padding()
+                    }
+                    .presentationDetents([.medium])
                 }
             }
         }
@@ -176,6 +225,18 @@ struct HistoryPlaceholderView: View {
                 .padding(.vertical, 6)
                 .background(isSelected ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.1), in: Capsule())
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+        }
+    }
+
+    private func navigateMonth(_ delta: Int) {
+        if delta > 0 {
+            let (m, y) = DateHelpers.nextMonth(from: viewingMonth, year: viewingYear)
+            viewingMonth = m
+            viewingYear = y
+        } else {
+            let (m, y) = DateHelpers.previousMonth(from: viewingMonth, year: viewingYear)
+            viewingMonth = m
+            viewingYear = y
         }
     }
 

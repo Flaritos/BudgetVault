@@ -43,16 +43,33 @@ enum DateHelpers {
         budgetPeriod(containing: Date(), resetDay: resetDay)
     }
 
-    /// Format a month/year as a display string (e.g. "March 2026")
-    static func monthYearString(month: Int, year: Int) -> String {
+    // MARK: - Cached Formatters
+
+    private static let monthYearFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
+        return formatter
+    }()
+
+    private static let dateStringFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// Format a month/year as a display string (e.g. "March 2026")
+    static func monthYearString(month: Int, year: Int) -> String {
         let components = DateComponents(year: year, month: month, day: 1)
         guard let date = Calendar.current.date(from: components) else { return "" }
-        return formatter.string(from: date)
+        return monthYearFormatter.string(from: date)
     }
 
-    /// Get the previous month/year pair (handles Dec→Jan wraparound)
+    /// Canonical yyyy-MM-dd string for streak and date comparison logic.
+    static func dateString(_ date: Date) -> String {
+        dateStringFormatter.string(from: date)
+    }
+
+    /// Get the previous month/year pair (handles Dec->Jan wraparound)
     static func previousMonth(from month: Int, year: Int) -> (month: Int, year: Int) {
         if month == 1 {
             return (12, year - 1)
@@ -60,7 +77,7 @@ enum DateHelpers {
         return (month - 1, year)
     }
 
-    /// Get the next month/year pair (handles Dec→Jan wraparound)
+    /// Get the next month/year pair (handles Dec->Jan wraparound)
     static func nextMonth(from month: Int, year: Int) -> (month: Int, year: Int) {
         if month == 12 {
             return (1, year + 1)

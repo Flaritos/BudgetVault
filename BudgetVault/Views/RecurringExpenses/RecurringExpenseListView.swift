@@ -33,7 +33,9 @@ struct RecurringExpenseListView: View {
                 EmptyStateView(
                     icon: "repeat",
                     title: "No Recurring Expenses",
-                    message: "Add bills like Netflix or rent to auto-track them."
+                    message: "Add bills like Netflix or rent to auto-track them.",
+                    actionLabel: "Add Recurring Expense",
+                    action: { showForm = true }
                 )
             } else {
                 expenseList
@@ -81,7 +83,7 @@ struct RecurringExpenseListView: View {
                         .swipeActions(edge: .trailing) {
                             Button("Deactivate") {
                                 expense.isActive = false
-                                try? modelContext.save()
+                                SafeSave.save(modelContext)
                             }
                             .tint(.orange)
                         }
@@ -110,7 +112,7 @@ struct RecurringExpenseListView: View {
                         .swipeActions(edge: .trailing) {
                             Button("Activate") {
                                 expense.isActive = true
-                                try? modelContext.save()
+                                SafeSave.save(modelContext)
                             }
                             .tint(.green)
                         }

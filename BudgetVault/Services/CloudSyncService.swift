@@ -10,7 +10,7 @@ final class CloudSyncService {
 
     init() {
         NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("NSPersistentCloudKitContainer.eventChangedNotification"),
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
             object: nil,
             queue: .main
         ) { [weak self] notification in
@@ -42,10 +42,14 @@ final class CloudSyncService {
         }
     }
 
-    var lastSyncText: String {
-        guard let date = lastSyncDate else { return "Never" }
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return formatter
+    }()
+
+    var lastSyncText: String {
+        guard let date = lastSyncDate else { return "Never" }
+        return Self.relativeDateFormatter.localizedString(for: date, relativeTo: Date())
     }
 }

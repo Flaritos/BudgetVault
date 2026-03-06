@@ -7,7 +7,7 @@ enum StreakService {
     /// Call on every scenePhase .active to handle freeze logic and Monday reset.
     static func processOnForeground() {
         let today = calendar.startOfDay(for: Date())
-        let todayStr = dateString(today)
+        let todayStr = DateHelpers.dateString(today)
         let lastLogDate = UserDefaults.standard.string(forKey: "lastLogDate") ?? ""
         var streak = UserDefaults.standard.integer(forKey: "currentStreak")
         let isPremium = UserDefaults.standard.bool(forKey: "isPremium")
@@ -27,7 +27,7 @@ enum StreakService {
         // Check if yesterday was missed and we can use a freeze
         if streak > 0 && lastLogDate != todayStr {
             let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
-            let yesterdayStr = dateString(yesterday)
+            let yesterdayStr = DateHelpers.dateString(yesterday)
 
             if lastLogDate != yesterdayStr {
                 // Missed yesterday
@@ -38,7 +38,7 @@ enum StreakService {
                 } else {
                     // No freeze — check if we missed more than 1 day (streak broken)
                     let daysBefore2 = calendar.date(byAdding: .day, value: -2, to: today)!
-                    let daysBefore2Str = dateString(daysBefore2)
+                    let daysBefore2Str = DateHelpers.dateString(daysBefore2)
                     if lastLogDate != yesterdayStr && lastLogDate != daysBefore2Str {
                         // Streak is broken
                         streak = 0
@@ -60,16 +60,42 @@ enum StreakService {
         suite?.set(streak, forKey: "currentStreak")
     }
 
+    /// Record that the user logged an entry today — updates streak.
+    static func recordLogEntry() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let todayString = DateHelpers.dateString(today)
+        let lastLogDate = UserDefaults.standard.string(forKey: "lastLogDate") ?? ""
+        var streak = UserDefaults.standard.integer(forKey: "currentStreak")
+
+        if lastLogDate == todayString {
+            // Already logged today
+            return
+        }
+
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)!
+        let yesterdayString = DateHelpers.dateString(yesterday)
+
+        if lastLogDate == yesterdayString {
+            streak += 1
+        } else {
+            streak = 1
+        }
+
+        UserDefaults.standard.set(todayString, forKey: "lastLogDate")
+        UserDefaults.standard.set(streak, forKey: "currentStreak")
+    }
+
     /// Check if current streak just hit a milestone.
     static func checkMilestone() -> Int? {
         let streak = UserDefaults.standard.integer(forKey: "currentStreak")
         let milestones = [7, 14, 30, 60, 90]
-        return milestones.contains(streak) ? streak : nil
-    }
-
-    private static func dateString(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
+        if milestones.contains(streak) {
+            // Request review at key milestones
+            if [14, 30, 60, 90].contains(streak) {
+                ReviewPromptService.requestIfAppropriate()
+            }
+            return streak
+        }
+        return nil
     }
 }

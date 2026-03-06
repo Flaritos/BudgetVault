@@ -39,12 +39,15 @@ enum BudgetVaultSchemaV1: VersionedSchema {
 
         /// Budget period start date using resetDay
         var periodStart: Date {
-            Calendar.current.date(from: DateComponents(year: year, month: month, day: resetDay)) ?? Date()
+            let day = min(self.resetDay, 28)
+            return Calendar.current.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
         }
 
         /// Exclusive upper bound — use `date < nextPeriodStart` (half-open interval)
         var nextPeriodStart: Date {
-            Calendar.current.date(byAdding: .month, value: 1, to: periodStart) ?? Date()
+            let day = min(self.resetDay, 28)
+            let start = Calendar.current.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
+            return Calendar.current.date(byAdding: .month, value: 1, to: start) ?? Date()
         }
 
         /// Total spent in this budget period (non-income transactions across all categories)

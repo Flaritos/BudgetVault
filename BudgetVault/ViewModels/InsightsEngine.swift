@@ -60,7 +60,7 @@ enum InsightsEngine {
             }
         }
 
-        // 3. Transaction > 2× category average
+        // 3. Transaction > 2x category average
         for cat in categories {
             let txs = cat.transactions.filter { !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
             guard txs.count >= 2 else { continue }
@@ -70,7 +70,7 @@ enum InsightsEngine {
                 insights.append(Insight(
                     icon: cat.emoji,
                     title: "Unusual \(cat.name) expense",
-                    message: "\"\(largest.note.isEmpty ? "Transaction" : largest.note)\" at \(CurrencyFormatter.format(cents: largest.amountCents)) is over 2× your average.",
+                    message: "\"\(largest.note.isEmpty ? "Transaction" : largest.note)\" at \(CurrencyFormatter.format(cents: largest.amountCents)) is over 2x your average.",
                     severity: .info
                 ))
             }
@@ -112,7 +112,7 @@ enum InsightsEngine {
         // 6. Streak at risk
         let lastLogDate = UserDefaults.standard.string(forKey: "lastLogDate") ?? ""
         if streak > 0 && !lastLogDate.isEmpty {
-            let todayStr = dateString(calendar.startOfDay(for: today))
+            let todayStr = DateHelpers.dateString(calendar.startOfDay(for: today))
             let hour = calendar.component(.hour, from: today)
             if lastLogDate != todayStr && hour >= 18 {
                 insights.append(Insight(
@@ -125,11 +125,5 @@ enum InsightsEngine {
         }
 
         return insights
-    }
-
-    private static func dateString(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
     }
 }

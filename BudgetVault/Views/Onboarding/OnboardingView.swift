@@ -56,12 +56,8 @@ struct OnboardingView: View {
                 withAnimation { currentPage = 1 }
             } label: {
                 Text("Get Started")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
             }
+            .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }
@@ -82,12 +78,8 @@ struct OnboardingView: View {
                 withAnimation { currentPage = 2 }
             } label: {
                 Text("Continue")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
             }
+            .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
         }
@@ -152,12 +144,8 @@ struct OnboardingView: View {
                 completeOnboarding()
             } label: {
                 Text("Create My Budget")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(isValidIncome ? Color.accentColor : Color.gray, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
             }
+            .buttonStyle(PrimaryButtonStyle(isEnabled: isValidIncome))
             .disabled(!isValidIncome)
             .padding(.horizontal, 40)
             .padding(.bottom, 40)
@@ -188,7 +176,7 @@ struct OnboardingView: View {
             category.budget = budget
         }
 
-        try? modelContext.save()
+        SafeSave.save(modelContext)
         hasCompletedOnboarding = true
     }
 }

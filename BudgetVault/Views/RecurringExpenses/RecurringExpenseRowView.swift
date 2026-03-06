@@ -19,9 +19,7 @@ struct RecurringExpenseRowView: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Color.accentColor.opacity(0.15), in: Capsule())
-                    Text(dueText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    dueBadge
                 }
             }
 
@@ -32,6 +30,37 @@ struct RecurringExpenseRowView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(expense.name), \(CurrencyFormatter.format(cents: expense.amountCents)), \(expense.frequencyEnum.displayName), \(dueText)")
+    }
+
+    @ViewBuilder
+    private var dueBadge: some View {
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: Calendar.current.startOfDay(for: expense.nextDueDate)).day ?? 0
+        if days < 0 {
+            Text("Overdue")
+                .font(.caption.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.red, in: Capsule())
+        } else if days == 0 {
+            Text("Due today")
+                .font(.caption.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.orange, in: Capsule())
+        } else if days == 1 {
+            Text("Due tomorrow")
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(Color.yellow.opacity(0.3), in: Capsule())
+        } else {
+            Text(dueText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var dueText: String {

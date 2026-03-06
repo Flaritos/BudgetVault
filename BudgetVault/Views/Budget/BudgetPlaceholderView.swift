@@ -107,20 +107,27 @@ struct BudgetPlaceholderView: View {
             }
             .sheet(isPresented: $showIncomeEditor) {
                 incomeEditorSheet
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showAddCategory) {
-                AddCategoryView(budget: viewingBudget!)
+                if let budget = viewingBudget {
+                    AddCategoryView(budget: budget)
+                        .presentationDragIndicator(.visible)
+                }
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showRecurring) {
                 NavigationStack {
                     RecurringExpenseListView()
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingCategoryAmount) { category in
                 categoryAmountSheet(category: category)
+                    .presentationDragIndicator(.visible)
             }
         }
     }
@@ -178,7 +185,7 @@ struct BudgetPlaceholderView: View {
                 if isCurrentPeriod {
                     Button {
                         let count = visibleCategories.count
-                        if !isPremium && count >= 6 {
+                        if !isPremium && count >= 4 {
                             showPaywall = true
                         } else {
                             showAddCategory = true
@@ -205,7 +212,7 @@ struct BudgetPlaceholderView: View {
                                 if isCurrentPeriod {
                                     Button("Restore") {
                                         category.isHidden = false
-                                        try? modelContext.save()
+                                        SafeSave.save(modelContext)
                                     }
                                     .tint(.blue)
                                 }
@@ -257,7 +264,7 @@ struct BudgetPlaceholderView: View {
                     get: { category.rollOverUnspent },
                     set: { newVal in
                         category.rollOverUnspent = newVal
-                        try? modelContext.save()
+                        SafeSave.save(modelContext)
                     }
                 ))
                 .font(.caption)
@@ -268,7 +275,7 @@ struct BudgetPlaceholderView: View {
             if isCurrentPeriod {
                 Button("Archive") {
                     category.isHidden = true
-                    try? modelContext.save()
+                    SafeSave.save(modelContext)
                 }
                 .tint(.orange)
             }
@@ -299,7 +306,7 @@ struct BudgetPlaceholderView: View {
                     Button("Save") {
                         if let cents = MoneyHelpers.parseCurrencyString(incomeText), let budget = viewingBudget {
                             budget.totalIncomeCents = cents
-                            try? modelContext.save()
+                            SafeSave.save(modelContext)
                         }
                         showIncomeEditor = false
                     }
@@ -336,7 +343,7 @@ struct BudgetPlaceholderView: View {
                     Button("Save") {
                         if let cents = MoneyHelpers.parseCurrencyString(categoryAmountText) {
                             category.budgetedAmountCents = cents
-                            try? modelContext.save()
+                            SafeSave.save(modelContext)
                         }
                         editingCategoryAmount = nil
                     }
@@ -366,7 +373,7 @@ struct BudgetPlaceholderView: View {
         for (i, cat) in cats.enumerated() {
             cat.sortOrder = i
         }
-        try? modelContext.save()
+        SafeSave.save(modelContext)
     }
 
     private func displayAmount(_ text: String) -> String {

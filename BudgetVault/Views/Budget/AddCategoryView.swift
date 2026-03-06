@@ -16,6 +16,19 @@ struct AddCategoryView: View {
 
     private let colorOptions = ["#007AFF", "#34C759", "#FF9500", "#FF2D55", "#5856D6", "#AF52DE", "#FF3B30", "#5AC8FA", "#FFCC00", "#8E8E93"]
 
+    private let colorNames: [String: String] = [
+        "#007AFF": "Blue",
+        "#34C759": "Green",
+        "#FF9500": "Orange",
+        "#FF2D55": "Pink",
+        "#5856D6": "Purple",
+        "#AF52DE": "Lavender",
+        "#FF3B30": "Red",
+        "#5AC8FA": "Teal",
+        "#FFCC00": "Yellow",
+        "#8E8E93": "Gray"
+    ]
+
     var body: some View {
         NavigationStack {
             Form {
@@ -58,7 +71,7 @@ struct AddCategoryView: View {
                                             .strokeBorder(color == hex ? Color.primary : Color.clear, lineWidth: 3)
                                     )
                             }
-                            .accessibilityLabel("Color \(hex)")
+                            .accessibilityLabel(colorNames[hex] ?? "Color")
                             .accessibilityAddTraits(color == hex ? .isSelected : [])
                         }
                     }
@@ -101,7 +114,7 @@ struct AddCategoryView: View {
             sortOrder: sortOrder
         )
         category.budget = budget
-        try? modelContext.save()
+        SafeSave.save(modelContext)
         HapticManager.notification(.success)
         dismiss()
     }
