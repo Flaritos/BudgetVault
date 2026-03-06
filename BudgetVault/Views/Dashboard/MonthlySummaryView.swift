@@ -37,14 +37,14 @@ struct MonthlySummaryView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Text(CurrencyFormatter.format(cents: budget.totalIncomeCents))
-                                .font(.title3.bold())
+                                .font(.system(.title3, design: .rounded).bold())
                         }
                         VStack {
                             Text("Spent")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Text(CurrencyFormatter.format(cents: totalSpent))
-                                .font(.title3.bold())
+                                .font(.system(.title3, design: .rounded).bold())
                         }
                     }
 
@@ -54,7 +54,7 @@ struct MonthlySummaryView: View {
                         Text(delta >= 0 ? "Under budget by \(CurrencyFormatter.format(cents: delta))" : "Over budget by \(CurrencyFormatter.format(cents: abs(delta)))")
                     }
                     .font(.headline)
-                    .foregroundStyle(delta >= 0 ? .green : .red)
+                    .foregroundStyle(delta >= 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
 
                     // Category breakdown
                     VStack(spacing: 8) {
@@ -69,7 +69,7 @@ struct MonthlySummaryView: View {
                                     .font(.subheadline)
                                 Spacer()
                                 Image(systemName: under ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundStyle(under ? .green : .red)
+                                    .foregroundStyle(under ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
                                 Text(CurrencyFormatter.format(cents: spent))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)

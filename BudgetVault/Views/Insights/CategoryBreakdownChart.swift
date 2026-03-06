@@ -20,6 +20,12 @@ struct CategoryBreakdownChart: View {
         chartData.reduce(0) { $0 + $1.spent }
     }
 
+    private var totalSpentCents: Int64 {
+        budget.categories
+            .filter { !$0.isHidden }
+            .reduce(Int64(0)) { $0 + $1.spentCents(in: budget) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Category Breakdown")
@@ -39,6 +45,18 @@ struct CategoryBreakdownChart: View {
                     )
                     .foregroundStyle(item.color)
                     .cornerRadius(4)
+                }
+                .chartBackground { proxy in
+                    GeometryReader { geo in
+                        VStack(spacing: 2) {
+                            Text(CurrencyFormatter.format(cents: totalSpentCents))
+                                .font(.system(.title3, design: .rounded).bold())
+                            Text("spent")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    }
                 }
                 .frame(height: 180)
                 .accessibilityElement(children: .combine)

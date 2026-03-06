@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 struct InsightsPlaceholderView: View {
     @AppStorage("resetDay") private var resetDay = 1
@@ -9,6 +10,14 @@ struct InsightsPlaceholderView: View {
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var showPaywall = false
+    @State private var selectedRange: DateRange = .thisMonth
+
+    enum DateRange: String, CaseIterable {
+        case thisMonth = "This Month"
+        case lastMonth = "Last Month"
+        case threeMonths = "3 Months"
+        case yearToDate = "Year to Date"
+    }
 
     private var currentBudget: Budget? {
         let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -21,9 +30,45 @@ struct InsightsPlaceholderView: View {
         return allBudgets.first { $0.month == pm && $0.year == py }
     }
 
+    private var dateRangeStart: Date {
+        let calendar = Calendar.current
+        let now = Date()
+        switch selectedRange {
+        case .thisMonth:
+            return currentBudget?.periodStart ?? calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+        case .lastMonth:
+            return previousBudget?.periodStart ?? calendar.date(byAdding: .month, value: -1, to: now)!
+        case .threeMonths:
+            return calendar.date(byAdding: .month, value: -3, to: now)!
+        case .yearToDate:
+            return calendar.date(from: DateComponents(year: calendar.component(.year, from: now), month: 1, day: 1))!
+        }
+    }
+
+    private var dateRangeEnd: Date {
+        switch selectedRange {
+        case .thisMonth:
+            return currentBudget?.nextPeriodStart ?? Date()
+        case .lastMonth:
+            return currentBudget?.periodStart ?? Date()
+        case .threeMonths, .yearToDate:
+            return Date()
+        }
+    }
+
     private var periodTransactions: [Transaction] {
-        guard let budget = currentBudget else { return [] }
-        return allTransactions.filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
+        return allTransactions.filter { $0.date >= dateRangeStart && $0.date < dateRangeEnd }
+    }
+
+    private var monthlyTotals: [(month: String, spent: Int64)] {
+        allBudgets
+            .sorted { ($0.year, $0.month) < ($1.year, $1.month) }
+            .suffix(12)
+            .map { budget in
+                let label = DateHelpers.monthYearString(month: budget.month, year: budget.year)
+                let spent = budget.totalSpentCents()
+                return (month: label, spent: spent)
+            }
     }
 
     private var insights: [Insight] {
@@ -35,12 +80,65 @@ struct InsightsPlaceholderView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    Picker("Range", selection: $selectedRange) {
+                        ForEach(DateRange.allCases, id: \.self) { range in
+                            Text(range.rawValue).tag(range)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+
                     if let budget = currentBudget {
-                        // FREE: Trend chart
-                        TrendChartView(budget: budget, transactions: periodTransactions)
+                        // FREE: Trend chart (only shown for single-month ranges)
+                        if selectedRange == .thisMonth || selectedRange == .lastMonth {
+                            let trendBudget = selectedRange == .lastMonth ? (previousBudget ?? budget) : budget
+                            TrendChartView(budget: trendBudget, transactions: periodTransactions)
+                        }
 
                         // FREE: Category breakdown
                         CategoryBreakdownChart(budget: budget)
+
+                        // Monthly Totals bar chart
+                        if monthlyTotals.count > 1 {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Monthly Spending")
+                                    .font(.headline)
+
+                                Chart(Array(monthlyTotals.enumerated()), id: \.offset) { _, item in
+                                    BarMark(
+                                        x: .value("Month", item.month),
+                                        y: .value("Spent", Double(truncating: MoneyHelpers.centsToDollars(item.spent) as NSDecimalNumber))
+                                    )
+                                    .foregroundStyle(Color.accentColor.gradient)
+                                    .cornerRadius(4)
+                                }
+                                .frame(height: 200)
+                                .chartXAxis {
+                                    AxisMarks(values: .automatic) { value in
+                                        AxisValueLabel {
+                                            if let str = value.as(String.self) {
+                                                Text(str)
+                                                    .font(.caption2)
+                                                    .rotationEffect(.degrees(-45))
+                                            }
+                                        }
+                                    }
+                                }
+                                .chartYAxis {
+                                    AxisMarks { value in
+                                        AxisGridLine()
+                                        AxisValueLabel {
+                                            if let val = value.as(Double.self) {
+                                                Text(CurrencyFormatter.format(amount: Decimal(val)))
+                                                    .font(.caption2)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .padding()
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        }
 
                         // PREMIUM: vs Last Month
                         premiumSection("vs. Last Month") {

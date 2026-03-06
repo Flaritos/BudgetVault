@@ -79,6 +79,9 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var sortOrder: Int = 0
         var isHidden: Bool = false
         var rollOverUnspent: Bool = false
+        var goalAmountCents: Int64?
+        var goalDate: Date?
+        var goalType: String? // "savings" or "spending" (nil = spending, the default)
 
         @Relationship(deleteRule: .cascade, inverse: \Transaction.category)
         var transactions: [Transaction] = []
@@ -123,6 +126,31 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         func percentSpent(in budget: Budget) -> Double {
             guard budgetedAmountCents > 0 else { return 0 }
             return Double(spentCents(in: budget)) / Double(budgetedAmountCents)
+        }
+
+        // MARK: Savings Goal Computed
+
+        var isSavingsGoal: Bool { goalType == "savings" }
+
+        var goalProgress: Double {
+            guard let goal = goalAmountCents, goal > 0 else { return 0 }
+            return min(Double(budgetedAmountCents) / Double(goal), 1.0)
+        }
+
+        var monthsToGoal: Int? {
+            guard let goal = goalAmountCents, let date = goalDate else { return nil }
+            let remaining = goal - budgetedAmountCents
+            guard remaining > 0 else { return 0 }
+            let months = Calendar.current.dateComponents([.month], from: Date(), to: date).month ?? 0
+            return max(months, 0)
+        }
+
+        var requiredMonthlyContribution: Int64? {
+            guard let goal = goalAmountCents, let date = goalDate else { return nil }
+            let remaining = goal - budgetedAmountCents
+            guard remaining > 0 else { return 0 }
+            let months = max(Calendar.current.dateComponents([.month], from: Date(), to: date).month ?? 1, 1)
+            return remaining / Int64(months)
         }
     }
 

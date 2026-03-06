@@ -8,6 +8,7 @@ struct DashboardPlaceholderView: View {
 
     @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    @Query(sort: \RecurringExpense.nextDueDate) private var recurringExpenses: [RecurringExpense]
 
     @AppStorage("lastSummaryViewed") private var lastSummaryViewed = ""
 
@@ -161,13 +162,24 @@ struct DashboardPlaceholderView: View {
                     .padding(.horizontal)
                 }
 
-                // Remaining budget header
-                remainingHeader(budget: budget)
+                // Hero budget card
+                heroCard(budget: budget)
+
+                // Spending velocity
+                spendingVelocity(budget: budget)
 
                 // Envelope cards
                 if !visibleCategories.isEmpty {
                     envelopeCards(budget: budget)
                 }
+
+                // Savings goals
+                if !goalCategories.isEmpty {
+                    savingsGoalsSection
+                }
+
+                // Upcoming bills
+                upcomingBills
 
                 // Recent transactions
                 if !recentTransactions.isEmpty {
@@ -205,51 +217,104 @@ struct DashboardPlaceholderView: View {
         }
     }
 
-    // MARK: - Remaining Budget Header
+    // MARK: - Hero Budget Card
 
     @ViewBuilder
-    private func remainingHeader(budget: Budget) -> some View {
+    private func heroCard(budget: Budget) -> some View {
         let pct = budget.percentRemaining
         let status = viewModel.statusText(for: pct)
-        let colorName = viewModel.statusColor(for: pct)
+        let daysRemaining = daysRemainingInPeriod(budget: budget)
+        let dailyAllowanceCents = budget.remainingCents > 0 ? budget.remainingCents / Int64(max(daysRemaining, 1)) : 0
 
-        VStack(spacing: 8) {
-            HStack {
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 12) {
                 Text(CurrencyFormatter.format(cents: budget.remainingCents))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(statusSwiftUIColor(colorName))
+                    .font(BudgetVaultTheme.heroAmount)
+                    .foregroundStyle(.white)
                     .contentTransition(.numericText())
 
-                if currentStreak > 0 {
-                    Spacer()
-                    HStack(spacing: 2) {
-                        Text("🔥")
-                        Text("\(currentStreak)")
-                            .font(.headline)
-                    }
-                    .accessibilityLabel("Logging streak: \(currentStreak) days")
-                }
+                Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.8))
+
+                Text("You can spend \(CurrencyFormatter.format(cents: dailyAllowanceCents))/day")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.9))
+
+                ProgressView(value: dayProgressFraction(budget: budget))
+                    .tint(.white)
+                    .padding(.horizontal, 24)
+
+                Text(budgetDayProgress(budget: budget))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+
+                // Status badge
+                Text(status)
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(.white.opacity(0.2), in: Capsule())
             }
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
 
-            Text("remaining")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(budgetDayProgress(budget: budget))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(status)
-                .font(.caption.bold())
-                .foregroundStyle(statusSwiftUIColor(colorName))
+            // Streak badge
+            if currentStreak > 0 {
+                HStack(spacing: 2) {
+                    Text("\u{1F525}")
+                    Text("\(currentStreak)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(.white.opacity(0.2), in: Capsule())
+                .padding(16)
+                .accessibilityLabel("Logging streak: \(currentStreak) days")
+            }
         }
-        .padding(.horizontal)
+        .background(BudgetVaultTheme.budgetGradient(for: pct))
+        .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 16, y: 8)
+        .padding(.horizontal, BudgetVaultTheme.spacingLG)
         .accessibilityElement(children: .combine)
         .accessibilityValue("\(CurrencyFormatter.format(cents: budget.remainingCents)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)), \(status)")
+    }
+
+    // MARK: - Spending Velocity
+
+    @ViewBuilder
+    private func spendingVelocity(budget: Budget) -> some View {
+        let calendar = Calendar.current
+        let today = Date()
+        let start = budget.periodStart
+        let end = budget.nextPeriodStart
+        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
+        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 1)
+        let totalSpent = budget.totalSpentCents()
+
+        if totalSpent > 0 && elapsed > 0 {
+            let dailyRate = Double(totalSpent) / Double(elapsed)
+            let projectedCents = Int64(dailyRate * Double(totalDays))
+            let overBudget = projectedCents > budget.totalIncomeCents
+
+            HStack(spacing: 6) {
+                Image(systemName: overBudget ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(overBudget ? BudgetVaultTheme.negative : BudgetVaultTheme.positive)
+
+                Text("At this pace, you'll spend \(CurrencyFormatter.format(cents: projectedCents)) this month")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingMD)
+            .padding(.vertical, BudgetVaultTheme.spacingSM)
+            .frame(maxWidth: .infinity)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM))
+            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+        }
     }
 
     // MARK: - Envelope Cards
@@ -284,20 +349,79 @@ struct DashboardPlaceholderView: View {
                 .lineLimit(1)
 
             BudgetRingView(spent: spent, budgeted: budgeted)
-                .frame(width: 40, height: 40)
+                .frame(width: 56, height: 56)
 
             Text(CurrencyFormatter.format(cents: spent))
-                .font(.caption2)
+                .font(.caption)
             Text("of \(CurrencyFormatter.format(cents: budgeted))")
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(width: 120, height: 160)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .frame(width: 150, height: 185)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                .fill(Color(hex: category.color).opacity(0.08))
+        )
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
         .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.secondary.opacity(0.1)))
+        .overlay(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD).strokeBorder(.secondary.opacity(0.1)))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(category.emoji) \(category.name): spent \(CurrencyFormatter.format(cents: spent)) of \(CurrencyFormatter.format(cents: budgeted))")
+    }
+
+    // MARK: - Upcoming Bills
+
+    @ViewBuilder
+    private var upcomingBills: some View {
+        let upcoming = upcomingRecurringExpenses
+        if !upcoming.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Upcoming")
+                    .font(.headline)
+                    .padding(.horizontal)
+
+                ForEach(upcoming, id: \.id) { expense in
+                    let daysUntil = Calendar.current.dateComponents(
+                        [.day],
+                        from: Calendar.current.startOfDay(for: Date()),
+                        to: Calendar.current.startOfDay(for: expense.nextDueDate)
+                    ).day ?? 0
+
+                    HStack(spacing: 12) {
+                        Text(expense.category?.emoji ?? "\u{1F4E6}")
+                            .font(.title3)
+                            .frame(width: 36)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(expense.name.isEmpty ? "Unnamed" : expense.name)
+                                .font(.subheadline.weight(.medium))
+                                .lineLimit(1)
+                            Text(daysUntil == 0 ? "Due today" : "Due in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundStyle(daysUntil == 0 ? BudgetVaultTheme.caution : .secondary)
+                        }
+
+                        Spacer()
+
+                        Text(CurrencyFormatter.format(cents: expense.amountCents))
+                            .font(BudgetVaultTheme.rowAmount)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    private var upcomingRecurringExpenses: [RecurringExpense] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let sevenDaysLater = calendar.date(byAdding: .day, value: 7, to: today) else { return [] }
+
+        return recurringExpenses
+            .filter { $0.isActive && $0.nextDueDate >= today && $0.nextDueDate <= sevenDaysLater }
+            .prefix(3)
+            .map { $0 }
     }
 
     // MARK: - Recent Transactions
@@ -322,6 +446,41 @@ struct DashboardPlaceholderView: View {
         }
     }
 
+    // MARK: - Savings Goals
+
+    private var goalCategories: [Category] {
+        visibleCategories.filter { $0.isSavingsGoal && $0.goalAmountCents != nil }
+    }
+
+    @ViewBuilder
+    private var savingsGoalsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Savings Goals")
+                .font(.headline)
+                .padding(.horizontal)
+
+            ForEach(goalCategories, id: \.id) { category in
+                HStack {
+                    Text(category.emoji)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(category.name)
+                            .font(.subheadline.bold())
+                        ProgressView(value: category.goalProgress)
+                            .tint(Color.accentColor)
+                    }
+                    VStack(alignment: .trailing) {
+                        Text(CurrencyFormatter.format(cents: category.budgetedAmountCents))
+                            .font(.caption.bold())
+                        Text("of \(CurrencyFormatter.format(cents: category.goalAmountCents ?? 0))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private func budgetDayProgress(budget: Budget) -> String {
@@ -335,11 +494,28 @@ struct DashboardPlaceholderView: View {
         return "Day \(dayNumber) of \(totalDays)"
     }
 
+    private func dayProgressFraction(budget: Budget) -> Double {
+        let calendar = Calendar.current
+        let today = Date()
+        let start = budget.periodStart
+        let end = budget.nextPeriodStart
+        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
+        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 0)
+        return min(Double(elapsed) / Double(totalDays), 1.0)
+    }
+
+    private func daysRemainingInPeriod(budget: Budget) -> Int {
+        let calendar = Calendar.current
+        let today = Date()
+        let end = budget.nextPeriodStart
+        return max(calendar.dateComponents([.day], from: today, to: end).day ?? 1, 1)
+    }
+
     private func statusSwiftUIColor(_ name: String) -> Color {
         switch name {
-        case "green": .green
-        case "yellow": .orange
-        default: .red
+        case "green": BudgetVaultTheme.positive
+        case "yellow": BudgetVaultTheme.caution
+        default: BudgetVaultTheme.negative
         }
     }
 }

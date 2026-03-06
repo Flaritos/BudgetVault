@@ -18,6 +18,10 @@ struct BudgetPlaceholderView: View {
     @State private var categoryAmountText = ""
     @State private var showArchived = false
     @State private var showRecurring = false
+    @State private var showMoveMoney = false
+    @State private var goalAmountText = ""
+    @State private var goalDate = Date()
+    @State private var isSavingsGoal = false
 
     private var viewingBudget: Budget? {
         allBudgets.first { $0.month == viewingMonth && $0.year == viewingYear }
@@ -72,6 +76,15 @@ struct BudgetPlaceholderView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
+                        if isCurrentPeriod && visibleCategories.count >= 2 {
+                            Button {
+                                showMoveMoney = true
+                            } label: {
+                                Image(systemName: "arrow.left.arrow.right")
+                            }
+                            .accessibilityLabel("Move money between categories")
+                        }
+
                         Button {
                             showRecurring = true
                         } label: {
@@ -127,6 +140,10 @@ struct BudgetPlaceholderView: View {
             }
             .sheet(item: $editingCategoryAmount) { category in
                 categoryAmountSheet(category: category)
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showMoveMoney) {
+                MoveMoneyView(categories: visibleCategories)
                     .presentationDragIndicator(.visible)
             }
         }
@@ -320,18 +337,40 @@ struct BudgetPlaceholderView: View {
 
     private func categoryAmountSheet(category: Category) -> some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Text("\(category.emoji) \(category.name)")
-                    .font(.headline)
-                    .padding(.top, 16)
+            ScrollView {
+                VStack(spacing: 24) {
+                    Text("\(category.emoji) \(category.name)")
+                        .font(.headline)
+                        .padding(.top, 16)
 
-                Text(displayAmount(categoryAmountText))
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    Text(displayAmount(categoryAmountText))
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
 
-                NumberPadView(text: $categoryAmountText)
-                    .padding(.horizontal, 24)
+                    NumberPadView(text: $categoryAmountText)
+                        .padding(.horizontal, 24)
 
-                Spacer()
+                    Divider()
+                        .padding(.horizontal)
+
+                    Toggle("Savings Goal", isOn: $isSavingsGoal)
+                        .font(.subheadline)
+                        .padding(.horizontal)
+
+                    if isSavingsGoal {
+                        HStack {
+                            Text("Target: \(CurrencyFormatter.currencySymbol())")
+                                .font(.subheadline)
+                            TextField("0", text: $goalAmountText)
+                                .keyboardType(.decimalPad)
+                                .font(.subheadline)
+                        }
+                        .padding(.horizontal)
+
+                        DatePicker("Target Date", selection: $goalDate, displayedComponents: .date)
+                            .font(.subheadline)
+                            .padding(.horizontal)
+                    }
+                }
             }
             .navigationTitle("Category Budget")
             .navigationBarTitleDisplayMode(.inline)
@@ -343,14 +382,37 @@ struct BudgetPlaceholderView: View {
                     Button("Save") {
                         if let cents = MoneyHelpers.parseCurrencyString(categoryAmountText) {
                             category.budgetedAmountCents = cents
-                            SafeSave.save(modelContext)
                         }
+                        if isSavingsGoal {
+                            category.goalType = "savings"
+                            category.goalAmountCents = MoneyHelpers.parseCurrencyString(goalAmountText)
+                            category.goalDate = goalDate
+                            category.rollOverUnspent = true
+                        } else {
+                            category.goalType = nil
+                            category.goalAmountCents = nil
+                            category.goalDate = nil
+                        }
+                        SafeSave.save(modelContext)
                         editingCategoryAmount = nil
                     }
                 }
             }
+            .onAppear {
+                isSavingsGoal = category.goalType == "savings"
+                if let goal = category.goalAmountCents {
+                    goalAmountText = String(goal / 100)
+                } else {
+                    goalAmountText = ""
+                }
+                if let date = category.goalDate {
+                    goalDate = date
+                } else {
+                    goalDate = Date()
+                }
+            }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
     }
 
     // MARK: - Helpers

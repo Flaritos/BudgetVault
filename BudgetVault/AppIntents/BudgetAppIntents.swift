@@ -2,13 +2,27 @@ import AppIntents
 import SwiftUI
 
 struct AddExpenseIntent: AppIntent {
-    static var title: LocalizedStringResource = "Add Expense to BudgetVault"
-    static var description = IntentDescription("Open BudgetVault to add a new expense.")
-    static var openAppWhenRun = true
+    static var title: LocalizedStringResource = "Add Expense"
+    static var description = IntentDescription("Log an expense in BudgetVault")
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Amount")
+    var amount: Double?
+
+    @Parameter(title: "Category")
+    var categoryName: String?
+
+    @Parameter(title: "Note")
+    var note: String?
 
     func perform() async throws -> some IntentResult {
-        // Deep link handled by ContentView observing the intent
-        NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+        await MainActor.run {
+            var userInfo: [String: Any] = [:]
+            if let amount { userInfo["amount"] = amount }
+            if let categoryName { userInfo["category"] = categoryName }
+            if let note { userInfo["note"] = note }
+            NotificationCenter.default.post(name: .openTransactionEntry, object: nil, userInfo: userInfo)
+        }
         return .result()
     }
 }

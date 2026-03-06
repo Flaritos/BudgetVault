@@ -4,6 +4,7 @@ import SwiftData
 struct ContentView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
+    @AppStorage("hasLoggedFirstTransaction") private var hasLoggedFirstTransaction = false
 
     @State private var authService = BiometricAuthService()
 
@@ -15,6 +16,13 @@ struct ContentView: View {
                 BiometricLockView(authService: authService)
             } else {
                 MainTabView()
+            }
+        }
+        .onChange(of: hasCompletedOnboarding) { oldValue, newValue in
+            if !oldValue && newValue && !hasLoggedFirstTransaction {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+                }
             }
         }
     }

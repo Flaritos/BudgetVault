@@ -39,20 +39,40 @@ struct TrendChartView: View {
                     .foregroundStyle(.secondary)
                     .frame(height: 180)
             } else {
-                Chart(dailyCumulative, id: \.day) { item in
-                    LineMark(
-                        x: .value("Day", item.day),
-                        y: .value("Spent", item.total)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.accentColor)
+                Chart {
+                    ForEach(dailyCumulative, id: \.day) { item in
+                        LineMark(
+                            x: .value("Day", item.day),
+                            y: .value("Spent", item.total)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Color.accentColor)
 
-                    AreaMark(
-                        x: .value("Day", item.day),
-                        y: .value("Spent", item.total)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.accentColor.opacity(0.1))
+                        AreaMark(
+                            x: .value("Day", item.day),
+                            y: .value("Spent", item.total)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.accentColor.opacity(0.3), Color.accentColor.opacity(0.0)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
+
+                    // Budget pace line (if budget has income)
+                    if budget.totalIncomeCents > 0 {
+                        RuleMark(y: .value("Budget", Double(budget.totalIncomeCents) / 100.0))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                            .foregroundStyle(.secondary.opacity(0.5))
+                            .annotation(position: .trailing) {
+                                Text("Budget")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                    }
                 }
                 .chartXAxisLabel("Day of month")
                 .chartYAxisLabel(CurrencyFormatter.currencySymbol())

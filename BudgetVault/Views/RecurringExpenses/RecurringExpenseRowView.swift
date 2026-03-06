@@ -26,7 +26,7 @@ struct RecurringExpenseRowView: View {
             Spacer()
 
             Text(CurrencyFormatter.format(cents: expense.amountCents))
-                .font(.subheadline.weight(.semibold))
+                .font(BudgetVaultTheme.rowAmount)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(expense.name), \(CurrencyFormatter.format(cents: expense.amountCents)), \(expense.frequencyEnum.displayName), \(dueText)")
