@@ -40,6 +40,13 @@ struct BudgetVaultApp: App {
     init() {
         UNUserNotificationCenter.current().delegate = notificationDelegate
 
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithDefaultBackground()
+        navAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor(BudgetVaultTheme.navyDark)]
+        navAppearance.titleTextAttributes = [.foregroundColor: UIColor(BudgetVaultTheme.navyDark)]
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+
         let schema = Schema(versionedSchema: BudgetVaultSchemaV1.self)
         let iCloudEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
 

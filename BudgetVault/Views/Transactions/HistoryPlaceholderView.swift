@@ -140,6 +140,7 @@ struct HistoryPlaceholderView: View {
                     TransactionEditView(transaction: transaction, budget: budget, categories: categories)
                 }
             }
+            .tint(BudgetVaultTheme.electricBlue)
             .sheet(isPresented: Binding(
                 get: { csvExportText != nil },
                 set: { if !$0 { csvExportText = nil } }

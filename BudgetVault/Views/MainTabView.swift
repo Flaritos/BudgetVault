@@ -24,5 +24,6 @@ struct MainTabView: View {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
         }
+        .tint(BudgetVaultTheme.electricBlue)
     }
 }

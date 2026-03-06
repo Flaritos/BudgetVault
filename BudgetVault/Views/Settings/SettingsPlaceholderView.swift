@@ -30,6 +30,7 @@ struct SettingsPlaceholderView: View {
     var body: some View {
         NavigationStack {
             Form {
+                premiumBadge
                 securitySection
                 profileSection
                 dataSection
@@ -68,6 +69,49 @@ struct SettingsPlaceholderView: View {
                 if let url = exportURL {
                     ShareSheetView(url: url)
                 }
+            }
+        }
+    }
+
+    // MARK: - Premium Badge
+
+    private var premiumBadge: some View {
+        Section {
+            if isPremium || storeKit.isPremium {
+                HStack(spacing: 8) {
+                    VaultDialMark(size: 22, color: BudgetVaultTheme.electricBlue)
+                    Text("BudgetVault Premium")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(BudgetVaultTheme.electricBlue)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .listRowBackground(BudgetVaultTheme.electricBlue.opacity(0.08))
+            } else {
+                Button {
+                    showPaywall = true
+                } label: {
+                    HStack(spacing: 10) {
+                        VaultDialMark(size: 28, color: .white)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("BudgetVault Premium")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.white)
+                            Text("Unlock all features")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(BudgetVaultTheme.brandGradient)
+                        .padding(.vertical, 2)
+                )
             }
         }
     }

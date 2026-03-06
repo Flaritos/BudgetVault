@@ -17,8 +17,26 @@ struct OnboardingView: View {
     @State private var budgetCreated = false
     @State private var showCelebrationCheck = false
     @State private var stepIconScales: [Int: CGFloat] = [:]
+    @State private var dialRotation: Double = 0
+    @State private var dialUnlocked = false
+    @State private var showWelcomeText = false
 
     private let totalPages = 7
+
+    private func stepIndicator(current: Int) -> some View {
+        HStack(spacing: 6) {
+            ForEach(0..<totalPages, id: \.self) { i in
+                Circle()
+                    .fill(i <= current ? BudgetVaultTheme.electricBlue : Color.gray.opacity(0.3))
+                    .frame(width: i == current ? 10 : 7, height: i == current ? 10 : 7)
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private var selectedCurrencySymbol: String {
+        CurrencyPickerView.currencies.first { $0.code == tempCurrency }?.symbol ?? "$"
+    }
 
     // MARK: - Budget Templates
 
@@ -82,8 +100,7 @@ struct OnboardingView: View {
             celebrationPage.tag(5)
             notificationPage.tag(6)
         }
-        .tabViewStyle(.page(indexDisplayMode: .always))
-        .indexViewStyle(.page(backgroundDisplayMode: .always))
+        .tabViewStyle(.page(indexDisplayMode: .never))
         .animation(.easeInOut, value: currentPage)
         .onAppear { tempCurrency = selectedCurrency }
     }
@@ -108,32 +125,49 @@ struct OnboardingView: View {
 
     private var welcomePage: some View {
         ZStack {
-            BudgetVaultTheme.brandGradient
+            BudgetVaultTheme.navyDark
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            VStack(spacing: 0) {
                 Spacer()
 
-                Image(systemName: "vault.fill")
-                    .font(.system(size: 100, weight: .light))
-                    .foregroundStyle(.white.opacity(0.95))
-                    .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+                // Animated vault dial
+                VaultDialMark(size: 160, showGlow: true, tickRotation: dialRotation)
+                    .opacity(dialUnlocked ? 1 : 0.7)
 
-                Text("Welcome to BudgetVault")
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
+                Spacer()
+                    .frame(height: 48)
+
+                // Dial mark + title
+                HStack(spacing: 12) {
+                    VaultDialMark(size: 36)
+
+                    Text("BudgetVault")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+                .opacity(showWelcomeText ? 1 : 0)
+                .offset(y: showWelcomeText ? 0 : 12)
 
                 Text("Your budget. Your device. No one else.")
                     .font(.body)
-                    .foregroundStyle(.white.opacity(0.75))
+                    .foregroundStyle(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
+                    .padding(.top, 8)
+                    .opacity(showWelcomeText ? 1 : 0)
+                    .offset(y: showWelcomeText ? 0 : 8)
 
                 Spacer()
 
                 Button {
-                    withAnimation { currentPage = 1 }
+                    // Spin the dial again then navigate
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        dialRotation += 360
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation { currentPage = 1 }
+                    }
                 } label: {
                     Text("Get Started")
                         .font(.headline)
@@ -144,6 +178,27 @@ struct OnboardingView: View {
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
+                .opacity(showWelcomeText ? 1 : 0)
+            }
+        }
+        .task {
+            // Small delay to ensure view is visible before animating
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !dialUnlocked else { return }
+            withAnimation(.easeInOut(duration: 1.2)) {
+                dialRotation = 270
+            }
+            try? await Task.sleep(for: .milliseconds(1200))
+            withAnimation(.easeOut(duration: 0.3)) {
+                dialRotation = 240
+            }
+            try? await Task.sleep(for: .milliseconds(300))
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                dialUnlocked = true
+            }
+            try? await Task.sleep(for: .milliseconds(200))
+            withAnimation(.easeOut(duration: 0.6)) {
+                showWelcomeText = true
             }
         }
     }
@@ -167,6 +222,8 @@ struct OnboardingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 24) {
+                stepIndicator(current: 1)
+
                 Spacer()
 
                 Image(systemName: "tray.2.fill")
@@ -230,9 +287,21 @@ struct OnboardingView: View {
             subtleTopGradient
 
             VStack(spacing: 16) {
+                stepIndicator(current: 2)
+
+                Text(selectedCurrencySymbol)
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(width: 80, height: 80)
+                    .background(BudgetVaultTheme.electricBlue, in: Circle())
+                    .padding(.top, 8)
+
                 Text("Choose Your Currency")
                     .font(.title2.bold())
-                    .padding(.top, 32)
+
+                Text("You can change this later in Settings")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
                 CurrencyPickerView(selectedCurrency: $tempCurrency)
 
@@ -256,9 +325,10 @@ struct OnboardingView: View {
             subtleTopGradient
 
             VStack(spacing: 16) {
+                stepIndicator(current: 3)
+
                 Text("Choose a Template")
                     .font(.title2.bold())
-                    .padding(.top, 32)
 
                 Text("Pick a starting point, then customize your categories.")
                     .font(.subheadline)
@@ -312,6 +382,9 @@ struct OnboardingView: View {
                     List {
                         ForEach(selectedCategories.indices, id: \.self) { index in
                             HStack(spacing: 12) {
+                                Circle()
+                                    .fill(Color(hex: selectedCategories[index].color))
+                                    .frame(width: 8, height: 8)
                                 Text(selectedCategories[index].emoji)
                                     .font(.title3)
                                 TextField("Category name", text: Binding(
@@ -321,8 +394,11 @@ struct OnboardingView: View {
                                 .textFieldStyle(.plain)
                                 Spacer()
                                 Text("\(Int(selectedCategories[index].pct * 100))%")
-                                    .foregroundStyle(.secondary)
                                     .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Color(.systemGray5), in: Capsule())
                             }
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
@@ -381,9 +457,10 @@ struct OnboardingView: View {
             subtleTopGradient
 
             VStack(spacing: 24) {
+                stepIndicator(current: 4)
+
                 Text("Set Your Monthly Income")
                     .font(.title2.bold())
-                    .padding(.top, 32)
 
                 let totalPct = selectedCategories.reduce(0.0) { $0 + $1.pct }
                 let pctString = String(format: "%.0f", totalPct * 100)
@@ -402,6 +479,16 @@ struct OnboardingView: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
                 }
+                .padding(.vertical, 16)
+                .padding(.horizontal, 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(.secondarySystemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(Color(.separator), lineWidth: 1)
+                        )
+                )
                 .padding(.horizontal, 40)
 
                 if let cents = MoneyHelpers.parseCurrencyString(monthlyIncome), cents > 0 {
@@ -451,6 +538,11 @@ struct OnboardingView: View {
                         }
                     }
                     .padding(.horizontal, 40)
+
+                    Text("Total allocated: \(CurrencyFormatter.format(cents: allocated))")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(BudgetVaultTheme.electricBlue)
+                        .padding(.horizontal, 40)
                 }
 
                 Spacer()
@@ -478,16 +570,9 @@ struct OnboardingView: View {
             VStack(spacing: 24) {
                 Spacer()
 
-                ZStack {
-                    Circle()
-                        .fill(.white.opacity(0.15))
-                        .frame(width: 140, height: 140)
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 100))
-                        .foregroundStyle(.white)
-                        .scaleEffect(showCelebrationCheck ? 1.0 : 0.3)
-                        .opacity(showCelebrationCheck ? 1.0 : 0.0)
-                }
+                VaultDialMark(size: 120, showGlow: true)
+                    .scaleEffect(showCelebrationCheck ? 1.0 : 0.3)
+                    .opacity(showCelebrationCheck ? 1.0 : 0.0)
 
                 Text("You're All Set!")
                     .font(.largeTitle.bold())
@@ -529,21 +614,23 @@ struct OnboardingView: View {
 
     private var notificationPage: some View {
         ZStack {
-            subtleTopGradient
+            BudgetVaultTheme.brandGradient
+                .ignoresSafeArea()
 
             VStack(spacing: 24) {
                 Spacer()
 
                 Image(systemName: "bell.badge.fill")
                     .font(.system(size: 64))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.white)
 
                 Text("Stay on Track")
                     .font(.title2.bold())
+                    .foregroundStyle(.white)
 
                 Text("A daily reminder helps you log expenses before you forget. Most BudgetVault users log at 8pm.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.75))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
@@ -551,8 +638,12 @@ struct OnboardingView: View {
                     requestNotificationPermission()
                 } label: {
                     Text("Enable Daily Reminder")
+                        .font(.headline)
+                        .foregroundStyle(BudgetVaultTheme.electricBlue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
-                .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 40)
 
                 Button {
@@ -560,7 +651,7 @@ struct OnboardingView: View {
                 } label: {
                     Text("Not Now")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.6))
                 }
 
                 Spacer()
@@ -613,3 +704,4 @@ struct OnboardingView: View {
         hasCompletedOnboarding = true
     }
 }
+

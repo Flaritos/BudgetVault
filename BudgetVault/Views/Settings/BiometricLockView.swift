@@ -7,35 +7,41 @@ struct BiometricLockView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(Color.accentColor)
+            VaultDialMark(size: 100, showGlow: true)
 
             Text("BudgetVault")
                 .font(.largeTitle.bold())
+                .foregroundStyle(.white)
 
             Text("Unlock to continue")
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.7))
 
             Button {
                 Task { await authService.authenticate() }
             } label: {
                 Label("Unlock with \(authService.biometricName)", systemImage: authService.biometricIcon)
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                    .foregroundStyle(BudgetVaultTheme.electricBlue)
             }
-            .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
             .accessibilityHint("Authenticate to access your budget")
 
             if let error = authService.errorMessage {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.white.opacity(0.8))
             }
 
             Spacer()
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BudgetVaultTheme.brandGradient)
+        .ignoresSafeArea()
         .task {
             await authService.authenticate()
         }

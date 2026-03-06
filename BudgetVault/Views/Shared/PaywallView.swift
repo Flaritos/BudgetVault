@@ -32,9 +32,7 @@ struct PaywallView: View {
                 VStack(spacing: 20) {
                     // Hero header
                     VStack(spacing: 12) {
-                        Image(systemName: "vault.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(.white)
+                        VaultDialMark(size: 72)
                             .padding(.top, 32)
 
                         Text("Unlock BudgetVault Premium")

@@ -38,7 +38,7 @@ struct TransactionEntryView: View {
                 // Amount display
                 Text(displayAmount)
                     .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundStyle(amountText.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
                     .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
                     .padding(.top, 8)
 
