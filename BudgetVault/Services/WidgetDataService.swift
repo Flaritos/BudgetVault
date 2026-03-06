@@ -34,7 +34,7 @@ enum WidgetDataService {
         )
         guard let budget = try? context.fetch(descriptor).first else { return }
 
-        let categories = budget.categories
+        let categories = (budget.categories ?? [])
             .filter { !$0.isHidden }
             .sorted { $0.spentCents(in: budget) > $1.spentCents(in: budget) }
             .prefix(3)

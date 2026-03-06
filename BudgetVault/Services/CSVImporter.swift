@@ -137,10 +137,10 @@ enum CSVImporter {
             let category: Category?
             if row.isIncome {
                 category = nil
-            } else if let existing = budget.categories.first(where: { $0.name == mappedCategory }) {
+            } else if let existing = (budget.categories ?? []).first(where: { $0.name == mappedCategory }) {
                 category = existing
             } else {
-                let newCat = Category(name: mappedCategory, emoji: "📦", sortOrder: budget.categories.count)
+                let newCat = Category(name: mappedCategory, emoji: "📦", sortOrder: (budget.categories ?? []).count)
                 newCat.budget = budget
                 category = newCat
             }

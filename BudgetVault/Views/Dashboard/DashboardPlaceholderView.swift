@@ -27,7 +27,7 @@ struct DashboardPlaceholderView: View {
 
     private var visibleCategories: [Category] {
         guard let budget = currentBudget else { return [] }
-        return budget.categories
+        return (budget.categories ?? [])
             .filter { !$0.isHidden }
             .sorted { $0.sortOrder < $1.sortOrder }
     }

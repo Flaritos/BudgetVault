@@ -33,7 +33,7 @@ struct HistoryPlaceholderView: View {
     }
 
     private var categories: [Category] {
-        currentBudget?.categories.filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder } ?? []
+        (currentBudget?.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private var filteredTransactions: [Transaction] {

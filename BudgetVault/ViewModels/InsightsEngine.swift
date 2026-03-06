@@ -28,7 +28,7 @@ enum InsightsEngine {
         let calendar = Calendar.current
         let today = Date()
 
-        let categories = budget.categories.filter { !$0.isHidden }
+        let categories = (budget.categories ?? []).filter { !$0.isHidden }
 
         // 1. Category >90% budget
         for cat in categories {
@@ -62,7 +62,7 @@ enum InsightsEngine {
 
         // 3. Transaction > 2x category average
         for cat in categories {
-            let txs = cat.transactions.filter { !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
+            let txs = (cat.transactions ?? []).filter { !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
             guard txs.count >= 2 else { continue }
             let avg = txs.reduce(Int64(0)) { $0 + $1.amountCents } / Int64(txs.count)
             if let largest = txs.max(by: { $0.amountCents < $1.amountCents }),
@@ -78,8 +78,8 @@ enum InsightsEngine {
 
         // 4. Spent less than previous month at same point
         if let prev = previousBudget {
-            let prevSpentAtSamePoint = prev.categories
-                .flatMap { $0.transactions }
+            let prevSpentAtSamePoint = (prev.categories ?? [])
+                .flatMap { $0.transactions ?? [] }
                 .filter {
                     !$0.isIncome &&
                     $0.date >= prev.periodStart &&

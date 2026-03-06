@@ -34,7 +34,7 @@ enum RecurringExpenseScheduler {
                 var resolvedCategory = expense.category
                 if let cat = resolvedCategory, cat.budget?.id != currentBudget?.id {
                     // Category belongs to an old budget — find equivalent in current budget by name
-                    if let match = currentBudget?.categories.first(where: { $0.name == cat.name }) {
+                    if let match = (currentBudget?.categories ?? []).first(where: { $0.name == cat.name }) {
                         resolvedCategory = match
                     } else {
                         // No matching category in current budget — skip this posting

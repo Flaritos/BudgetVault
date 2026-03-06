@@ -5,7 +5,7 @@ struct CategoryBreakdownChart: View {
     let budget: Budget
 
     private var chartData: [(name: String, emoji: String, spent: Double, color: Color)] {
-        budget.categories
+        (budget.categories ?? [])
             .filter { !$0.isHidden && $0.spentCents(in: budget) > 0 }
             .sorted { $0.spentCents(in: budget) > $1.spentCents(in: budget) }
             .map { cat in
@@ -21,7 +21,7 @@ struct CategoryBreakdownChart: View {
     }
 
     private var totalSpentCents: Int64 {
-        budget.categories
+        (budget.categories ?? [])
             .filter { !$0.isHidden }
             .reduce(Int64(0)) { $0 + $1.spentCents(in: budget) }
     }

@@ -58,7 +58,7 @@ struct BudgetVaultApp: App {
                 cloudKitDatabase: .private("iCloud.com.budgetvault.app")
             )
         } else {
-            config = ModelConfiguration("BudgetVault", schema: schema)
+            config = ModelConfiguration("BudgetVault", schema: schema, cloudKitDatabase: .none)
         }
 
         do {
@@ -189,7 +189,7 @@ struct BudgetVaultApp: App {
             context.insert(newBudget)
 
             // Clone categories from the source budget
-            for cat in sourceBudget.categories {
+            for cat in sourceBudget.categories ?? [] {
                 var newBudgetedCents = cat.budgetedAmountCents
 
                 // If rollOverUnspent is enabled, add unspent amount from source

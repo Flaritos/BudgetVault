@@ -36,6 +36,7 @@ final class StoreKitManager {
         products.first { $0.id == Self.tipProductID }
     }
 
+    // nonisolated(unsafe) needed so deinit can cancel the task
     private nonisolated(unsafe) var updateTask: Task<Void, Never>?
 
     init() {

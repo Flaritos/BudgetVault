@@ -21,7 +21,7 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var isAutoCreated: Bool = false
 
         @Relationship(deleteRule: .cascade, inverse: \Category.budget)
-        var categories: [Category] = []
+        var categories: [Category]? = []
 
         init(month: Int, year: Int, totalIncomeCents: Int64 = 0, resetDay: Int = 1, isAutoCreated: Bool = false) {
             self.id = UUID()
@@ -52,7 +52,7 @@ enum BudgetVaultSchemaV1: VersionedSchema {
 
         /// Total spent in this budget period (non-income transactions across all categories)
         func totalSpentCents() -> Int64 {
-            categories.reduce(0) { $0 + $1.spentCents(in: self) }
+            (categories ?? []).reduce(0) { $0 + $1.spentCents(in: self) }
         }
 
         var remainingCents: Int64 {
@@ -84,12 +84,12 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var goalType: String? // "savings" or "spending" (nil = spending, the default)
 
         @Relationship(deleteRule: .cascade, inverse: \Transaction.category)
-        var transactions: [Transaction] = []
+        var transactions: [Transaction]? = []
 
         var budget: Budget?
 
         @Relationship(deleteRule: .nullify, inverse: \RecurringExpense.category)
-        var recurringExpenses: [RecurringExpense] = []
+        var recurringExpenses: [RecurringExpense]? = []
 
         init(name: String, emoji: String = "📦", budgetedAmountCents: Int64 = 0, color: String = "#007AFF", sortOrder: Int = 0) {
             self.id = UUID()
@@ -106,7 +106,7 @@ enum BudgetVaultSchemaV1: VersionedSchema {
 
         /// CRITICAL: Half-open interval — date >= start AND date < nextStart
         func spentCents(in budget: Budget) -> Int64 {
-            transactions
+            (transactions ?? [])
                 .filter { !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
                 .reduce(0) { $0 + $1.amountCents }
         }
@@ -201,7 +201,7 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var category: Category?
 
         @Relationship(deleteRule: .nullify)
-        var generatedTransactions: [Transaction] = []
+        var generatedTransactions: [Transaction]? = []
 
         init(name: String, amountCents: Int64, frequency: Frequency = .monthly, nextDueDate: Date = .now, category: Category? = nil) {
             self.id = UUID()

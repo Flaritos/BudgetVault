@@ -34,19 +34,19 @@ struct BudgetPlaceholderView: View {
 
     private var visibleCategories: [Category] {
         guard let budget = viewingBudget else { return [] }
-        return budget.categories
+        return (budget.categories ?? [])
             .filter { !$0.isHidden }
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private var archivedCategories: [Category] {
         guard let budget = viewingBudget else { return [] }
-        return budget.categories.filter { $0.isHidden }
+        return (budget.categories ?? []).filter { $0.isHidden }
     }
 
     private var unallocatedCents: Int64 {
         guard let budget = viewingBudget else { return 0 }
-        let allocated = budget.categories.filter { !$0.isHidden }.reduce(Int64(0)) { $0 + $1.budgetedAmountCents }
+        let allocated = (budget.categories ?? []).filter { !$0.isHidden }.reduce(Int64(0)) { $0 + $1.budgetedAmountCents }
         return budget.totalIncomeCents - allocated
     }
 

@@ -263,11 +263,11 @@ struct InsightsPlaceholderView: View {
                 .font(.headline)
 
             if let prev = previousBudget {
-                let categories = budget.categories.filter { !$0.isHidden }
+                let categories = (budget.categories ?? []).filter { !$0.isHidden }
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(categories, id: \.id) { cat in
                         let current = cat.spentCents(in: budget)
-                        let prevCat = prev.categories.first { $0.name == cat.name }
+                        let prevCat = (prev.categories ?? []).first { $0.name == cat.name }
                         let previous = prevCat?.spentCents(in: prev) ?? 0
                         let delta = current - previous
 
@@ -398,7 +398,7 @@ struct InsightsPlaceholderView: View {
     @MainActor
     private func renderAndShare() {
         guard let budget = currentBudget else { return }
-        let topCats = budget.categories
+        let topCats = (budget.categories ?? [])
             .filter { !$0.isHidden }
             .sorted { $0.spentCents(in: budget) > $1.spentCents(in: budget) }
             .prefix(5)

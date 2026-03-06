@@ -97,7 +97,7 @@ struct AddCategoryView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
                         let trimmed = name.trimmingCharacters(in: .whitespaces)
-                        let duplicate = budget.categories.contains { $0.name.lowercased() == trimmed.lowercased() }
+                        let duplicate = (budget.categories ?? []).contains { $0.name.lowercased() == trimmed.lowercased() }
                         if duplicate {
                             showDuplicateWarning = true
                         } else {
@@ -118,7 +118,7 @@ struct AddCategoryView: View {
 
     private func addCategory() {
         let cents = MoneyHelpers.parseCurrencyString(amountText) ?? 0
-        let sortOrder = budget.categories.filter { !$0.isHidden }.count
+        let sortOrder = (budget.categories ?? []).filter { !$0.isHidden }.count
         let category = Category(
             name: name.trimmingCharacters(in: .whitespaces),
             emoji: emoji,

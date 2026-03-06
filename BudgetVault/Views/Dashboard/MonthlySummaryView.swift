@@ -7,7 +7,7 @@ struct MonthlySummaryView: View {
     @State private var shareImage: Image?
 
     private var categories: [Category] {
-        budget.categories.filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
+        (budget.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     private var underBudgetCount: Int {

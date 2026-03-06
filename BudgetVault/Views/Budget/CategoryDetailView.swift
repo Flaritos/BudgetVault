@@ -8,7 +8,7 @@ struct CategoryDetailView: View {
     @State private var editingTransaction: Transaction?
 
     private var transactions: [Transaction] {
-        category.transactions
+        (category.transactions ?? [])
             .filter { !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
             .sorted { $0.date > $1.date }
     }
@@ -59,7 +59,7 @@ struct CategoryDetailView: View {
         .navigationTitle(category.name)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editingTransaction) { transaction in
-            TransactionEditView(transaction: transaction, budget: budget, categories: budget.categories.filter { !$0.isHidden })
+            TransactionEditView(transaction: transaction, budget: budget, categories: (budget.categories ?? []).filter { !$0.isHidden })
         }
     }
 }

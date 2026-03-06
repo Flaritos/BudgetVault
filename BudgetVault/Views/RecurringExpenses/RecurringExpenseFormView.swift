@@ -19,7 +19,7 @@ struct RecurringExpenseFormView: View {
     private var isEditing: Bool { expense != nil }
 
     private var categories: [Category] {
-        allBudgets.first?.categories.filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder } ?? []
+        (allBudgets.first?.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     init(expense: RecurringExpense?) {
