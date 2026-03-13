@@ -55,7 +55,7 @@ struct BudgetVaultApp: App {
             config = ModelConfiguration(
                 "BudgetVault",
                 schema: schema,
-                cloudKitDatabase: .private("iCloud.com.budgetvault.app")
+                cloudKitDatabase: .private("iCloud.io.budgetvault.app")
             )
         } else {
             config = ModelConfiguration("BudgetVault", schema: schema, cloudKitDatabase: .none)
@@ -75,6 +75,11 @@ struct BudgetVaultApp: App {
                 ContentView()
                     .modelContainer(container)
                     .environment(storeKit)
+                    .task {
+                        #if DEBUG
+                        DebugSeedService.seedSampleData(container: container)
+                        #endif
+                    }
                     .onChange(of: scenePhase) { _, newPhase in
                         if newPhase == .active {
                             performMonthRollover(container: container)

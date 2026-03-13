@@ -76,7 +76,7 @@ struct InsightsPlaceholderView: View {
 
     private var insights: [Insight] {
         guard let budget = currentBudget else { return [] }
-        return InsightsEngine.generateInsights(budget: budget, previousBudget: previousBudget)
+        return InsightsEngine.generateInsights(budget: budget, previousBudget: previousBudget, allBudgets: allBudgets)
     }
 
     var body: some View {
@@ -92,7 +92,35 @@ struct InsightsPlaceholderView: View {
                     .padding(.horizontal)
 
                     if let budget = currentBudget {
-                        // PREMIUM: Spending Heatmap (above charts)
+                        // PREMIUM: ML Spending Forecast
+                        premiumSection("ML Forecast") {
+                            if let prediction = BudgetMLEngine.predictMonthEndSpending(budget: budget) {
+                                SpendingPredictionCard(prediction: prediction)
+                            }
+                        }
+
+                        // PREMIUM: Spending Pattern Classification
+                        premiumSection("Spending Style") {
+                            if let pattern = BudgetMLEngine.classifySpendingPattern(budget: budget) {
+                                SpendingPatternCard(pattern: pattern)
+                            }
+                        }
+
+                        // PREMIUM: Anomaly Detection
+                        premiumSection("Anomaly Detection") {
+                            let anomalies = BudgetMLEngine.detectAnomalies(budget: budget)
+                            AnomalyListCard(anomalies: anomalies)
+                        }
+
+                        // PREMIUM: Category Forecasts
+                        premiumSection("Category Forecasts") {
+                            let forecasts = BudgetMLEngine.forecastCategories(budget: budget)
+                            if !forecasts.isEmpty {
+                                CategoryForecastCard(forecasts: forecasts)
+                            }
+                        }
+
+                        // PREMIUM: Spending Heatmap
                         premiumSection("Spending Heatmap") {
                             SpendingHeatmapView(budget: budget, allTransactions: periodTransactions)
                         }
@@ -153,8 +181,8 @@ struct InsightsPlaceholderView: View {
                             comparisonCards(budget: budget)
                         }
 
-                        // PREMIUM: Insights
-                        premiumSection("AI Insights") {
+                        // PREMIUM: Smart Insights
+                        premiumSection("Smart Insights") {
                             insightCards
                         }
 

@@ -2,7 +2,7 @@ import SwiftData
 import os
 
 enum SafeSave {
-    private static let logger = Logger(subsystem: "com.budgetvault.app", category: "persistence")
+    private static let logger = Logger(subsystem: "io.budgetvault.app", category: "persistence")
 
     static func save(_ context: ModelContext) {
         do {

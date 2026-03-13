@@ -34,7 +34,7 @@ struct BudgetRemainingIntent: AppIntent {
     static var description = IntentDescription("Check your remaining budget in BudgetVault.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let suiteName = "group.com.budgetvault.shared"
+        let suiteName = "group.io.budgetvault.shared"
         let dataKey = "widgetData"
 
         guard let data = UserDefaults(suiteName: suiteName)?.data(forKey: dataKey),

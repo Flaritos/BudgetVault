@@ -1,0 +1,407 @@
+import Foundation
+import Accelerate
+
+/// On-device machine learning engine for spending analysis.
+/// Uses statistical ML methods (regression, z-score anomaly detection,
+/// exponential smoothing) trained on the user's own data.
+/// No data ever leaves the device.
+enum BudgetMLEngine {
+
+    // MARK: - Spending Prediction (Linear Regression)
+
+    /// Predicts total month-end spending using weighted linear regression
+    /// on daily cumulative spending. More accurate than simple daily rate
+    /// extrapolation because it accounts for spending acceleration/deceleration.
+    static func predictMonthEndSpending(budget: Budget) -> SpendingPrediction? {
+        let calendar = Calendar.current
+        let today = Date()
+        let allTxs = gatherExpenses(budget: budget)
+        guard !allTxs.isEmpty else { return nil }
+
+        let daysInPeriod = calendar.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30
+        let daysSoFar = max(1, calendar.dateComponents([.day], from: budget.periodStart, to: today).day ?? 1)
+        guard daysSoFar >= 3 else { return nil } // need at least 3 data points
+
+        // Build daily cumulative spending series
+        var dailySpending = [Double](repeating: 0, count: daysSoFar)
+        for tx in allTxs {
+            let dayIndex = calendar.dateComponents([.day], from: budget.periodStart, to: tx.date).day ?? 0
+            let clamped = min(max(dayIndex, 0), daysSoFar - 1)
+            dailySpending[clamped] += Double(tx.amountCents)
+        }
+
+        // Convert to cumulative
+        var cumulative = [Double](repeating: 0, count: daysSoFar)
+        cumulative[0] = dailySpending[0]
+        for i in 1..<daysSoFar {
+            cumulative[i] = cumulative[i - 1] + dailySpending[i]
+        }
+
+        // Weighted linear regression: recent days weighted more heavily
+        let x = (0..<daysSoFar).map { Double($0 + 1) }
+        let y = cumulative
+        let weights = x.map { pow($0 / Double(daysSoFar), 0.5) } // sqrt weighting favors recent
+
+        let result = weightedLinearRegression(x: x, y: y, weights: weights)
+
+        // Predict at day = daysInPeriod
+        let predicted = Int64(max(0, result.slope * Double(daysInPeriod) + result.intercept))
+        let currentTotal = Int64(cumulative.last ?? 0)
+
+        // Confidence based on R-squared and data quantity
+        let confidence = min(1.0, result.rSquared * (Double(daysSoFar) / Double(daysInPeriod)))
+
+        // Simple prediction: daily rate extrapolation (for comparison)
+        let simpleProjected = Int64(Double(currentTotal) / Double(daysSoFar) * Double(daysInPeriod))
+
+        return SpendingPrediction(
+            predictedTotalCents: predicted,
+            simpleProjectedCents: simpleProjected,
+            currentTotalCents: currentTotal,
+            budgetCents: budget.totalIncomeCents,
+            confidence: confidence,
+            trend: result.slope > 0 ? (result.slope > Double(currentTotal) / Double(daysSoFar) * 1.1 ? .accelerating : .steady) : .decelerating,
+            daysRemaining: daysInPeriod - daysSoFar
+        )
+    }
+
+    // MARK: - Anomaly Detection (Z-Score)
+
+    /// Detects anomalous transactions using modified z-score (median absolute deviation).
+    /// More robust than mean/stddev for skewed spending distributions.
+    static func detectAnomalies(budget: Budget) -> [AnomalyResult] {
+        let categories = (budget.categories ?? []).filter { !$0.isHidden }
+        var anomalies: [AnomalyResult] = []
+
+        for cat in categories {
+            let txs = (cat.transactions ?? []).filter {
+                !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart
+            }
+            guard txs.count >= 4 else { continue } // need enough data
+
+            let amounts = txs.map { Double($0.amountCents) }
+            let sorted = amounts.sorted()
+            let median = sorted[sorted.count / 2]
+
+            // MAD: Median Absolute Deviation
+            let deviations = amounts.map { abs($0 - median) }
+            let mad = deviations.sorted()[deviations.count / 2]
+            guard mad > 0 else { continue }
+
+            // Modified z-score: 0.6745 is the 0.75th quartile of the standard normal
+            let threshold = 3.0
+            for tx in txs {
+                let modifiedZ = 0.6745 * (Double(tx.amountCents) - median) / mad
+                if modifiedZ > threshold {
+                    anomalies.append(AnomalyResult(
+                        transaction: tx,
+                        categoryName: cat.name,
+                        categoryEmoji: cat.emoji,
+                        zScore: modifiedZ,
+                        median: Int64(median),
+                        amount: tx.amountCents
+                    ))
+                }
+            }
+        }
+
+        return anomalies.sorted { $0.zScore > $1.zScore }
+    }
+
+    // MARK: - Spending Pattern Classification
+
+    /// Classifies the user's spending behavior based on temporal patterns.
+    /// Uses feature extraction + rule-based classification trained on
+    /// common behavioral finance patterns.
+    static func classifySpendingPattern(budget: Budget) -> SpendingPattern? {
+        let calendar = Calendar.current
+        let today = Date()
+        let allTxs = gatherExpenses(budget: budget)
+        let daysSoFar = max(1, calendar.dateComponents([.day], from: budget.periodStart, to: today).day ?? 1)
+        guard allTxs.count >= 5 && daysSoFar >= 7 else { return nil }
+
+        // Feature extraction
+        let dailyAmounts = buildDailyAmounts(txs: allTxs, periodStart: budget.periodStart, days: daysSoFar)
+
+        // Feature 1: Front-loading ratio (first third vs rest)
+        let thirdPoint = max(1, daysSoFar / 3)
+        let frontSpend = dailyAmounts.prefix(thirdPoint).reduce(0, +)
+        let totalSpend = dailyAmounts.reduce(0, +)
+        let frontRatio = totalSpend > 0 ? frontSpend / totalSpend : 0
+
+        // Feature 2: Weekend ratio
+        var weekendSpend = 0.0
+        for (i, amount) in dailyAmounts.enumerated() {
+            if let date = calendar.date(byAdding: .day, value: i, to: budget.periodStart) {
+                let weekday = calendar.component(.weekday, from: date)
+                if weekday == 1 || weekday == 7 { weekendSpend += amount }
+            }
+        }
+        let weekendRatio = totalSpend > 0 ? weekendSpend / totalSpend : 0
+
+        // Feature 3: Spending consistency (coefficient of variation)
+        let nonZeroDays = dailyAmounts.filter { $0 > 0 }
+        let cv = coefficientOfVariation(nonZeroDays)
+
+        // Feature 4: Zero-spend day ratio
+        let zeroRatio = Double(dailyAmounts.filter { $0 == 0 }.count) / Double(daysSoFar)
+
+        // Feature 5: Trend (are they spending more or less over time?)
+        let reg = weightedLinearRegression(
+            x: (0..<daysSoFar).map { Double($0) },
+            y: dailyAmounts,
+            weights: [Double](repeating: 1.0, count: daysSoFar)
+        )
+        let trendDirection = reg.slope
+
+        // Classification logic based on behavioral finance research
+        if frontRatio > 0.5 && daysSoFar >= 10 {
+            return SpendingPattern(
+                type: .frontLoader,
+                title: "Front-Loader",
+                description: "You tend to spend heavily at the start of the month, then taper off.",
+                tip: "Try setting a daily spending target to spread expenses more evenly.",
+                confidence: min(1.0, frontRatio)
+            )
+        } else if weekendRatio > 0.5 {
+            return SpendingPattern(
+                type: .weekendSpender,
+                title: "Weekend Spender",
+                description: "Most of your spending happens on weekends.",
+                tip: "Plan weekend activities in advance to stay within budget.",
+                confidence: weekendRatio
+            )
+        } else if cv < 0.5 && zeroRatio < 0.3 {
+            return SpendingPattern(
+                type: .steadyEddie,
+                title: "Steady Eddie",
+                description: "You spend consistently day to day. Very disciplined!",
+                tip: "Your consistency makes it easy to predict and plan. Keep it up!",
+                confidence: 1.0 - cv
+            )
+        } else if zeroRatio > 0.5 {
+            return SpendingPattern(
+                type: .batchBuyer,
+                title: "Batch Buyer",
+                description: "You make few but larger purchases, with many no-spend days.",
+                tip: "Great restraint! Just watch that individual purchases stay in budget.",
+                confidence: zeroRatio
+            )
+        } else if trendDirection > 0 && cv > 0.8 {
+            return SpendingPattern(
+                type: .escalator,
+                title: "Escalator",
+                description: "Your daily spending is trending upward through the month.",
+                tip: "Be mindful of spending creep. Check your remaining budget more often.",
+                confidence: min(1.0, cv * 0.7)
+            )
+        } else {
+            return SpendingPattern(
+                type: .balanced,
+                title: "Balanced",
+                description: "Your spending doesn't fit a strong pattern. That's flexible!",
+                tip: "No strong tendencies detected. Keep tracking to reveal patterns over time.",
+                confidence: 0.5
+            )
+        }
+    }
+
+    // MARK: - Category Forecast
+
+    /// Predicts which categories will go over budget using exponential smoothing
+    /// on per-category daily spending rates.
+    static func forecastCategories(budget: Budget) -> [CategoryForecast] {
+        let calendar = Calendar.current
+        let today = Date()
+        let daysInPeriod = calendar.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30
+        let daysSoFar = max(1, calendar.dateComponents([.day], from: budget.periodStart, to: today).day ?? 1)
+        guard daysSoFar >= 5 else { return [] }
+
+        let categories = (budget.categories ?? []).filter { !$0.isHidden && $0.budgetedAmountCents > 0 }
+        var forecasts: [CategoryForecast] = []
+
+        for cat in categories {
+            let txs = (cat.transactions ?? []).filter {
+                !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart
+            }
+            guard !txs.isEmpty else { continue }
+
+            let dailyAmounts = buildDailyAmounts(txs: txs, periodStart: budget.periodStart, days: daysSoFar)
+
+            // Exponential smoothing (alpha = 0.3 gives moderate weight to recent)
+            let smoothed = exponentialSmoothing(dailyAmounts, alpha: 0.3)
+            guard let recentRate = smoothed.last, recentRate > 0 else { continue }
+
+            let remaining = cat.budgetedAmountCents - cat.spentCents(in: budget)
+            let daysRemaining = daysInPeriod - daysSoFar
+            let projectedRemaining = Int64(recentRate * Double(daysRemaining))
+
+            let status: CategoryForecast.Status
+            if remaining <= 0 {
+                status = .overBudget
+            } else if projectedRemaining > remaining {
+                let daysUntilOver = remaining > 0 ? Int(Double(remaining) / recentRate) : 0
+                status = .willExceed(inDays: daysUntilOver)
+            } else {
+                status = .onTrack
+            }
+
+            forecasts.append(CategoryForecast(
+                categoryName: cat.name,
+                categoryEmoji: cat.emoji,
+                budgetedCents: cat.budgetedAmountCents,
+                spentCents: cat.spentCents(in: budget),
+                projectedTotalCents: cat.spentCents(in: budget) + projectedRemaining,
+                dailyRate: Int64(recentRate),
+                status: status
+            ))
+        }
+
+        return forecasts.filter { $0.status != .onTrack }
+    }
+
+    // MARK: - Math Utilities
+
+    private struct RegressionResult {
+        let slope: Double
+        let intercept: Double
+        let rSquared: Double
+    }
+
+    private static func weightedLinearRegression(x: [Double], y: [Double], weights: [Double]) -> RegressionResult {
+        let n = x.count
+        guard n >= 2 && n == y.count && n == weights.count else {
+            return RegressionResult(slope: 0, intercept: 0, rSquared: 0)
+        }
+
+        var sumW = 0.0, sumWX = 0.0, sumWY = 0.0, sumWXX = 0.0, sumWXY = 0.0
+
+        for i in 0..<n {
+            let w = weights[i]
+            sumW += w
+            sumWX += w * x[i]
+            sumWY += w * y[i]
+            sumWXX += w * x[i] * x[i]
+            sumWXY += w * x[i] * y[i]
+        }
+
+        let denom = sumW * sumWXX - sumWX * sumWX
+        guard abs(denom) > 1e-10 else {
+            return RegressionResult(slope: 0, intercept: sumWY / max(sumW, 1), rSquared: 0)
+        }
+
+        let slope = (sumW * sumWXY - sumWX * sumWY) / denom
+        let intercept = (sumWY - slope * sumWX) / sumW
+
+        // R-squared
+        let yMean = sumWY / sumW
+        var ssRes = 0.0, ssTot = 0.0
+        for i in 0..<n {
+            let predicted = slope * x[i] + intercept
+            ssRes += weights[i] * (y[i] - predicted) * (y[i] - predicted)
+            ssTot += weights[i] * (y[i] - yMean) * (y[i] - yMean)
+        }
+        let rSquared = ssTot > 0 ? max(0, 1.0 - ssRes / ssTot) : 0
+
+        return RegressionResult(slope: slope, intercept: intercept, rSquared: rSquared)
+    }
+
+    private static func exponentialSmoothing(_ data: [Double], alpha: Double) -> [Double] {
+        guard !data.isEmpty else { return [] }
+        var smoothed = [Double](repeating: 0, count: data.count)
+        smoothed[0] = data[0]
+        for i in 1..<data.count {
+            smoothed[i] = alpha * data[i] + (1 - alpha) * smoothed[i - 1]
+        }
+        return smoothed
+    }
+
+    private static func coefficientOfVariation(_ data: [Double]) -> Double {
+        guard data.count >= 2 else { return 0 }
+        var mean = 0.0
+        vDSP_meanvD(data, 1, &mean, vDSP_Length(data.count))
+        guard mean > 0 else { return 0 }
+
+        let diffs = data.map { ($0 - mean) * ($0 - mean) }
+        let variance = diffs.reduce(0, +) / Double(data.count)
+        return sqrt(variance) / mean
+    }
+
+    // MARK: - Data Helpers
+
+    private static func gatherExpenses(budget: Budget) -> [Transaction] {
+        (budget.categories ?? []).flatMap { cat in
+            (cat.transactions ?? []).filter {
+                !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart
+            }
+        }
+    }
+
+    private static func buildDailyAmounts(txs: [Transaction], periodStart: Date, days: Int) -> [Double] {
+        let calendar = Calendar.current
+        var daily = [Double](repeating: 0, count: days)
+        for tx in txs {
+            let dayIndex = calendar.dateComponents([.day], from: periodStart, to: tx.date).day ?? 0
+            let clamped = min(max(dayIndex, 0), days - 1)
+            daily[clamped] += Double(tx.amountCents)
+        }
+        return daily
+    }
+}
+
+// MARK: - Result Types
+
+struct SpendingPrediction {
+    let predictedTotalCents: Int64
+    let simpleProjectedCents: Int64
+    let currentTotalCents: Int64
+    let budgetCents: Int64
+    let confidence: Double
+    let trend: Trend
+    let daysRemaining: Int
+
+    enum Trend {
+        case accelerating, steady, decelerating
+    }
+
+    var willExceedBudget: Bool { predictedTotalCents > budgetCents }
+    var predictedSavings: Int64 { max(0, budgetCents - predictedTotalCents) }
+}
+
+struct AnomalyResult {
+    let transaction: Transaction
+    let categoryName: String
+    let categoryEmoji: String
+    let zScore: Double
+    let median: Int64
+    let amount: Int64
+}
+
+struct SpendingPattern {
+    let type: PatternType
+    let title: String
+    let description: String
+    let tip: String
+    let confidence: Double
+
+    enum PatternType {
+        case frontLoader, weekendSpender, steadyEddie
+        case batchBuyer, escalator, balanced
+    }
+}
+
+struct CategoryForecast {
+    let categoryName: String
+    let categoryEmoji: String
+    let budgetedCents: Int64
+    let spentCents: Int64
+    let projectedTotalCents: Int64
+    let dailyRate: Int64
+    let status: Status
+
+    enum Status: Equatable {
+        case onTrack
+        case willExceed(inDays: Int)
+        case overBudget
+    }
+}

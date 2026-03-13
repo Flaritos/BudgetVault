@@ -7,8 +7,8 @@ private typealias StoreTransaction = StoreKit.Transaction
 @MainActor
 final class StoreKitManager {
 
-    static let premiumProductID = "com.budgetvault.premium"
-    static let tipProductID = "com.budgetvault.tip"
+    static let premiumProductID = "io.budgetvault.premium"
+    static let tipProductID = "io.budgetvault.tip"
 
     /// Hardcoded launch pricing end date (set to 30 days after App Store approval).
     /// The actual price change happens in App Store Connect; this banner is cosmetic.
@@ -125,6 +125,15 @@ final class StoreKitManager {
     // MARK: - Entitlements
 
     func checkEntitlements() async {
+        #if DEBUG
+        // In debug builds, respect manually-set isPremium flag for testing
+        if UserDefaults.standard.bool(forKey: "debugPremiumOverride") {
+            isPremium = true
+            UserDefaults.standard.set(true, forKey: "isPremium")
+            return
+        }
+        #endif
+
         var hasPremium = false
 
         for await result in StoreTransaction.currentEntitlements {

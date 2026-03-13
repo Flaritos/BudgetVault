@@ -4,7 +4,7 @@ import WidgetKit
 
 enum WidgetDataService {
 
-    static let suiteName = "group.com.budgetvault.shared"
+    static let suiteName = "group.io.budgetvault.shared"
     static let dataKey = "widgetData"
 
     struct WidgetData: Codable {

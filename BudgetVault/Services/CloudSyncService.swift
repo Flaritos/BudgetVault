@@ -8,8 +8,11 @@ final class CloudSyncService {
     var isSyncing = false
     var syncError: String?
 
+    private var eventObserver: Any?
+    private var remoteChangeObserver: Any?
+
     init() {
-        NotificationCenter.default.addObserver(
+        eventObserver = NotificationCenter.default.addObserver(
             forName: NSPersistentCloudKitContainer.eventChangedNotification,
             object: nil,
             queue: .main
@@ -18,13 +21,18 @@ final class CloudSyncService {
         }
 
         // M13: SwiftData's CloudKit integration fires this notification reliably
-        NotificationCenter.default.addObserver(
+        remoteChangeObserver = NotificationCenter.default.addObserver(
             forName: .NSPersistentStoreRemoteChange,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.handleRemoteChange()
         }
+    }
+
+    deinit {
+        if let observer = eventObserver { NotificationCenter.default.removeObserver(observer) }
+        if let observer = remoteChangeObserver { NotificationCenter.default.removeObserver(observer) }
     }
 
     private func handleRemoteChange() {

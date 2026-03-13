@@ -26,7 +26,7 @@ enum StreakService {
 
         // Check if yesterday was missed and we can use a freeze
         if streak > 0 && lastLogDate != todayStr {
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return }
             let yesterdayStr = DateHelpers.dateString(yesterday)
 
             if lastLogDate != yesterdayStr {
@@ -67,7 +67,7 @@ enum StreakService {
             return
         }
 
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today)!
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: today) else { return }
         let yesterdayString = DateHelpers.dateString(yesterday)
 
         if lastLogDate == yesterdayString {

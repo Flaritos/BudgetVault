@@ -1,0 +1,146 @@
+[
+  {
+    "key": "day1_hook",
+    "date": "2026-03-09",
+    "time": "08:15",
+    "text": "Your budget app knows your salary, your rent, where you eat, what you buy your kids, and your guilty pleasures.\n\nNow ask yourself: who else has access to that data?\n\nI built BudgetVault because the answer should be \"nobody.\"\n\n#privacy #budgeting #personalfinance",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day2_antisub",
+    "date": "2026-03-10",
+    "time": "12:30",
+    "text": "I used to pay $14/month for a budgeting app. It was good. But budgeting is a skill — once you learn it, why keep paying?\n\nSo I built BudgetVault. $9.99. Once. Learn the envelope method, build the habit, move on.\n\n#budgetapp #personalfinance #moneytips",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day3_education",
+    "date": "2026-03-11",
+    "time": "07:45",
+    "text": "Envelope budgeting in 30 seconds:\n\n1. Get paid\n2. Split money into categories (rent, food, fun)\n3. Only spend what's in each envelope\n4. When an envelope is empty, you're done\n\nThat's it. No spreadsheets. No formulas. Just clarity.\n\n#envelopebudgeting #moneytips #budgeting101",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day3b_poll",
+    "date": "2026-03-11",
+    "time": "12:30",
+    "text": "How do you budget?\n\nA) Envelope method\nB) 50/30/20 rule\nC) Check my balance and hope\nD) Spreadsheet I abandon after 2 weeks\n\nNo wrong answers.\n\n#personalfinance #budgeting",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day4_bts",
+    "date": "2026-03-12",
+    "time": "18:00",
+    "text": "I spent 2 years building a budgeting app.\n\nThe hardest decision? Processing everything on-device instead of using a cloud backend.\n\n10x harder to build. But your financial data is worth that tradeoff.\n\n#indiedev #iosdev #buildinpublic",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day5_tease",
+    "date": "2026-03-13",
+    "time": "11:00",
+    "text": "MANUAL_GATE",
+    "media": null,
+    "reply_to_key": null,
+    "manual": true,
+    "actual_text": "BudgetVault launches tomorrow.\n\n2 years of work. Here's the pitch:\n\n— Envelope budgeting on your device\n— On-device ML insights\n— $9.99 once. No subscription.\n— No account. No data collection.\n\nLink tomorrow at 9 AM EST.\n\n#applaunch #ios #budgetvault"
+  },
+  {
+    "key": "day6_launch",
+    "date": "2026-03-14",
+    "time": "09:00",
+    "text": "MANUAL_GATE",
+    "media": null,
+    "reply_to_key": null,
+    "manual": true,
+    "actual_text": "BudgetVault is live on the App Store.\n\nFree to download. $9.99 once to unlock everything.\n\nNo account. No subscription. No data ever leaves your iPhone.\n\n2 years of work. Here it is.\n\n#budgetvault #applaunch #budgetapp"
+  },
+  {
+    "key": "day6b_link",
+    "date": "2026-03-14",
+    "time": "09:05",
+    "text": "MANUAL_GATE",
+    "media": null,
+    "reply_to_key": "day6_launch",
+    "manual": true,
+    "actual_text": "Download here — free to try, no account needed."
+  },
+  {
+    "key": "day6c_thread",
+    "date": "2026-03-14",
+    "time": "11:00",
+    "text": "MANUAL_GATE",
+    "media": null,
+    "reply_to_key": "day6_launch",
+    "manual": true,
+    "actual_text": "What makes it different:\n\nI didn't want to run servers. I didn't want your data. I didn't want to charge you every month.\n\nEverything runs on your phone. $9.99 once. Apple verified: \"Data Not Collected.\"\n\nThat's it."
+  },
+  {
+    "key": "day7_comparison",
+    "date": "2026-03-15",
+    "time": "12:00",
+    "text": "Things budget apps ask for that BudgetVault doesn't:\n\n- Email address\n- Bank login\n- Phone number\n- Location data\n- Contact list access\n\nI don't even have a server to store that stuff on.\n\n#dataprivacy #budgetapp #personalfinance",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day8_ml",
+    "date": "2026-03-16",
+    "time": "10:00",
+    "text": "BudgetVault has on-device ML that learns your spending patterns.\n\n\"You spend 40% more on food the week after payday.\"\n\nNo cloud. No API calls. Your phone figures it out locally.\n\n#coreml #ondeviceAI #budgeting",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day8b_siri",
+    "date": "2026-03-16",
+    "time": "18:00",
+    "text": "\"Hey Siri, log $14 for lunch.\"\n\nExpense logged in BudgetVault without opening the app.\n\nSiri Shortcuts, widgets, Face ID lock. Built to feel like iOS, not a web app in disguise.\n\n#iosapp #siri #budgetapp",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day9_daily",
+    "date": "2026-03-17",
+    "time": "07:30",
+    "text": "Budget tip: Your daily allowance matters more than your monthly budget.\n\n$3,000/month feels abstract.\n$68/day after bills feels real.\n\nBudgetVault calculates this automatically and updates every time you spend.\n\n#budgetingtips #moneytips #personalfinance",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day10_antiguilt",
+    "date": "2026-03-18",
+    "time": "12:30",
+    "text": "Hot take: most budgeting apps are designed to make you feel guilty.\n\nRed numbers. Warning alerts. \"You exceeded your dining budget!\"\n\nBudgetVault shows what's left in each envelope and lets you decide.\n\nYour money. Your choices.\n\n#budgetapp #personalfinance",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day10b_price",
+    "date": "2026-03-18",
+    "time": "18:00",
+    "text": "BudgetVault is $9.99 right now. That's the launch price.\n\nIt's going up once I ship the next round of features.\n\nIf you've been thinking about it, now is the time.\n\n#budgetapp #personalfinance #iosapp",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day11_noaccount",
+    "date": "2026-03-19",
+    "time": "12:00",
+    "text": "I opened a popular budgeting app yesterday. Before logging one expense:\n\n- Create account\n- Verify email\n- Choose a plan\n- Enter payment info\n- Connect your bank\n\nBudgetVault: open the app. Start budgeting.\n\n#budgetvault #iosapp #privacyfirst",
+    "media": null,
+    "reply_to_key": null
+  },
+  {
+    "key": "day12_reflection",
+    "date": "2026-03-20",
+    "time": "12:00",
+    "text": "One week since launch.\n\nPeople are genuinely surprised when an app doesn't ask for their email.\n\nThat says everything about how broken app defaults are.\n\nWeek 2: listening to feedback and shipping updates fast.\n\n#indiedev #buildinpublic #budgetvault",
+    "media": null,
+    "reply_to_key": null
+  }
+]

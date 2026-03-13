@@ -149,12 +149,12 @@ struct CSVImportView: View {
     private var categorySelectionView: some View {
         List {
             Section {
-                Text("Your import has \(uniqueCategories.count) categories. Free accounts support 6. Select which to keep.")
+                Text("Your import has \(uniqueCategories.count) categories. Free accounts support 4. Select which to keep.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            Section("Select up to 6 categories") {
+            Section("Select up to 4 categories") {
                 ForEach(uniqueCategories, id: \.self) { cat in
                     Button {
                         toggleCategory(cat)
@@ -237,13 +237,13 @@ struct CSVImportView: View {
         detectedFormat = parsed.format
         parsedRows = parsed.rows
         uniqueCategories = Array(Set(parsedRows.map(\.category))).sorted()
-        selectedCategories = Set(uniqueCategories.prefix(6))
+        selectedCategories = Set(uniqueCategories.prefix(isPremium ? uniqueCategories.count : 4))
 
         step = parsedRows.isEmpty ? .selectFile : .preview
     }
 
     private func proceedFromPreview() {
-        if !isPremium && uniqueCategories.count > 6 {
+        if !isPremium && uniqueCategories.count > 4 {
             step = .categorySelection
         } else {
             performImport()
@@ -253,7 +253,7 @@ struct CSVImportView: View {
     private func toggleCategory(_ cat: String) {
         if selectedCategories.contains(cat) {
             selectedCategories.remove(cat)
-        } else if selectedCategories.count < 6 {
+        } else if selectedCategories.count < 4 {
             selectedCategories.insert(cat)
         }
     }
@@ -263,7 +263,7 @@ struct CSVImportView: View {
 
         // Build category map — unselected categories map to "Other"
         var map: [String: String] = [:]
-        if !isPremium && uniqueCategories.count > 6 {
+        if !isPremium && uniqueCategories.count > 4 {
             for cat in uniqueCategories {
                 map[cat] = selectedCategories.contains(cat) ? cat : "Other"
             }

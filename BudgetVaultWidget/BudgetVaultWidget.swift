@@ -22,7 +22,7 @@ struct WidgetBudgetData: Codable {
 // MARK: - Timeline Provider
 
 struct BudgetTimelineProvider: TimelineProvider {
-    static let suiteName = "group.com.budgetvault.shared"
+    static let suiteName = "group.io.budgetvault.shared"
     static let dataKey = "widgetData"
 
     func placeholder(in context: Context) -> BudgetEntry {

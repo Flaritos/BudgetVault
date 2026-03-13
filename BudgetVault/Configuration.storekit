@@ -1,0 +1,59 @@
+{
+  "identifier" : "BudgetVault Products",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : true,
+      "internalID" : "1",
+      "localizations" : [
+        {
+          "description" : "Unlock all premium features including CSV export, cloud sync, advanced insights, and more. One-time purchase.",
+          "displayName" : "Premium Unlock",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "io.budgetvault.premium",
+      "referenceName" : "BudgetVault Premium",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "2",
+      "localizations" : [
+        {
+          "description" : "Support BudgetVault development with a tip. Thank you!",
+          "displayName" : "Leave a Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "io.budgetvault.tip",
+      "referenceName" : "BudgetVault Tip",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "1",
+    "_developerTeamID" : "TEAM_ID",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

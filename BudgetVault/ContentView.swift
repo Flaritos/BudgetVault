@@ -19,6 +19,12 @@ struct ContentView: View {
                 MainTabView()
             }
         }
+        .background {
+            // Fill the entire screen including safe areas
+            // Uses navyDark during onboarding, system background otherwise
+            (hasCompletedOnboarding ? Color(.systemGroupedBackground) : BudgetVaultTheme.navyDark)
+                .ignoresSafeArea()
+        }
         .onChange(of: hasCompletedOnboarding) { oldValue, newValue in
             if !oldValue && newValue && !hasLoggedFirstTransaction {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

@@ -36,6 +36,9 @@ struct SettingsPlaceholderView: View {
     @State private var templateAppliedAlert = false
     @Environment(StoreKitManager.self) private var storeKit
     @State private var showNotificationDeniedAlert = false
+    @State private var showExportError = false
+    @State private var exportErrorMessage = ""
+    @State private var showDeleteAllConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -99,6 +102,19 @@ struct SettingsPlaceholderView: View {
                 Button("OK") {}
             } message: {
                 Text("Missing categories from the template have been added to your current budget.")
+            }
+            .alert("Export Failed", isPresented: $showExportError) {
+                Button("OK") {}
+            } message: {
+                Text(exportErrorMessage)
+            }
+            .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
+                Button("Delete Everything", role: .destructive) {
+                    deleteAllData()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete all budgets, transactions, and settings. This cannot be undone.")
             }
         }
     }
@@ -233,9 +249,13 @@ struct SettingsPlaceholderView: View {
             }
 
             Button {
-                if let url = CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay) {
+                do {
+                    let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay)
                     exportURL = url
                     showExportShare = true
+                } catch {
+                    exportErrorMessage = error.localizedDescription
+                    showExportError = true
                 }
             } label: {
                 Label(isPremium ? "Export CSV (Full History)" : "Export CSV (Last 30 Days)", systemImage: "square.and.arrow.up")
@@ -305,6 +325,13 @@ struct SettingsPlaceholderView: View {
                 showAchievements = true
             } label: {
                 Label("Achievements", systemImage: "trophy.fill")
+            }
+
+            Button(role: .destructive) {
+                showDeleteAllConfirm = true
+            } label: {
+                Label("Delete All Data", systemImage: "trash.fill")
+                    .foregroundStyle(.red)
             }
         }
     }
@@ -472,15 +499,18 @@ struct SettingsPlaceholderView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // TODO: Replace with actual App Store URL after submission
-            ShareLink(item: URL(string: "https://apps.apple.com/app/budgetvault/id000000000")!,
+            ShareLink(item: URL(string: "https://budgetvault.io")!,
                        subject: Text("BudgetVault"),
                        message: Text("I use BudgetVault to manage my budget \u{2014} private, on-device, and no subscription. Check it out!")) {
                 Label("Share BudgetVault", systemImage: "heart.fill")
             }
 
-            Link(destination: URL(string: "https://budgetvault.app/privacy")!) {
+            Link(destination: URL(string: "https://budgetvault.io/privacy")!) {
                 Label("Privacy Policy", systemImage: "hand.raised.fill")
+            }
+
+            Link(destination: URL(string: "https://budgetvault.io/terms")!) {
+                Label("Terms of Service", systemImage: "doc.text.fill")
             }
         }
     }
@@ -514,6 +544,28 @@ struct SettingsPlaceholderView: View {
         return formatter
     }()
 
+    private func deleteAllData() {
+        // Delete all model objects
+        let types: [any PersistentModel.Type] = [
+            Budget.self, Category.self, Transaction.self,
+            RecurringExpense.self, DebtAccount.self, DebtPayment.self,
+            NetWorthAccount.self, NetWorthSnapshot.self
+        ]
+        for type in types {
+            try? modelContext.delete(model: type)
+        }
+        try? modelContext.save()
+
+        // Reset UserDefaults
+        let keysToReset = [
+            "currentStreak", "lastLogDate", "hasLoggedFirstTransaction",
+            "hasCompletedOnboarding", "streakFreezesRemaining", "lastFreezeReset"
+        ]
+        for key in keysToReset {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
     private func formatHour(_ hour: Int) -> String {
         var components = DateComponents()
         components.hour = hour
@@ -529,6 +581,7 @@ struct BudgetTemplateSheetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @AppStorage("resetDay") private var resetDay = 1
+    @AppStorage("isPremium") private var isPremium = false
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
 
@@ -642,8 +695,13 @@ struct BudgetTemplateSheetView: View {
         let maxSortOrder = (budget.categories ?? []).map(\.sortOrder).max() ?? 0
         var nextOrder = maxSortOrder + 1
 
+        let currentCount = (budget.categories ?? []).filter { !$0.isHidden }.count
+        let freeLimit = 4
+        var added = 0
+
         for cat in template.categories {
             guard !existingNames.contains(cat.name.lowercased()) else { continue }
+            if !isPremium && (currentCount + added) >= freeLimit { break }
             let newCategory = Category(
                 name: cat.name,
                 emoji: cat.emoji,
@@ -654,6 +712,7 @@ struct BudgetTemplateSheetView: View {
             newCategory.budget = budget
             modelContext.insert(newCategory)
             nextOrder += 1
+            added += 1
         }
 
         try? modelContext.save()

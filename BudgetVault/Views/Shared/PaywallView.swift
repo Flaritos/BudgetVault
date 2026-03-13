@@ -6,11 +6,11 @@ struct PaywallView: View {
     @Environment(StoreKitManager.self) private var storeKit
 
     private let features: [(icon: String, title: String, detail: String)] = [
-        ("brain.head.profile", "AI Insights", "Smart spending analysis"),
+        ("brain.head.profile", "ML Insights", "Predictions, anomaly detection & spending patterns"),
         ("square.grid.2x2", "Unlimited Categories", "vs 4 free"),
         ("repeat", "Unlimited Recurring", "vs 3 free"),
         ("doc.text", "Full CSV Import/Export", "Full history"),
-        ("chart.xyaxis.line", "Historical Charts", "Month comparisons & AI insights"),
+        ("chart.xyaxis.line", "Historical Charts", "Month comparisons & smart insights"),
         ("flame", "Streak Freeze", "1 per week"),
     ]
 
@@ -61,7 +61,7 @@ struct PaywallView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "tag.fill")
                             .foregroundStyle(BudgetVaultTheme.positive)
-                        Text("Save $100+/year vs subscriptions")
+                        Text("One-time purchase — no subscription")
                             .font(.caption.bold())
                             .foregroundStyle(BudgetVaultTheme.positive)
                     }
@@ -105,7 +105,7 @@ struct PaywallView: View {
                         Text("one-time purchase")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("Compare to leading budget apps at $100+/year")
+                        Text("Pay once, use forever")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

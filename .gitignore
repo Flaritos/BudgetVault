@@ -16,3 +16,10 @@ BudgetVault.xcodeproj/
 # Dependencies
 Pods/
 .build/
+.mcp.json
+
+# Scripts
+scripts/.env
+scripts/.venv/
+scripts/tweet_log.json
+scripts/cron.log

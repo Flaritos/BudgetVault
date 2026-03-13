@@ -161,22 +161,22 @@ struct DashboardPlaceholderView: View {
                     }
                 }
             }
-            .overlay(alignment: .top) {
-                if let badge = newAchievementBanner {
-                    HStack(spacing: 8) {
-                        Image(systemName: "trophy.fill")
-                            .foregroundStyle(.yellow)
-                        Text("Achievement Unlocked: \(badge)")
-                            .font(.subheadline.bold())
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .shadow(radius: 4, y: 2)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .animation(.spring(duration: 0.4), value: newAchievementBanner)
+        }
+        .overlay(alignment: .top) {
+            if let badge = newAchievementBanner {
+                HStack(spacing: 8) {
+                    Image(systemName: "trophy.fill")
+                        .foregroundStyle(.yellow)
+                    Text("Achievement Unlocked: \(badge)")
+                        .font(.subheadline.bold())
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: Capsule())
+                .shadow(radius: 4, y: 2)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.spring(duration: 0.4), value: newAchievementBanner)
             }
         }
     }

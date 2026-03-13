@@ -3,9 +3,23 @@ import SwiftData
 
 enum CSVExporter {
 
-    static func export(context: ModelContext, premiumOnly: Bool, resetDay: Int) -> URL? {
+    enum ExportError: LocalizedError {
+        case fetchFailed
+        case writeFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .fetchFailed: "Could not read transactions from the database."
+            case .writeFailed: "Could not write the CSV file."
+            }
+        }
+    }
+
+    static func export(context: ModelContext, premiumOnly: Bool, resetDay: Int) throws -> URL {
         let descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\Transaction.date)])
-        guard let allTransactions = try? context.fetch(descriptor) else { return nil }
+        guard let allTransactions = try? context.fetch(descriptor) else {
+            throw ExportError.fetchFailed
+        }
 
         var transactions = allTransactions
 
@@ -22,7 +36,7 @@ enum CSVExporter {
         for tx in transactions {
             let dateStr = isoFormatter.string(from: tx.date)
             let cat = tx.category?.name ?? ""
-            let emoji = tx.category?.emoji ?? (tx.isIncome ? "💵" : "")
+            let emoji = tx.category?.emoji ?? (tx.isIncome ? "\u{1F4B5}" : "")
             let note = tx.note.replacingOccurrences(of: "\"", with: "\"\"")
             let amount = String(format: "%.2f", Double(tx.amountCents) / 100.0)
             let type = tx.isIncome ? "Income" : "Expense"
@@ -31,7 +45,11 @@ enum CSVExporter {
 
         let csv = lines.joined(separator: "\n")
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("BudgetVault_Export.csv")
-        try? csv.write(to: tempURL, atomically: true, encoding: .utf8)
+        do {
+            try csv.write(to: tempURL, atomically: true, encoding: .utf8)
+        } catch {
+            throw ExportError.writeFailed
+        }
         return tempURL
     }
 }
