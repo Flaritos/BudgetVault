@@ -207,21 +207,9 @@ struct OnboardingView: View {
 
     private var envelopeExplainerPage: some View {
         ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
             subtleTopGradient
-
-            GeometryReader { geometry in
-                VStack {
-                    LinearGradient(
-                        colors: [BudgetVaultTheme.navyDark.opacity(0.08), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: geometry.size.height * 0.3)
-                    .allowsHitTesting(false)
-                    Spacer()
-                }
-            }
-            .ignoresSafeArea()
 
             VStack(spacing: 24) {
                 stepIndicator(current: 1)
@@ -286,6 +274,8 @@ struct OnboardingView: View {
 
     private var currencyPage: some View {
         ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
             subtleTopGradient
 
             VStack(spacing: 16) {
@@ -324,6 +314,8 @@ struct OnboardingView: View {
 
     private var templatePage: some View {
         ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
             subtleTopGradient
 
             VStack(spacing: 16) {
@@ -456,6 +448,8 @@ struct OnboardingView: View {
 
     private var budgetSetupPage: some View {
         ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
             subtleTopGradient
 
             VStack(spacing: 24) {
@@ -685,6 +679,7 @@ struct OnboardingView: View {
             let catCents = Int64(Double(incomeCents) * cat.pct)
             let category = Category(name: cat.name, emoji: cat.emoji, budgetedAmountCents: catCents, color: cat.color, sortOrder: index)
             category.budget = budget
+            modelContext.insert(category)
         }
 
         SafeSave.save(modelContext)
