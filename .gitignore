@@ -23,3 +23,9 @@ scripts/.env
 scripts/.venv/
 scripts/tweet_log.json
 scripts/cron.log
+
+# Build artifacts
+*.ipa
+*.xcarchive
+*.dSYM
+*.mobileprovision

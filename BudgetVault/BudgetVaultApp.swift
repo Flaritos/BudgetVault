@@ -84,7 +84,6 @@ struct BudgetVaultApp: App {
                         if newPhase == .active {
                             performMonthRollover(container: container)
                             processRecurringExpenses(container: container)
-                            updateWidgetData(container: container)
                             StreakService.processOnForeground()
                             Task { await storeKit.checkEntitlements() }
                         } else if newPhase == .background {
@@ -237,10 +236,4 @@ struct BudgetVaultApp: App {
         let _ = RecurringExpenseScheduler.processOverdue(context: container.mainContext)
     }
 
-    // MARK: - Widget Data
-
-    @MainActor
-    private func updateWidgetData(container: ModelContainer) {
-        WidgetDataService.update(from: container.mainContext, resetDay: resetDay)
-    }
 }

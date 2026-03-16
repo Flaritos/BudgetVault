@@ -12,6 +12,7 @@ struct EmptyStateView: View {
             Image(systemName: icon)
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
+                .symbolEffect(.pulse)
             Text(title)
                 .font(.title3.bold())
             Text(message)

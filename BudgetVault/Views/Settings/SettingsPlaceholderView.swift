@@ -142,7 +142,7 @@ struct SettingsPlaceholderView: View {
                             Text("BudgetVault Premium")
                                 .font(.subheadline.bold())
                                 .foregroundStyle(.white)
-                            Text("Unlock all features")
+                            Text("Open the full vault")
                                 .font(.caption)
                                 .foregroundStyle(.white.opacity(0.8))
                         }
@@ -215,7 +215,7 @@ struct SettingsPlaceholderView: View {
                         .fill(Color(hex: accentColorHex))
                         .frame(width: 22, height: 22)
                     if !isPremium {
-                        Image(systemName: "lock.fill")
+                        Image(systemName: "star.fill")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -272,7 +272,7 @@ struct SettingsPlaceholderView: View {
                     Label("Import CSV", systemImage: "square.and.arrow.down")
                     if !isPremium {
                         Spacer()
-                        Image(systemName: "lock.fill")
+                        Image(systemName: "star.fill")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -297,7 +297,7 @@ struct SettingsPlaceholderView: View {
             //         Label("Debt Tracking", systemImage: "creditcard.fill")
             //         if !isPremium {
             //             Spacer()
-            //             Image(systemName: "lock.fill")
+            //             Image(systemName: "star.fill")
             //                 .font(.caption)
             //                 .foregroundStyle(.secondary)
             //         }
@@ -315,7 +315,7 @@ struct SettingsPlaceholderView: View {
             //         Label("Net Worth", systemImage: "chart.line.uptrend.xyaxis")
             //         if !isPremium {
             //             Spacer()
-            //             Image(systemName: "lock.fill")
+            //             Image(systemName: "star.fill")
             //                 .font(.caption)
             //                 .foregroundStyle(.secondary)
             //         }
@@ -522,6 +522,10 @@ struct SettingsPlaceholderView: View {
                        message: Text("I use BudgetVault to manage my budget \u{2014} private, on-device, and no subscription. Check it out!")) {
                 Label("Share BudgetVault", systemImage: "heart.fill")
             }
+
+            Text("Your data never leaves this device.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Link(destination: URL(string: "https://budgetvault.io/privacy")!) {
                 Label("Privacy Policy", systemImage: "hand.raised.fill")

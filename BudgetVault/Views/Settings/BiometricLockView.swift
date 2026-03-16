@@ -13,7 +13,7 @@ struct BiometricLockView: View {
                 .font(.largeTitle.bold())
                 .foregroundStyle(.white)
 
-            Text("Unlock to continue")
+            Text("Authenticate to open your vault")
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.7))
 
@@ -28,7 +28,7 @@ struct BiometricLockView: View {
                     .foregroundStyle(BudgetVaultTheme.electricBlue)
             }
             .padding(.horizontal, 40)
-            .accessibilityHint("Authenticate to access your budget")
+            .accessibilityHint("Authenticate to open your vault")
 
             if let error = authService.errorMessage {
                 Text(error)

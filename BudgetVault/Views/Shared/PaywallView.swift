@@ -6,12 +6,12 @@ struct PaywallView: View {
     @Environment(StoreKitManager.self) private var storeKit
 
     private let features: [(icon: String, title: String, detail: String)] = [
-        ("brain.head.profile", "ML Insights", "Predictions, anomaly detection & spending patterns"),
-        ("square.grid.2x2", "Unlimited Categories", "vs 4 free"),
-        ("repeat", "Unlimited Recurring", "vs 3 free"),
-        ("doc.text", "Full CSV Import/Export", "Full history"),
+        ("brain.head.profile", "Smart Insights", "Predictions, anomaly detection & spending patterns"),
+        ("square.grid.2x2", "Unlimited Categories", "Organize with unlimited categories"),
+        ("repeat", "Unlimited Recurring", "Automate all your bills"),
+        ("doc.text", "Full CSV Import/Export", "Full history export & import"),
         ("chart.xyaxis.line", "Historical Charts", "Month comparisons & smart insights"),
-        ("flame", "Streak Freeze", "1 per week"),
+        ("flame", "Streak Freeze", "Protect your streak once a week"),
     ]
 
     private var daysRemaining: Int {
@@ -138,6 +138,9 @@ struct PaywallView: View {
                     VStack(spacing: 4) {
                         Text("Family Sharing included — one purchase covers your whole family.")
                         Text("No subscription. No recurring charges. Ever.")
+                        Text("All data stays on your device. Always.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -210,7 +213,7 @@ struct PaywallView: View {
                     VStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 28))
-                        Text("Welcome to Premium!")
+                        Text("Vault Unlocked!")
                             .font(.subheadline.bold())
                     }
                 }

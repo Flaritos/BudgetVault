@@ -295,7 +295,12 @@ struct DashboardPlaceholderView: View {
         let daysRemaining = daysRemainingInPeriod(budget: budget)
         let dailyAllowanceCents = budget.remainingCents > 0 ? budget.remainingCents / Int64(max(daysRemaining, 1)) : 0
 
-        VStack(spacing: 12) {
+        ZStack(alignment: .topTrailing) {
+            VaultDialMark(size: 24)
+                .opacity(0.3)
+                .padding(12)
+
+            VStack(spacing: 12) {
             // Streak badge row
             if currentStreak > 0 {
                 HStack {
@@ -345,6 +350,7 @@ struct DashboardPlaceholderView: View {
                 .padding(.vertical, 4)
                 .background(.white.opacity(0.2), in: Capsule())
                 .padding(.bottom, 24)
+        }
         }
         .frame(maxWidth: .infinity)
         .background(BudgetVaultTheme.budgetGradient(for: pct))
@@ -587,7 +593,7 @@ struct DashboardPlaceholderView: View {
                 Spacer()
 
                 if !isPremium {
-                    Image(systemName: "lock.fill")
+                    Image(systemName: "star.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {

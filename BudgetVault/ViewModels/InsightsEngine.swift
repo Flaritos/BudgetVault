@@ -87,7 +87,7 @@ enum InsightsEngine {
                 .filter {
                     !$0.isIncome &&
                     $0.date >= prev.periodStart &&
-                    $0.date < min(prev.periodStart.addingTimeInterval(TimeInterval(daysSoFar * 86400)), prev.nextPeriodStart)
+                    $0.date < min(calendar.date(byAdding: .day, value: daysSoFar, to: prev.periodStart)!, prev.nextPeriodStart)
                 }
                 .reduce(Int64(0)) { $0 + $1.amountCents }
 
@@ -196,19 +196,21 @@ enum InsightsEngine {
         if allTxs.count >= 7 {
             let dayNames = ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
             var dayTotals: [Int: Int64] = [:]
-            var dayCounts: [Int: Int] = [:]
+            var dayUniqueDates: [Int: Set<Date>] = [:]
 
             for tx in allTxs {
                 let weekday = calendar.component(.weekday, from: tx.date)
                 dayTotals[weekday, default: 0] += tx.amountCents
-                dayCounts[weekday, default: 0] += 1
+                let txDay = calendar.startOfDay(for: tx.date)
+                dayUniqueDates[weekday, default: []].insert(txDay)
             }
 
-            // Find day with lowest average (only consider days with transactions)
+            // Find day with lowest average (total per weekday / unique dates with that weekday)
             var bestDay = 0
             var bestAvg = Int64.max
             for (day, total) in dayTotals {
-                let avg = total / Int64(dayCounts[day] ?? 1)
+                let uniqueDateCount = dayUniqueDates[day]?.count ?? 1
+                let avg = total / Int64(max(1, uniqueDateCount))
                 if avg < bestAvg {
                     bestAvg = avg
                     bestDay = day
@@ -227,7 +229,7 @@ enum InsightsEngine {
 
         // 10. Payday Splurge — heavy spending in first 3 days of period
         if daysSoFar > 3 {
-            let first3End = budget.periodStart.addingTimeInterval(3 * 86400)
+            let first3End = calendar.date(byAdding: .day, value: 3, to: budget.periodStart)!
             let first3Spent = allTxs.filter { $0.date >= budget.periodStart && $0.date < first3End }
                 .reduce(Int64(0)) { $0 + $1.amountCents }
             let restSpent = totalSpent - first3Spent
@@ -378,13 +380,13 @@ enum InsightsEngine {
             }
         }
 
-        // 16. Recurring vs Discretionary split
-        let recurringCats = Set(["Rent", "Housing", "Mortgage", "Insurance", "Utilities", "Internet", "Phone", "Subscriptions"])
+        // 16. Recurring vs Discretionary split — detect by linked RecurringExpense records
         var recurringSpent: Int64 = 0
         var discretionarySpent: Int64 = 0
         for cat in categories {
             let spent = cat.spentCents(in: budget)
-            if recurringCats.contains(cat.name) {
+            let isRecurring = !(cat.recurringExpenses ?? []).isEmpty
+            if isRecurring {
                 recurringSpent += spent
             } else {
                 discretionarySpent += spent

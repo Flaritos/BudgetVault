@@ -48,11 +48,35 @@ enum BudgetMLEngine {
         let predicted = Int64(max(0, result.slope * Double(daysInPeriod) + result.intercept))
         let currentTotal = Int64(cumulative.last ?? 0)
 
-        // Confidence based on R-squared and data quantity
-        let confidence = min(1.0, result.rSquared * (Double(daysSoFar) / Double(daysInPeriod)))
+        // Confidence based on MAPE of daily (non-cumulative) spending and data coverage
+        let mape: Double = {
+            let nonZeroDays = dailySpending.filter { $0 > 0 }
+            guard !nonZeroDays.isEmpty else { return 1.0 }
+            let meanDaily = nonZeroDays.reduce(0, +) / Double(nonZeroDays.count)
+            guard meanDaily > 0 else { return 1.0 }
+            let totalError = nonZeroDays.reduce(0.0) { $0 + abs($1 - meanDaily) / meanDaily }
+            return totalError / Double(nonZeroDays.count)
+        }()
+        let confidence = max(0, min(1.0, 1.0 - mape)) * (Double(daysSoFar) / Double(daysInPeriod))
 
         // Simple prediction: daily rate extrapolation (for comparison)
         let simpleProjected = Int64(Double(currentTotal) / Double(daysSoFar) * Double(daysInPeriod))
+
+        // Determine trend by comparing daily regression slope to average daily rate
+        let dailyReg = weightedLinearRegression(
+            x: (0..<daysSoFar).map { Double($0) },
+            y: dailySpending,
+            weights: [Double](repeating: 1.0, count: daysSoFar)
+        )
+        let avgDailyRate = Double(currentTotal) / Double(daysSoFar)
+        let trend: SpendingPrediction.Trend
+        if avgDailyRate > 0 && dailyReg.slope > avgDailyRate * 0.05 {
+            trend = .accelerating
+        } else if avgDailyRate > 0 && dailyReg.slope < -avgDailyRate * 0.05 {
+            trend = .decelerating
+        } else {
+            trend = .steady
+        }
 
         return SpendingPrediction(
             predictedTotalCents: predicted,
@@ -60,7 +84,7 @@ enum BudgetMLEngine {
             currentTotalCents: currentTotal,
             budgetCents: budget.totalIncomeCents,
             confidence: confidence,
-            trend: result.slope > 0 ? (result.slope > Double(currentTotal) / Double(daysSoFar) * 1.1 ? .accelerating : .steady) : .decelerating,
+            trend: trend,
             daysRemaining: daysInPeriod - daysSoFar
         )
     }
@@ -154,56 +178,63 @@ enum BudgetMLEngine {
         )
         let trendDirection = reg.slope
 
-        // Classification logic based on behavioral finance research
-        if frontRatio > 0.5 && daysSoFar >= 10 {
-            return SpendingPattern(
-                type: .frontLoader,
-                title: "Front-Loader",
-                description: "You tend to spend heavily at the start of the month, then taper off.",
-                tip: "Try setting a daily spending target to spread expenses more evenly.",
-                confidence: min(1.0, frontRatio)
-            )
-        } else if weekendRatio > 0.5 {
-            return SpendingPattern(
-                type: .weekendSpender,
-                title: "Weekend Spender",
-                description: "Most of your spending happens on weekends.",
-                tip: "Plan weekend activities in advance to stay within budget.",
-                confidence: weekendRatio
-            )
-        } else if cv < 0.5 && zeroRatio < 0.3 {
-            return SpendingPattern(
-                type: .steadyEddie,
-                title: "Steady Eddie",
-                description: "You spend consistently day to day. Very disciplined!",
-                tip: "Your consistency makes it easy to predict and plan. Keep it up!",
-                confidence: 1.0 - cv
-            )
-        } else if zeroRatio > 0.5 {
-            return SpendingPattern(
-                type: .batchBuyer,
-                title: "Batch Buyer",
-                description: "You make few but larger purchases, with many no-spend days.",
-                tip: "Great restraint! Just watch that individual purchases stay in budget.",
-                confidence: zeroRatio
-            )
-        } else if trendDirection > 0 && cv > 0.8 {
-            return SpendingPattern(
-                type: .escalator,
-                title: "Escalator",
-                description: "Your daily spending is trending upward through the month.",
-                tip: "Be mindful of spending creep. Check your remaining budget more often.",
-                confidence: min(1.0, cv * 0.7)
-            )
-        } else {
-            return SpendingPattern(
-                type: .balanced,
-                title: "Balanced",
-                description: "Your spending doesn't fit a strong pattern. That's flexible!",
-                tip: "No strong tendencies detected. Keep tracking to reveal patterns over time.",
-                confidence: 0.5
-            )
-        }
+        // Score all patterns and return the one with highest confidence
+        var candidates: [SpendingPattern] = []
+
+        let frontLoaderConfidence = daysSoFar >= 10 ? min(1.0, frontRatio) * (frontRatio > 0.5 ? 1.0 : frontRatio) : 0
+        candidates.append(SpendingPattern(
+            type: .frontLoader,
+            title: "Front-Loader",
+            description: "You tend to spend heavily at the start of the month, then taper off.",
+            tip: "Try setting a daily spending target to spread expenses more evenly.",
+            confidence: frontLoaderConfidence
+        ))
+
+        let weekendConfidence = weekendRatio > 0.35 ? weekendRatio : 0
+        candidates.append(SpendingPattern(
+            type: .weekendSpender,
+            title: "Weekend Spender",
+            description: "Most of your spending happens on weekends.",
+            tip: "Plan weekend activities in advance to stay within budget.",
+            confidence: weekendConfidence
+        ))
+
+        let steadyConfidence = (cv < 0.8 && zeroRatio < 0.3) ? (1.0 - cv) * (1.0 - zeroRatio) : 0
+        candidates.append(SpendingPattern(
+            type: .steadyEddie,
+            title: "Steady Eddie",
+            description: "You spend consistently day to day. Very disciplined!",
+            tip: "Your consistency makes it easy to predict and plan. Keep it up!",
+            confidence: steadyConfidence
+        ))
+
+        let batchConfidence = zeroRatio > 0.35 ? zeroRatio : 0
+        candidates.append(SpendingPattern(
+            type: .batchBuyer,
+            title: "Batch Buyer",
+            description: "You make few but larger purchases, with many no-spend days.",
+            tip: "Great restraint! Just watch that individual purchases stay in budget.",
+            confidence: batchConfidence
+        ))
+
+        let escalatorConfidence = (trendDirection > 0 && cv > 0.5) ? min(1.0, cv * 0.7) : 0
+        candidates.append(SpendingPattern(
+            type: .escalator,
+            title: "Escalator",
+            description: "Your daily spending is trending upward through the month.",
+            tip: "Be mindful of spending creep. Check your remaining budget more often.",
+            confidence: escalatorConfidence
+        ))
+
+        candidates.append(SpendingPattern(
+            type: .balanced,
+            title: "Balanced",
+            description: "Your spending doesn't fit a strong pattern. That's flexible!",
+            tip: "No strong tendencies detected. Keep tracking to reveal patterns over time.",
+            confidence: 0.3
+        ))
+
+        return candidates.max(by: { $0.confidence < $1.confidence })
     }
 
     // MARK: - Category Forecast
@@ -224,17 +255,32 @@ enum BudgetMLEngine {
             let txs = (cat.transactions ?? []).filter {
                 !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart
             }
-            guard !txs.isEmpty else { continue }
-
-            let dailyAmounts = buildDailyAmounts(txs: txs, periodStart: budget.periodStart, days: daysSoFar)
-
-            // Exponential smoothing (alpha = 0.3 gives moderate weight to recent)
-            let smoothed = exponentialSmoothing(dailyAmounts, alpha: 0.3)
-            guard let recentRate = smoothed.last, recentRate > 0 else { continue }
+            guard txs.count >= 3 else { continue } // require 3+ transactions per category
 
             let remaining = cat.budgetedAmountCents - cat.spentCents(in: budget)
             let daysRemaining = daysInPeriod - daysSoFar
-            let projectedRemaining = Int64(recentRate * Double(daysRemaining))
+
+            // For sparse categories (< 3 txs per period already filtered above),
+            // use average-per-transaction * expected-transactions-remaining
+            // instead of daily smoothing which zero-fills and underestimates.
+            let projectedRemaining: Int64
+            let recentRate: Double
+
+            let txDays = Set(txs.map { calendar.startOfDay(for: $0.date) }).count
+            if txDays < 3 {
+                // Sparse: use per-transaction average * expected remaining transactions
+                let avgPerTx = Double(cat.spentCents(in: budget)) / Double(txs.count)
+                let txPerDay = Double(txs.count) / Double(daysSoFar)
+                let expectedRemainingTxs = txPerDay * Double(daysRemaining)
+                projectedRemaining = Int64(avgPerTx * expectedRemainingTxs)
+                recentRate = avgPerTx * txPerDay
+            } else {
+                let dailyAmounts = buildDailyAmounts(txs: txs, periodStart: budget.periodStart, days: daysSoFar)
+                let smoothed = exponentialSmoothing(dailyAmounts, alpha: 0.3)
+                recentRate = smoothed.last ?? 0
+                guard recentRate > 0 else { continue }
+                projectedRemaining = Int64(recentRate * Double(daysRemaining))
+            }
 
             let status: CategoryForecast.Status
             if remaining <= 0 {

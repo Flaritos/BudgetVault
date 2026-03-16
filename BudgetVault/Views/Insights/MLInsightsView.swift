@@ -34,7 +34,7 @@ struct SpendingPredictionCard: View {
             HStack {
                 Image(systemName: "brain.head.profile")
                     .foregroundStyle(BudgetVaultTheme.electricBlue)
-                Text("ML Spending Forecast")
+                Text("Smart Spending Forecast")
                     .font(.headline)
                 Spacer()
                 HStack(spacing: 4) {
@@ -134,7 +134,7 @@ struct SpendingPredictionCard: View {
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("ML forecast: predicted spending \(CurrencyFormatter.format(cents: prediction.predictedTotalCents)), \(prediction.willExceedBudget ? "over budget" : "under budget"), \(trendLabel) trend")
+        .accessibilityLabel("Smart forecast: predicted spending \(CurrencyFormatter.format(cents: prediction.predictedTotalCents)), \(prediction.willExceedBudget ? "over budget" : "under budget"), \(trendLabel) trend")
     }
 }
 
