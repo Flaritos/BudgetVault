@@ -12,6 +12,7 @@ struct AddCategoryView: View {
     @State private var color = "#007AFF"
     @State private var amountText = ""
     @State private var showDuplicateWarning = false
+    @FocusState private var isInputFocused: Bool
 
     private let emojiOptions = ["📦", "🏠", "🛒", "🚗", "🎬", "💊", "📚", "🎮", "👕", "🐾", "✈️", "🍕", "☕", "🎵", "💇", "🏋️", "🎁", "📱", "🔧", "💡"]
 
@@ -85,6 +86,7 @@ struct AddCategoryView: View {
                         TextField("0", text: $amountText)
                             .keyboardType(.decimalPad)
                             .font(.title3.bold())
+                            .focused($isInputFocused)
                     }
                 }
             }
@@ -93,9 +95,7 @@ struct AddCategoryView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

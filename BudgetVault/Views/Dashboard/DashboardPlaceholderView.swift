@@ -12,6 +12,7 @@ struct DashboardPlaceholderView: View {
     @Query(sort: \RecurringExpense.nextDueDate) private var recurringExpenses: [RecurringExpense]
 
     @AppStorage(AppStorageKeys.lastSummaryViewed) private var lastSummaryViewed = ""
+    @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = true
 
     @State private var viewModel = DashboardViewModel()
     @State private var showTransactionEntry = false
@@ -86,8 +87,10 @@ struct DashboardPlaceholderView: View {
                 } else {
                     EmptyStateView(
                         icon: "calendar.badge.exclamationmark",
-                        title: "No Budget",
-                        message: "Something went wrong. Try restarting the app."
+                        title: "No Budget for This Period",
+                        message: "Create a new budget to start tracking your spending.",
+                        actionLabel: "Create Budget",
+                        action: { hasCompletedOnboarding = false }
                     )
                 }
 
@@ -155,6 +158,7 @@ struct DashboardPlaceholderView: View {
                         transactions: allTransactions
                     )
                     if let first = newBadges.first {
+                        HapticManager.notification(.success)
                         newAchievementBanner = first.title
                         try? await Task.sleep(for: .seconds(3))
                         newAchievementBanner = nil
@@ -174,9 +178,10 @@ struct DashboardPlaceholderView: View {
                 .padding(.vertical, 10)
                 .background(.ultraThinMaterial, in: Capsule())
                 .shadow(radius: 4, y: 2)
+                .scaleEffect(newAchievementBanner != nil ? 1.0 : 0.5)
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.spring(duration: 0.4), value: newAchievementBanner)
+                .animation(.spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
             }
         }
     }

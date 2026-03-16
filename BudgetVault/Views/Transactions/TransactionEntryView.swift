@@ -19,6 +19,7 @@ struct TransactionEntryView: View {
     @State private var showSavedBanner = false
     @State private var manualCategorySelection = false
     @State private var showNoteSuggestions = false
+    @FocusState private var isInputFocused: Bool
 
     /// Limit recent transactions to last 200 for performance
     private var recentTransactions: [Transaction] {
@@ -37,7 +38,7 @@ struct TransactionEntryView: View {
                 .padding(.horizontal)
 
                 // Amount display
-                Text(displayAmount)
+                Text(CurrencyFormatter.displayAmount(text: amountText))
                     .font(.system(size: 48, weight: .bold, design: .rounded))
                     .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
                     .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
@@ -51,7 +52,7 @@ struct TransactionEntryView: View {
                                 Button {
                                     note = template.note
                                     selectedCategory = template.category
-                                    amountText = formatCentsToString(template.amountCents)
+                                    amountText = CurrencyFormatter.formatRaw(cents: template.amountCents)
                                     manualCategorySelection = true
                                 } label: {
                                     HStack(spacing: 4) {
@@ -116,6 +117,7 @@ struct TransactionEntryView: View {
                             .labelsHidden()
                         TextField("Add a note", text: $note)
                             .textFieldStyle(.roundedBorder)
+                            .focused($isInputFocused)
                             .onChange(of: note) { _, newValue in
                                 showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
                                 // Auto-suggest category when user hasn't manually picked one
@@ -204,9 +206,7 @@ struct TransactionEntryView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -216,12 +216,6 @@ struct TransactionEntryView: View {
     }
 
     // MARK: - Computed
-
-    private var displayAmount: String {
-        let symbol = CurrencyFormatter.currencySymbol()
-        if amountText.isEmpty { return "\(symbol)0" }
-        return "\(symbol)\(amountText)"
-    }
 
     private var canSave: Bool {
         guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else { return false }
@@ -276,15 +270,6 @@ struct TransactionEntryView: View {
                 guard let first = txs.first else { return nil }
                 return (first.note, first.category, first.amountCents)
             }
-    }
-
-    // MARK: - Helpers
-
-    private func formatCentsToString(_ cents: Int64) -> String {
-        let dollars = cents / 100
-        let remainder = cents % 100
-        if remainder == 0 { return "\(dollars)" }
-        return String(format: "%d.%02d", dollars, remainder)
     }
 
     // MARK: - Actions

@@ -15,6 +15,7 @@ struct TransactionEditView: View {
     @State private var date: Date
     @State private var note: String
     @State private var showDeleteConfirmation = false
+    @FocusState private var isInputFocused: Bool
 
     init(transaction: Transaction, budget: Budget, categories: [Category]) {
         self.transaction = transaction
@@ -39,7 +40,7 @@ struct TransactionEditView: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
 
-                Text(displayAmount)
+                Text(CurrencyFormatter.displayAmount(text: amountText))
                     .font(.system(size: 48, weight: .bold, design: .rounded))
                     .foregroundStyle(amountText.isEmpty ? .secondary : .primary)
                     .padding(.top, 8)
@@ -85,6 +86,7 @@ struct TransactionEditView: View {
                         .labelsHidden()
                     TextField("Add a note", text: $note)
                         .textFieldStyle(.roundedBorder)
+                        .focused($isInputFocused)
                 }
                 .padding(.horizontal)
 
@@ -115,9 +117,7 @@ struct TransactionEditView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -132,12 +132,6 @@ struct TransactionEditView: View {
                 }
             }
         }
-    }
-
-    private var displayAmount: String {
-        let symbol = CurrencyFormatter.currencySymbol()
-        if amountText.isEmpty { return "\(symbol)0" }
-        return "\(symbol)\(amountText)"
     }
 
     private var canSave: Bool {

@@ -12,8 +12,8 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     @State private var monthlyIncome = ""
     @State private var tempCurrency = "USD"
-    @State private var selectedTemplate: BudgetTemplate = .single
-    @State private var selectedCategories: [(name: String, emoji: String, color: String, pct: Double)] = Array(BudgetTemplate.single.categories.prefix(4))
+    @State private var selectedTemplate: BudgetTemplates.OnboardingTemplate = .single
+    @State private var selectedCategories: [(name: String, emoji: String, color: String, pct: Double)] = Array(BudgetTemplates.OnboardingTemplate.single.categories.prefix(4))
     @State private var budgetCreated = false
     @State private var showCelebrationCheck = false
     @State private var stepIconScales: [Int: CGFloat] = [:]
@@ -21,6 +21,7 @@ struct OnboardingView: View {
     @State private var dialUnlocked = false
     @State private var showWelcomeText = false
     @State private var showCategoryCapWarning = false
+    @FocusState private var isInputFocused: Bool
 
     private let totalPages = 7
     private let freeCategoryLimit = 4
@@ -38,58 +39,6 @@ struct OnboardingView: View {
 
     private var selectedCurrencySymbol: String {
         CurrencyPickerView.currencies.first { $0.code == tempCurrency }?.symbol ?? "$"
-    }
-
-    // MARK: - Budget Templates
-
-    private enum BudgetTemplate: String, CaseIterable {
-        case single = "Single"
-        case couple = "Couple"
-        case family = "Family"
-        case custom = "Custom"
-
-        var icon: String {
-            switch self {
-            case .single: return "person.fill"
-            case .couple: return "person.2.fill"
-            case .family: return "person.3.fill"
-            case .custom: return "slider.horizontal.3"
-            }
-        }
-
-        var categories: [(name: String, emoji: String, color: String, pct: Double)] {
-            switch self {
-            case .single:
-                return [
-                    ("Rent", "\u{1F3E0}", "#5856D6", 0.30),
-                    ("Groceries", "\u{1F6D2}", "#34C759", 0.15),
-                    ("Transport", "\u{1F697}", "#FF9500", 0.10),
-                    ("Dining Out", "\u{1F37D}\u{FE0F}", "#FF2D55", 0.10),
-                    ("Entertainment", "\u{1F3AC}", "#AF52DE", 0.05),
-                    ("Savings", "\u{1F3E6}", "#007AFF", 0.10),
-                ]
-            case .couple:
-                return [
-                    ("Housing", "\u{1F3E0}", "#5856D6", 0.30),
-                    ("Groceries", "\u{1F6D2}", "#34C759", 0.15),
-                    ("Dining Out", "\u{1F37D}\u{FE0F}", "#FF2D55", 0.10),
-                    ("Transport", "\u{1F697}", "#FF9500", 0.10),
-                    ("Date Night", "\u{2764}\u{FE0F}", "#AF52DE", 0.05),
-                    ("Savings", "\u{1F3E6}", "#007AFF", 0.10),
-                ]
-            case .family:
-                return [
-                    ("Housing", "\u{1F3E0}", "#5856D6", 0.30),
-                    ("Groceries", "\u{1F6D2}", "#34C759", 0.15),
-                    ("Kids", "\u{1F476}", "#FF2D55", 0.10),
-                    ("Transport", "\u{1F697}", "#FF9500", 0.10),
-                    ("Utilities", "\u{1F4A1}", "#FFCC00", 0.05),
-                    ("Savings", "\u{1F3E6}", "#007AFF", 0.10),
-                ]
-            case .custom:
-                return []
-            }
-        }
     }
 
     var body: some View {
@@ -168,7 +117,8 @@ struct OnboardingView: View {
                     withAnimation(.easeInOut(duration: 0.6)) {
                         dialRotation += 360
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(500))
                         withAnimation { currentPage = 1 }
                     }
                 } label: {
@@ -350,7 +300,7 @@ struct OnboardingView: View {
                     .padding(.horizontal, 32)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(BudgetTemplate.allCases, id: \.rawValue) { template in
+                    ForEach(BudgetTemplates.OnboardingTemplate.allCases, id: \.rawValue) { template in
                         let isSelected = selectedTemplate == template
                         Button {
                             selectedTemplate = template
@@ -516,6 +466,7 @@ struct OnboardingView: View {
                             .font(.system(size: 48, weight: .bold, design: .rounded))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.center)
+                            .focused($isInputFocused)
                     }
                     .padding(.vertical, 16)
                     .padding(.horizontal, 24)
@@ -607,9 +558,7 @@ struct OnboardingView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                }
+                Button("Done") { isInputFocused = false }
             }
         }
     }

@@ -232,15 +232,9 @@ struct HistoryPlaceholderView: View {
     }
 
     private func navigateMonth(_ delta: Int) {
-        if delta > 0 {
-            let (m, y) = DateHelpers.nextMonth(from: viewingMonth, year: viewingYear)
-            viewingMonth = m
-            viewingYear = y
-        } else {
-            let (m, y) = DateHelpers.previousMonth(from: viewingMonth, year: viewingYear)
-            viewingMonth = m
-            viewingYear = y
-        }
+        let (m, y) = DateHelpers.navigateMonth(from: viewingMonth, year: viewingYear, delta: delta)
+        viewingMonth = m
+        viewingYear = y
     }
 
     private static func csvEscape(_ field: String) -> String {

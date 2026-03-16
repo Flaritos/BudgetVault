@@ -15,6 +15,7 @@ struct RecurringExpenseFormView: View {
     @State private var selectedCategory: Category?
     @State private var startDate: Date
     @State private var showDeleteConfirmation = false
+    @FocusState private var isInputFocused: Bool
 
     private var isEditing: Bool { expense != nil }
 
@@ -25,7 +26,7 @@ struct RecurringExpenseFormView: View {
     init(expense: RecurringExpense?) {
         self.expense = expense
         _name = State(initialValue: expense?.name ?? "")
-        _amountText = State(initialValue: expense.map { Self.formatCents($0.amountCents) } ?? "")
+        _amountText = State(initialValue: expense.map { CurrencyFormatter.formatRaw(cents: $0.amountCents) } ?? "")
         _frequency = State(initialValue: expense?.frequencyEnum ?? .monthly)
         _selectedCategory = State(initialValue: expense?.category)
         _startDate = State(initialValue: expense?.nextDueDate ?? Date())
@@ -41,6 +42,7 @@ struct RecurringExpenseFormView: View {
                             .foregroundStyle(.secondary)
                         TextField("0", text: $amountText)
                             .keyboardType(.decimalPad)
+                            .focused($isInputFocused)
                     }
                 }
 
@@ -105,9 +107,7 @@ struct RecurringExpenseFormView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -154,10 +154,4 @@ struct RecurringExpenseFormView: View {
         dismiss()
     }
 
-    private static func formatCents(_ cents: Int64) -> String {
-        let dollars = cents / 100
-        let remainder = cents % 100
-        if remainder == 0 { return "\(dollars)" }
-        return String(format: "%d.%02d", dollars, remainder)
-    }
 }

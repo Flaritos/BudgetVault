@@ -11,6 +11,7 @@ struct DebtDetailView: View {
     @State private var showEditDebt = false
     @State private var paymentAmountText = ""
     @State private var paymentNote = ""
+    @FocusState private var isInputFocused: Bool
 
     private var sortedPayments: [DebtPayment] {
         (debt.payments ?? []).sorted { $0.date > $1.date }
@@ -247,6 +248,7 @@ struct DebtDetailView: View {
                         TextField("0", text: $paymentAmountText)
                             .keyboardType(.decimalPad)
                             .font(.title3.bold())
+                            .focused($isInputFocused)
                     }
                 }
 
@@ -265,9 +267,7 @@ struct DebtDetailView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -344,6 +344,7 @@ private struct EditDebtForm: View {
     @State private var minimumPaymentText: String = ""
     @State private var dueDay: Int = 1
     @State private var currentBalanceText: String = ""
+    @FocusState private var isInputFocused: Bool
 
     private let emojiOptions = ["💳", "🏦", "🏠", "🚗", "🎓", "💰", "📱", "🏥", "💍", "🛍️"]
 
@@ -379,6 +380,7 @@ private struct EditDebtForm: View {
                     TextField("0", text: $currentBalanceText)
                         .keyboardType(.decimalPad)
                         .font(.title3.bold())
+                        .focused($isInputFocused)
                 }
             }
 
@@ -409,9 +411,7 @@ private struct EditDebtForm: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                }
+                Button("Done") { isInputFocused = false }
             }
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { onDismiss() }

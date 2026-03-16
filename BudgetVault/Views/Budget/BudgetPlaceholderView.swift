@@ -22,6 +22,7 @@ struct BudgetPlaceholderView: View {
     @State private var goalAmountText = ""
     @State private var goalDate = Date()
     @State private var isSavingsGoal = false
+    @FocusState private var isInputFocused: Bool
 
     private var viewingBudget: Budget? {
         allBudgets.first { $0.month == viewingMonth && $0.year == viewingYear }
@@ -68,7 +69,7 @@ struct BudgetPlaceholderView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        navigateMonth(-1)
+                        navigateMonthBy(-1)
                     } label: {
                         Image(systemName: "chevron.left")
                     }
@@ -94,7 +95,7 @@ struct BudgetPlaceholderView: View {
 
                         if isCurrentPeriod {
                             Button {
-                                navigateMonth(1)
+                                navigateMonthBy(1)
                             } label: {
                                 Image(systemName: "chevron.right")
                             }
@@ -102,7 +103,7 @@ struct BudgetPlaceholderView: View {
                             .accessibilityLabel("Next month")
                         } else {
                             Button {
-                                navigateMonth(1)
+                                navigateMonthBy(1)
                             } label: {
                                 Image(systemName: "chevron.right")
                             }
@@ -149,7 +150,8 @@ struct BudgetPlaceholderView: View {
             .onChange(of: isPremium) { _, newValue in
                 if newValue && showPaywall {
                     showPaywall = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(500))
                         showAddCategory = true
                     }
                 }
@@ -166,7 +168,7 @@ struct BudgetPlaceholderView: View {
             Section {
                 Button {
                     if isCurrentPeriod {
-                        incomeText = formatCentsToString(budget.totalIncomeCents)
+                        incomeText = CurrencyFormatter.formatRaw(cents: budget.totalIncomeCents)
                         showIncomeEditor = true
                     }
                 } label: {
@@ -275,7 +277,7 @@ struct BudgetPlaceholderView: View {
                 Spacer()
                 Button {
                     if isCurrentPeriod {
-                        categoryAmountText = formatCentsToString(category.budgetedAmountCents)
+                        categoryAmountText = CurrencyFormatter.formatRaw(cents: category.budgetedAmountCents)
                         editingCategoryAmount = category
                     }
                 } label: {
@@ -327,7 +329,7 @@ struct BudgetPlaceholderView: View {
     private var incomeEditorSheet: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Text(displayAmount(incomeText))
+                Text(CurrencyFormatter.displayAmount(text: incomeText))
                     .font(.system(size: 48, weight: .bold, design: .rounded))
                     .padding(.top, 32)
 
@@ -366,7 +368,7 @@ struct BudgetPlaceholderView: View {
                         .font(.headline)
                         .padding(.top, 16)
 
-                    Text(displayAmount(categoryAmountText))
+                    Text(CurrencyFormatter.displayAmount(text: categoryAmountText))
                         .font(.system(size: 48, weight: .bold, design: .rounded))
 
                     NumberPadView(text: $categoryAmountText)
@@ -386,6 +388,7 @@ struct BudgetPlaceholderView: View {
                             TextField("0", text: $goalAmountText)
                                 .keyboardType(.decimalPad)
                                 .font(.subheadline)
+                                .focused($isInputFocused)
                         }
                         .padding(.horizontal)
 
@@ -400,9 +403,7 @@ struct BudgetPlaceholderView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { editingCategoryAmount = nil }
@@ -446,16 +447,10 @@ struct BudgetPlaceholderView: View {
 
     // MARK: - Helpers
 
-    private func navigateMonth(_ delta: Int) {
-        if delta > 0 {
-            let (m, y) = DateHelpers.nextMonth(from: viewingMonth, year: viewingYear)
-            viewingMonth = m
-            viewingYear = y
-        } else {
-            let (m, y) = DateHelpers.previousMonth(from: viewingMonth, year: viewingYear)
-            viewingMonth = m
-            viewingYear = y
-        }
+    private func navigateMonthBy(_ delta: Int) {
+        let (m, y) = DateHelpers.navigateMonth(from: viewingMonth, year: viewingYear, delta: delta)
+        viewingMonth = m
+        viewingYear = y
     }
 
     private func moveCategories(from source: IndexSet, to destination: Int) {
@@ -465,18 +460,5 @@ struct BudgetPlaceholderView: View {
             cat.sortOrder = i
         }
         SafeSave.save(modelContext)
-    }
-
-    private func displayAmount(_ text: String) -> String {
-        let symbol = CurrencyFormatter.currencySymbol()
-        if text.isEmpty { return "\(symbol)0" }
-        return "\(symbol)\(text)"
-    }
-
-    private func formatCentsToString(_ cents: Int64) -> String {
-        let dollars = cents / 100
-        let remainder = cents % 100
-        if remainder == 0 { return "\(dollars)" }
-        return String(format: "%d.%02d", dollars, remainder)
     }
 }

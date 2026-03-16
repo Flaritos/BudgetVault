@@ -84,4 +84,18 @@ enum DateHelpers {
         }
         return (month + 1, year)
     }
+
+    /// Navigate forward or backward by one month.
+    /// - Parameters:
+    ///   - month: Current month
+    ///   - year: Current year
+    ///   - delta: +1 for next month, -1 for previous month
+    /// - Returns: The new (month, year) tuple.
+    static func navigateMonth(from month: Int, year: Int, delta: Int) -> (month: Int, year: Int) {
+        if delta > 0 {
+            return nextMonth(from: month, year: year)
+        } else {
+            return previousMonth(from: month, year: year)
+        }
+    }
 }

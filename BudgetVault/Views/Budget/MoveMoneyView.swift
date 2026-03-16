@@ -6,6 +6,12 @@ struct MoveMoneyView: View {
     @Environment(\.dismiss) private var dismiss
 
     let categories: [Category]
+    var budget: Budget? = nil
+
+    /// Resolve budget: use explicit parameter or derive from first category's relationship
+    private var resolvedBudget: Budget? {
+        budget ?? categories.first?.budget
+    }
 
     @State private var fromCategory: Category?
     @State private var toCategory: Category?
@@ -77,7 +83,7 @@ struct MoveMoneyView: View {
                             )
                         }
                         .tint(.primary)
-                        .accessibilityLabel("From \(cat.name), \(CurrencyFormatter.format(cents: cat.budgetedAmountCents)) available")
+                        .accessibilityLabel("From \(cat.name), \(CurrencyFormatter.format(cents: resolvedBudget.map { cat.remainingCents(in: $0) } ?? cat.budgetedAmountCents)) remaining")
                         .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                 }
@@ -131,8 +137,8 @@ struct MoveMoneyView: View {
         NumberPadView(text: $amountText)
             .padding(.horizontal, 24)
 
-        if exceedsAvailable, let from = fromCategory {
-            Text("Exceeds available \(CurrencyFormatter.format(cents: from.budgetedAmountCents))")
+        if exceedsAvailable {
+            Text("Exceeds remaining \(CurrencyFormatter.format(cents: fromRemainingCents))")
                 .font(.caption)
                 .foregroundStyle(BudgetVaultTheme.negative)
         }
@@ -148,9 +154,15 @@ struct MoveMoneyView: View {
         MoneyHelpers.parseCurrencyString(amountText) ?? 0
     }
 
+    private var fromRemainingCents: Int64 {
+        guard let from = fromCategory else { return 0 }
+        guard let b = resolvedBudget else { return from.budgetedAmountCents }
+        return from.remainingCents(in: b)
+    }
+
     private var exceedsAvailable: Bool {
-        guard let from = fromCategory else { return false }
-        return parsedCents > from.budgetedAmountCents
+        guard fromCategory != nil else { return false }
+        return parsedCents > fromRemainingCents
     }
 
     private var canMove: Bool {

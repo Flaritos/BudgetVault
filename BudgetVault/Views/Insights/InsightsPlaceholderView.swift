@@ -92,39 +92,6 @@ struct InsightsPlaceholderView: View {
                     .padding(.horizontal)
 
                     if let budget = currentBudget {
-                        // PREMIUM: ML Spending Forecast
-                        premiumSection("ML Forecast") {
-                            if let prediction = BudgetMLEngine.predictMonthEndSpending(budget: budget) {
-                                SpendingPredictionCard(prediction: prediction)
-                            }
-                        }
-
-                        // PREMIUM: Spending Pattern Classification
-                        premiumSection("Spending Style") {
-                            if let pattern = BudgetMLEngine.classifySpendingPattern(budget: budget) {
-                                SpendingPatternCard(pattern: pattern)
-                            }
-                        }
-
-                        // PREMIUM: Anomaly Detection
-                        premiumSection("Anomaly Detection") {
-                            let anomalies = BudgetMLEngine.detectAnomalies(budget: budget)
-                            AnomalyListCard(anomalies: anomalies)
-                        }
-
-                        // PREMIUM: Category Forecasts
-                        premiumSection("Category Forecasts") {
-                            let forecasts = BudgetMLEngine.forecastCategories(budget: budget)
-                            if !forecasts.isEmpty {
-                                CategoryForecastCard(forecasts: forecasts)
-                            }
-                        }
-
-                        // PREMIUM: Spending Heatmap
-                        premiumSection("Spending Heatmap") {
-                            SpendingHeatmapView(budget: budget, allTransactions: periodTransactions)
-                        }
-
                         // FREE: Trend chart (only shown for single-month ranges)
                         if selectedRange == .thisMonth || selectedRange == .lastMonth {
                             let trendBudget = selectedRange == .lastMonth ? (previousBudget ?? budget) : budget
@@ -134,7 +101,7 @@ struct InsightsPlaceholderView: View {
                         // FREE: Category breakdown
                         CategoryBreakdownChart(budget: budget)
 
-                        // Monthly Totals bar chart
+                        // FREE: Monthly Totals bar chart
                         if monthlyTotals.count > 1 {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Monthly Spending")
@@ -176,19 +143,36 @@ struct InsightsPlaceholderView: View {
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                         }
 
-                        // PREMIUM: vs Last Month
-                        premiumSection("vs. Last Month") {
-                            comparisonCards(budget: budget)
+                        // PREMIUM: Smart Forecasts (consolidated teaser 1)
+                        premiumSection("Smart Forecasts") {
+                            VStack(spacing: 12) {
+                                if let prediction = BudgetMLEngine.predictMonthEndSpending(budget: budget) {
+                                    SpendingPredictionCard(prediction: prediction)
+                                }
+                                if let pattern = BudgetMLEngine.classifySpendingPattern(budget: budget) {
+                                    SpendingPatternCard(pattern: pattern)
+                                }
+                                let forecasts = BudgetMLEngine.forecastCategories(budget: budget)
+                                if !forecasts.isEmpty {
+                                    CategoryForecastCard(forecasts: forecasts)
+                                }
+                            }
                         }
 
-                        // PREMIUM: Smart Insights
-                        premiumSection("Smart Insights") {
-                            insightCards
-                        }
+                        // PREMIUM: Deep Analysis (consolidated teaser 2)
+                        premiumSection("Deep Analysis") {
+                            VStack(spacing: 12) {
+                                let anomalies = BudgetMLEngine.detectAnomalies(budget: budget)
+                                AnomalyListCard(anomalies: anomalies)
 
-                        // PREMIUM: Top spending days
-                        premiumSection("Top Spending Days") {
-                            topSpendingDays(budget: budget)
+                                SpendingHeatmapView(budget: budget, allTransactions: periodTransactions)
+
+                                comparisonCards(budget: budget)
+
+                                insightCards
+
+                                topSpendingDays(budget: budget)
+                            }
                         }
                     } else {
                         EmptyStateView(

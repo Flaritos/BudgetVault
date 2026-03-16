@@ -11,6 +11,7 @@ struct AddDebtView: View {
     @State private var interestRateText = ""
     @State private var minimumPaymentText = ""
     @State private var dueDay = 1
+    @FocusState private var isInputFocused: Bool
 
     private let emojiOptions = ["💳", "🏦", "🏠", "🚗", "🎓", "💰", "📱", "🏥", "💍", "🛍️"]
 
@@ -49,6 +50,7 @@ struct AddDebtView: View {
                         TextField("0", text: $balanceText)
                             .keyboardType(.decimalPad)
                             .font(.title3.bold())
+                            .focused($isInputFocused)
                     }
                 }
 
@@ -79,9 +81,7 @@ struct AddDebtView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

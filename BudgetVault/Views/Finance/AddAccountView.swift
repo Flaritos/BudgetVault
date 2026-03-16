@@ -9,6 +9,7 @@ struct AddAccountView: View {
     @State private var emoji = "🏦"
     @State private var balanceText = ""
     @State private var accountType = "asset"
+    @FocusState private var isInputFocused: Bool
 
     private let assetEmojis = ["🏦", "💰", "📈", "🏠", "🚗", "💎", "🪙", "💵"]
     private let liabilityEmojis = ["💳", "🏦", "🏠", "🚗", "🎓", "🏥", "📱", "💍"]
@@ -66,6 +67,7 @@ struct AddAccountView: View {
                         TextField("0", text: $balanceText)
                             .keyboardType(.decimalPad)
                             .font(.title3.bold())
+                            .focused($isInputFocused)
                     }
                 }
             }
@@ -74,9 +76,7 @@ struct AddAccountView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

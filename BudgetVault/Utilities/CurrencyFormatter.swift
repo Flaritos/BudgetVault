@@ -53,4 +53,21 @@ struct CurrencyFormatter {
     static func currencySymbol(for currencyCode: String = "") -> String {
         return resolvedSymbol(for: currencyCode)
     }
+
+    /// Convert Int64 cents to a raw numeric string (e.g. 1450 -> "14.50", 500 -> "5").
+    /// Useful for pre-populating text fields.
+    static func formatRaw(cents: Int64) -> String {
+        let dollars = cents / 100
+        let remainder = cents % 100
+        if remainder == 0 { return "\(dollars)" }
+        return String(format: "%d.%02d", dollars, remainder)
+    }
+
+    /// Format a raw amount text string for display with the user's currency symbol.
+    /// e.g. "" -> "$0", "14.50" -> "$14.50"
+    static func displayAmount(text: String) -> String {
+        let symbol = currencySymbol()
+        if text.isEmpty { return "\(symbol)0" }
+        return "\(symbol)\(text)"
+    }
 }

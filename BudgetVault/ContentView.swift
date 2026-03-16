@@ -27,7 +27,8 @@ struct ContentView: View {
         }
         .onChange(of: hasCompletedOnboarding) { oldValue, newValue in
             if !oldValue && newValue && !hasLoggedFirstTransaction {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task {
+                    try? await Task.sleep(for: .milliseconds(500))
                     NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
                 }
             }

@@ -342,6 +342,7 @@ struct UpdateBalancesView: View {
     let onSave: () -> Void
 
     @State private var balanceTexts: [UUID: String] = [:]
+    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -370,9 +371,7 @@ struct UpdateBalancesView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    }
+                    Button("Done") { isInputFocused = false }
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -407,6 +406,7 @@ struct UpdateBalancesView: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 120)
+                .focused($isInputFocused)
             }
         }
     }
