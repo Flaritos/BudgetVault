@@ -8,19 +8,10 @@ final class CloudSyncService {
     var isSyncing = false
     var syncError: String?
 
-    private var eventObserver: Any?
     private var remoteChangeObserver: Any?
 
     init() {
-        eventObserver = NotificationCenter.default.addObserver(
-            forName: NSPersistentCloudKitContainer.eventChangedNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            self?.handleSyncEvent(notification)
-        }
-
-        // M13: SwiftData's CloudKit integration fires this notification reliably
+        // SwiftData's CloudKit integration fires this notification on remote changes
         remoteChangeObserver = NotificationCenter.default.addObserver(
             forName: .NSPersistentStoreRemoteChange,
             object: nil,
@@ -31,39 +22,13 @@ final class CloudSyncService {
     }
 
     deinit {
-        if let observer = eventObserver { NotificationCenter.default.removeObserver(observer) }
         if let observer = remoteChangeObserver { NotificationCenter.default.removeObserver(observer) }
     }
 
     private func handleRemoteChange() {
-        // Mark sync as completed when we receive remote changes
         lastSyncDate = Date()
         isSyncing = false
         syncError = nil
-    }
-
-    private func handleSyncEvent(_ notification: Notification) {
-        guard let event = notification.userInfo?["event"] as? NSPersistentCloudKitContainer.Event else { return }
-
-        switch event.type {
-        case .setup:
-            isSyncing = true
-            syncError = nil
-        case .import, .export:
-            if event.endDate != nil {
-                isSyncing = false
-                if event.succeeded {
-                    lastSyncDate = event.endDate
-                    syncError = nil
-                } else if let error = event.error {
-                    syncError = error.localizedDescription
-                }
-            } else {
-                isSyncing = true
-            }
-        @unknown default:
-            break
-        }
     }
 
     private static let relativeDateFormatter: RelativeDateTimeFormatter = {

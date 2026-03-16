@@ -139,6 +139,13 @@ enum NotificationService {
 
             guard pct >= 0.8 else { continue }
 
+            // Throttle: only fire once per day per category
+            let throttleKey = "lastCategoryAlert-\(category.id.uuidString)"
+            if let lastAlert = UserDefaults.standard.object(forKey: throttleKey) as? Date,
+               Calendar.current.isDateInToday(lastAlert) {
+                continue
+            }
+
             let content = UNMutableNotificationContent()
             content.sound = .default
 
@@ -152,6 +159,8 @@ enum NotificationService {
                 content.title = "\(category.emoji) \(category.name) at \(Int(pct * 100))%"
                 content.body = "\(spentFormatted) of \(budgetedFormatted) spent"
             }
+
+            UserDefaults.standard.set(Date(), forKey: throttleKey)
 
             // Fire in 2 seconds (immediate feedback when app foregrounds)
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)

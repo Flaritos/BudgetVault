@@ -559,11 +559,17 @@ struct SettingsPlaceholderView: View {
         // Reset UserDefaults
         let keysToReset = [
             "currentStreak", "lastLogDate", "hasLoggedFirstTransaction",
-            "hasCompletedOnboarding", "streakFreezesRemaining", "lastFreezeReset"
+            "hasCompletedOnboarding", "streakFreezesRemaining", "lastFreezeReset",
+            "isPremium", "resetDay", "selectedCurrency", "dailyReminderEnabled",
+            "dailyReminderHour", "weeklyDigestEnabled", "billDueReminders",
+            "iCloudSyncEnabled", "accentColorHex", "lastSummaryViewed",
+            "reviewPromptCount", "userName"
         ]
         for key in keysToReset {
             UserDefaults.standard.removeObject(forKey: key)
         }
+        NotificationService.cancelDailyReminder()
+        NotificationService.cancelWeeklySummary()
     }
 
     private func formatHour(_ hour: Int) -> String {

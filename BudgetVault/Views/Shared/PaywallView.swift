@@ -21,8 +21,8 @@ struct PaywallView: View {
         return max(components.day ?? 0, 0)
     }
 
-    private var displayPrice: String {
-        storeKit.premiumProduct?.displayPrice ?? (storeKit.isLaunchPricing ? "$9.99" : "$19.99")
+    private var displayPrice: String? {
+        storeKit.premiumProduct?.displayPrice
     }
 
     var body: some View {
@@ -39,9 +39,9 @@ struct PaywallView: View {
                             .foregroundStyle(.white)
                             .multilineTextAlignment(.center)
 
-                        if storeKit.isLaunchPricing {
+                        if storeKit.isLaunchPricing, let price = displayPrice {
                             VStack(spacing: 4) {
-                                Text("Launch Special: \(displayPrice) — limited time")
+                                Text("Launch Special: \(price) — limited time")
                                     .font(.subheadline.bold())
                                     .foregroundStyle(.white)
                                 Text("\(daysRemaining) days left at this price")
@@ -91,25 +91,19 @@ struct PaywallView: View {
                     .padding(.horizontal, 32)
 
                     // Price
-                    VStack(spacing: 4) {
-                        HStack(spacing: 8) {
-                            if storeKit.isLaunchPricing {
-                                Text("$19.99")
-                                    .font(.system(size: 20, weight: .medium, design: .rounded))
-                                    .strikethrough()
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(displayPrice)
+                    if let price = displayPrice {
+                        VStack(spacing: 4) {
+                            Text(price)
                                 .font(.system(size: 36, weight: .bold, design: .rounded))
+                            Text("one-time purchase")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text("Pay once, use forever")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        Text("one-time purchase")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text("Pay once, use forever")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        .padding(.top, 8)
                     }
-                    .padding(.top, 8)
 
                     // Product load error (Bug 5)
                     if let loadError = storeKit.productLoadError, storeKit.premiumProduct == nil {
@@ -149,6 +143,13 @@ struct PaywallView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
+
+                    HStack(spacing: 16) {
+                        Link("Privacy Policy", destination: URL(string: "https://budgetvault.io/privacy")!)
+                        Link("Terms of Service", destination: URL(string: "https://budgetvault.io/terms")!)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                     .padding(.bottom, 24)
                 }
             }
@@ -199,7 +200,7 @@ struct PaywallView: View {
             Group {
                 switch storeKit.purchaseState {
                 case .idle, .error:
-                    Text("Unlock Premium for \(displayPrice)")
+                    Text("Unlock Premium\(displayPrice.map { " for \($0)" } ?? "")")
                         .font(.headline)
                 case .loading:
                     ProgressView()

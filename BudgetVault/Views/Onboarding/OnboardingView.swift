@@ -13,15 +13,17 @@ struct OnboardingView: View {
     @State private var monthlyIncome = ""
     @State private var tempCurrency = "USD"
     @State private var selectedTemplate: BudgetTemplate = .single
-    @State private var selectedCategories: [(name: String, emoji: String, color: String, pct: Double)] = BudgetTemplate.single.categories
+    @State private var selectedCategories: [(name: String, emoji: String, color: String, pct: Double)] = Array(BudgetTemplate.single.categories.prefix(4))
     @State private var budgetCreated = false
     @State private var showCelebrationCheck = false
     @State private var stepIconScales: [Int: CGFloat] = [:]
     @State private var dialRotation: Double = 0
     @State private var dialUnlocked = false
     @State private var showWelcomeText = false
+    @State private var showCategoryCapWarning = false
 
     private let totalPages = 7
+    private let freeCategoryLimit = 4
 
     private func stepIndicator(current: Int) -> some View {
         HStack(spacing: 6) {
@@ -102,6 +104,7 @@ struct OnboardingView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .animation(.easeInOut, value: currentPage)
+        .highPriorityGesture(DragGesture())
         .onAppear { tempCurrency = selectedCurrency }
     }
 
@@ -335,7 +338,7 @@ struct OnboardingView: View {
                         let isSelected = selectedTemplate == template
                         Button {
                             selectedTemplate = template
-                            selectedCategories = template.categories
+                            selectedCategories = Array(template.categories.prefix(freeCategoryLimit))
                         } label: {
                             VStack(spacing: 8) {
                                 Image(systemName: template.icon)
@@ -403,14 +406,28 @@ struct OnboardingView: View {
                             }
                         }
 
-                        Button {
-                            selectedCategories.append(("New Category", "\u{1F4E6}", "#8E8E93", 0.05))
-                        } label: {
+                        if selectedCategories.count < freeCategoryLimit {
+                            Button {
+                                selectedCategories.append(("New Category", "\u{1F4E6}", "#8E8E93", 0.05))
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                    Text("Add Category")
+                                        .foregroundStyle(Color.accentColor)
+                                    Spacer()
+                                    Text("\(selectedCategories.count)/\(freeCategoryLimit)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } else {
                             HStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(Color.accentColor)
-                                Text("Add Category")
-                                    .foregroundStyle(Color.accentColor)
+                                Image(systemName: "lock.fill")
+                                    .foregroundStyle(.secondary)
+                                Text("Upgrade to Premium for more categories")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -607,11 +624,6 @@ struct OnboardingView: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                 showCelebrationCheck = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-                if currentPage == 5 {
-                    withAnimation { currentPage = 6 }
-                }
-            }
         }
     }
 
@@ -676,6 +688,7 @@ struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
+        guard !budgetCreated else { return }
         guard let incomeCents = MoneyHelpers.parseCurrencyString(monthlyIncome), incomeCents > 0 else { return }
 
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)

@@ -91,6 +91,12 @@ struct AddCategoryView: View {
             .navigationTitle("New Category")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
@@ -127,6 +133,7 @@ struct AddCategoryView: View {
             sortOrder: sortOrder
         )
         category.budget = budget
+        modelContext.insert(category)
         SafeSave.save(modelContext)
         HapticManager.notification(.success)
         dismiss()

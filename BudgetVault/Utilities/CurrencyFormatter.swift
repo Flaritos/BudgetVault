@@ -3,19 +3,22 @@ import SwiftUI
 
 struct CurrencyFormatter {
 
-    private nonisolated(unsafe) static var cachedFormatter: NumberFormatter?
-    private nonisolated(unsafe) static var cachedCurrencyCode: String?
+    private static let lock = NSLock()
+    private static var _cachedFormatter: NumberFormatter?
+    private static var _cachedCurrencyCode: String?
 
     private static func formatter(for currencyCode: String) -> NumberFormatter {
         let code = currencyCode.isEmpty ? (UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD") : currencyCode
-        if let cached = cachedFormatter, cachedCurrencyCode == code {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = _cachedFormatter, _cachedCurrencyCode == code {
             return cached
         }
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = code
-        cachedFormatter = formatter
-        cachedCurrencyCode = code
+        _cachedFormatter = formatter
+        _cachedCurrencyCode = code
         return formatter
     }
 

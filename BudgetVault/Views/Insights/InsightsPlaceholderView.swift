@@ -38,13 +38,13 @@ struct InsightsPlaceholderView: View {
         let now = Date()
         switch selectedRange {
         case .thisMonth:
-            return currentBudget?.periodStart ?? calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+            return currentBudget?.periodStart ?? calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
         case .lastMonth:
-            return previousBudget?.periodStart ?? calendar.date(byAdding: .month, value: -1, to: now)!
+            return previousBudget?.periodStart ?? calendar.date(byAdding: .month, value: -1, to: now) ?? now
         case .threeMonths:
-            return calendar.date(byAdding: .month, value: -3, to: now)!
+            return calendar.date(byAdding: .month, value: -3, to: now) ?? now
         case .yearToDate:
-            return calendar.date(from: DateComponents(year: calendar.component(.year, from: now), month: 1, day: 1))!
+            return calendar.date(from: DateComponents(year: calendar.component(.year, from: now), month: 1, day: 1)) ?? now
         }
     }
 
@@ -194,8 +194,7 @@ struct InsightsPlaceholderView: View {
                         EmptyStateView(
                             icon: "lightbulb.fill",
                             title: "No Data",
-                            message: "Start logging expenses to see insights.",
-                            actionLabel: "Start Logging"
+                            message: "Start logging expenses to see insights."
                         )
                     }
                 }
