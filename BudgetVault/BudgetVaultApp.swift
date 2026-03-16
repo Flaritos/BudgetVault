@@ -215,6 +215,9 @@ struct BudgetVaultApp: App {
                 )
                 newCat.isHidden = cat.isHidden
                 newCat.rollOverUnspent = cat.rollOverUnspent
+                newCat.goalAmountCents = cat.goalAmountCents
+                newCat.goalDate = cat.goalDate
+                newCat.goalType = cat.goalType
                 newCat.budget = newBudget
             }
 

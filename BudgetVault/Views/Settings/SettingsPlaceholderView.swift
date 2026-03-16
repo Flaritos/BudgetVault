@@ -424,6 +424,13 @@ struct SettingsPlaceholderView: View {
                 }
             }
 
+            if !isPremium && !storeKit.isPremium {
+                Button("Restore Purchases") {
+                    Task { await storeKit.restorePurchases() }
+                }
+                .font(.subheadline)
+            }
+
             if storeKit.tipProduct != nil {
                 Button {
                     Task {
@@ -563,7 +570,8 @@ struct SettingsPlaceholderView: View {
             "isPremium", "resetDay", "selectedCurrency", "dailyReminderEnabled",
             "dailyReminderHour", "weeklyDigestEnabled", "billDueReminders",
             "iCloudSyncEnabled", "accentColorHex", "lastSummaryViewed",
-            "reviewPromptCount", "userName"
+            "reviewPromptCount", "userName",
+            "unlockedAchievements", "underBudgetMonthCount"
         ]
         for key in keysToReset {
             UserDefaults.standard.removeObject(forKey: key)

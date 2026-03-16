@@ -84,8 +84,10 @@ enum AchievementService {
         }
 
         // -- Budget Achievements --
+        // Only count completed months (not the current in-progress month)
         let remainingCents = budget.remainingCents
-        if remainingCents >= 0 {
+        let isCompletedMonth = Date() >= budget.nextPeriodStart
+        if remainingCents >= 0 && isCompletedMonth {
             // Increment persistent under-budget month counter
             let underBudgetMonths = UserDefaults.standard.integer(forKey: underBudgetMonthsKey) + 1
             // Only count if not already counted for this period

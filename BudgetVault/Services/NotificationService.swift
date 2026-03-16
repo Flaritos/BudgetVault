@@ -170,7 +170,6 @@ enum NotificationService {
     }
 
     private static func formatCentsForNotification(_ cents: Int64) -> String {
-        let dollars = Double(cents) / 100.0
-        return String(format: "$%.2f", dollars)
+        CurrencyFormatter.format(cents: cents)
     }
 }

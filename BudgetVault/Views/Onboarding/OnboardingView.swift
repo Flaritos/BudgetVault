@@ -252,10 +252,18 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                Button { withAnimation { currentPage = 2 } } label: { Text("Continue") }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 40)
+                HStack(spacing: 12) {
+                    Button { withAnimation { currentPage = 0 } } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.headline)
+                            .frame(width: 52, height: 52)
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    Button { withAnimation { currentPage = 2 } } label: { Text("Continue") }
+                        .buttonStyle(PrimaryButtonStyle())
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
             }
         }
     }
@@ -300,13 +308,21 @@ struct OnboardingView: View {
 
                 CurrencyPickerView(selectedCurrency: $tempCurrency)
 
-                Button {
-                    selectedCurrency = tempCurrency
-                    withAnimation { currentPage = 3 }
-                } label: {
-                    Text("Continue")
+                HStack(spacing: 12) {
+                    Button { withAnimation { currentPage = 1 } } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.headline)
+                            .frame(width: 52, height: 52)
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    Button {
+                        selectedCurrency = tempCurrency
+                        withAnimation { currentPage = 3 }
+                    } label: {
+                        Text("Continue")
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
                 }
-                .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
             }
@@ -448,13 +464,21 @@ struct OnboardingView: View {
                     .listStyle(.plain)
                 }
 
-                Button {
-                    withAnimation { currentPage = 4 }
-                } label: {
-                    Text("Continue")
+                HStack(spacing: 12) {
+                    Button { withAnimation { currentPage = 2 } } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.headline)
+                            .frame(width: 52, height: 52)
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    Button {
+                        withAnimation { currentPage = 4 }
+                    } label: {
+                        Text("Continue")
+                    }
+                    .buttonStyle(PrimaryButtonStyle(isEnabled: !selectedCategories.isEmpty))
+                    .disabled(selectedCategories.isEmpty)
                 }
-                .buttonStyle(PrimaryButtonStyle(isEnabled: !selectedCategories.isEmpty))
-                .disabled(selectedCategories.isEmpty)
                 .padding(.horizontal, 40)
                 .padding(.bottom, 40)
             }
@@ -559,13 +583,21 @@ struct OnboardingView: View {
                             .padding(.horizontal, 40)
                     }
 
-                    Button {
-                        completeOnboarding()
-                    } label: {
-                        Text("Create My Budget")
+                    HStack(spacing: 12) {
+                        Button { withAnimation { currentPage = 3 } } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.headline)
+                                .frame(width: 52, height: 52)
+                                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                        }
+                        Button {
+                            completeOnboarding()
+                        } label: {
+                            Text("Create My Budget")
+                        }
+                        .buttonStyle(PrimaryButtonStyle(isEnabled: isValidIncome))
+                        .disabled(!isValidIncome)
                     }
-                    .buttonStyle(PrimaryButtonStyle(isEnabled: isValidIncome))
-                    .disabled(!isValidIncome)
                     .padding(.horizontal, 40)
                     .padding(.bottom, 40)
                 }
