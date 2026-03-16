@@ -31,14 +31,14 @@ struct BudgetVaultApp: App {
 
     private var container: ModelContainer?
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage("resetDay") private var resetDay = 1
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @State private var storeKit = StoreKitManager()
     @State private var containerError: String?
 
-    private let notificationDelegate = NotificationDelegate()
+    private static let notificationDelegate = NotificationDelegate()
 
     init() {
-        UNUserNotificationCenter.current().delegate = notificationDelegate
+        UNUserNotificationCenter.current().delegate = Self.notificationDelegate
 
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithDefaultBackground()
@@ -48,7 +48,7 @@ struct BudgetVaultApp: App {
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
 
         let schema = Schema(versionedSchema: BudgetVaultSchemaV1.self)
-        let iCloudEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
+        let iCloudEnabled = UserDefaults.standard.bool(forKey: AppStorageKeys.iCloudSyncEnabled)
 
         let config: ModelConfiguration
         if iCloudEnabled {
@@ -87,6 +87,8 @@ struct BudgetVaultApp: App {
                             updateWidgetData(container: container)
                             StreakService.processOnForeground()
                             Task { await storeKit.checkEntitlements() }
+                        } else if newPhase == .background {
+                            try? container.mainContext.save()
                         }
                     }
             } else {

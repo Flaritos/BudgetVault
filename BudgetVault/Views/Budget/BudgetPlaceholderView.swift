@@ -3,8 +3,8 @@ import SwiftData
 
 struct BudgetPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
 
@@ -252,7 +252,7 @@ struct BudgetPlaceholderView: View {
                                             SafeSave.save(modelContext)
                                         }
                                     }
-                                    .tint(.blue)
+                                    .tint(Color.accentColor)
                                 }
                             }
                         }

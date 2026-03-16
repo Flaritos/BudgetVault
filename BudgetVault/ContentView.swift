@@ -2,9 +2,9 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
-    @AppStorage("hasLoggedFirstTransaction") private var hasLoggedFirstTransaction = false
+    @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
+    @AppStorage(AppStorageKeys.biometricLockEnabled) private var biometricLockEnabled = false
+    @AppStorage(AppStorageKeys.hasLoggedFirstTransaction) private var hasLoggedFirstTransaction = false
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var authService = BiometricAuthService()

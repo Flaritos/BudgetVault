@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ThemePickerView: View {
-    @AppStorage("accentColorHex") private var accentColorHex = "#2563EB"
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @Environment(\.dismiss) private var dismiss
 
     @State private var showPaywall = false

@@ -5,8 +5,8 @@ import UniformTypeIdentifiers
 struct CSVImportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     @State private var showFilePicker = false
     @State private var csvContent: String?

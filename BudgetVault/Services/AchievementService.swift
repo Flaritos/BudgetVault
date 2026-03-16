@@ -68,7 +68,7 @@ enum AchievementService {
         }
 
         // -- Streak Achievements --
-        let streak = UserDefaults.standard.integer(forKey: "currentStreak")
+        let streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
 
         if streak >= 7 && !alreadyUnlocked.keys.contains("streak_7") {
             unlock("streak_7")

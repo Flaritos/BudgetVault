@@ -4,20 +4,20 @@ import StoreKit
 
 struct SettingsPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage("biometricLockEnabled") private var biometricLockEnabled = false
-    @AppStorage("selectedCurrency") private var selectedCurrency = "USD"
-    @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("userName") private var userName = ""
+    @AppStorage(AppStorageKeys.biometricLockEnabled) private var biometricLockEnabled = false
+    @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+    @AppStorage(AppStorageKeys.userName) private var userName = ""
     // Synced by StoreKitManager.checkEntitlements() on every launch
-    @AppStorage("isPremium") private var isPremium = false
-    @AppStorage("dailyReminderEnabled") private var dailyReminderEnabled = false
-    @AppStorage("dailyReminderHour") private var dailyReminderHour = 20
-    @AppStorage("weeklyDigestEnabled") private var weeklyDigestEnabled = false
-    @AppStorage("billDueReminders") private var billDueReminders = false
-    @AppStorage("reviewPromptCount") private var reviewPromptCount = 0
-    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled = false
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @AppStorage(AppStorageKeys.dailyReminderEnabled) private var dailyReminderEnabled = false
+    @AppStorage(AppStorageKeys.dailyReminderHour) private var dailyReminderHour = 20
+    @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
+    @AppStorage(AppStorageKeys.billDueReminders) private var billDueReminders = false
+    @AppStorage(AppStorageKeys.reviewPromptCount) private var reviewPromptCount = 0
+    @AppStorage(AppStorageKeys.iCloudSyncEnabled) private var iCloudSyncEnabled = false
 
-    @AppStorage("accentColorHex") private var accentColorHex = "#2563EB"
+    @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
 
     @State private var showRecurring = false
     @State private var showRestartAlert = false
@@ -344,8 +344,13 @@ struct SettingsPlaceholderView: View {
                 .onChange(of: dailyReminderEnabled) { _, enabled in
                     if enabled {
                         checkNotificationPermission()
-                        requestNotificationPermission()
-                        NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                            if granted {
+                                DispatchQueue.main.async {
+                                    NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
+                                }
+                            }
+                        }
                     } else {
                         NotificationService.cancelDailyReminder()
                     }
@@ -366,8 +371,13 @@ struct SettingsPlaceholderView: View {
                 .onChange(of: weeklyDigestEnabled) { _, enabled in
                     if enabled {
                         checkNotificationPermission()
-                        requestNotificationPermission()
-                        NotificationService.scheduleWeeklySummary()
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                            if granted {
+                                DispatchQueue.main.async {
+                                    NotificationService.scheduleWeeklySummary()
+                                }
+                            }
+                        }
                     } else {
                         NotificationService.cancelWeeklySummary()
                     }
@@ -377,7 +387,7 @@ struct SettingsPlaceholderView: View {
                 .onChange(of: billDueReminders) { _, enabled in
                     if enabled {
                         checkNotificationPermission()
-                        requestNotificationPermission()
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
                     }
                 }
         }
@@ -565,13 +575,13 @@ struct SettingsPlaceholderView: View {
 
         // Reset UserDefaults
         let keysToReset = [
-            "currentStreak", "lastLogDate", "hasLoggedFirstTransaction",
-            "hasCompletedOnboarding", "streakFreezesRemaining", "lastFreezeReset",
-            "isPremium", "resetDay", "selectedCurrency", "dailyReminderEnabled",
-            "dailyReminderHour", "weeklyDigestEnabled", "billDueReminders",
-            "iCloudSyncEnabled", "accentColorHex", "lastSummaryViewed",
-            "reviewPromptCount", "userName",
-            "unlockedAchievements", "underBudgetMonthCount"
+            AppStorageKeys.currentStreak, AppStorageKeys.lastLogDate, AppStorageKeys.hasLoggedFirstTransaction,
+            AppStorageKeys.hasCompletedOnboarding, AppStorageKeys.streakFreezesRemaining, AppStorageKeys.lastFreezeReset,
+            AppStorageKeys.isPremium, AppStorageKeys.resetDay, AppStorageKeys.selectedCurrency, AppStorageKeys.dailyReminderEnabled,
+            AppStorageKeys.dailyReminderHour, AppStorageKeys.weeklyDigestEnabled, AppStorageKeys.billDueReminders,
+            AppStorageKeys.iCloudSyncEnabled, AppStorageKeys.accentColorHex, AppStorageKeys.lastSummaryViewed,
+            AppStorageKeys.reviewPromptCount, AppStorageKeys.userName,
+            "unlockedAchievements", "underBudgetMonthCount",
         ]
         for key in keysToReset {
             UserDefaults.standard.removeObject(forKey: key)
@@ -594,8 +604,8 @@ struct SettingsPlaceholderView: View {
 struct BudgetTemplateSheetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
 

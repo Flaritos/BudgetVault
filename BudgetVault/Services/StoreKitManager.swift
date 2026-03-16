@@ -92,11 +92,11 @@ final class StoreKitManager {
                 await checkEntitlements()
                 purchaseState = .success
                 // Cache for instant UI
-                UserDefaults.standard.set(isPremium, forKey: "isPremium")
+                UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
 
             case .userCancelled:
                 purchaseState = .idle
-                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastPaywallDecline")
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.lastPaywallDecline)
 
             case .pending:
                 purchaseState = .idle
@@ -127,9 +127,9 @@ final class StoreKitManager {
     func checkEntitlements() async {
         #if DEBUG
         // In debug builds, respect manually-set isPremium flag for testing
-        if UserDefaults.standard.bool(forKey: "debugPremiumOverride") {
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.debugPremiumOverride) {
             isPremium = true
-            UserDefaults.standard.set(true, forKey: "isPremium")
+            UserDefaults.standard.set(true, forKey: AppStorageKeys.isPremium)
             return
         }
         #endif
@@ -145,7 +145,7 @@ final class StoreKitManager {
 
         isPremium = hasPremium
         // Cache for instant UI
-        UserDefaults.standard.set(isPremium, forKey: "isPremium")
+        UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
     }
 
     // MARK: - Transaction Listener

@@ -3,7 +3,7 @@ import SwiftData
 
 struct HistoryPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage("resetDay") private var resetDay = 1
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records

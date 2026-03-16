@@ -3,8 +3,8 @@ import SwiftData
 import Charts
 
 struct InsightsPlaceholderView: View {
-    @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records

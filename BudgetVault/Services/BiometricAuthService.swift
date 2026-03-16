@@ -1,5 +1,6 @@
 import LocalAuthentication
 
+@MainActor
 @Observable
 final class BiometricAuthService {
 
@@ -40,7 +41,7 @@ final class BiometricAuthService {
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
             // No biometric or passcode available — allow access
-            await MainActor.run { isAuthenticated = true }
+            isAuthenticated = true
             return
         }
 
@@ -49,14 +50,10 @@ final class BiometricAuthService {
                 .deviceOwnerAuthentication,
                 localizedReason: "Unlock BudgetVault"
             )
-            await MainActor.run {
-                isAuthenticated = success
-                errorMessage = success ? nil : "Authentication failed"
-            }
+            isAuthenticated = success
+            errorMessage = success ? nil : "Authentication failed"
         } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-            }
+            errorMessage = error.localizedDescription
         }
     }
 }

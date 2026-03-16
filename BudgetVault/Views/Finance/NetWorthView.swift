@@ -3,7 +3,7 @@ import SwiftData
 import Charts
 
 struct NetWorthView: View {
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @Environment(\.modelContext) private var modelContext
 
     @Query(filter: #Predicate<NetWorthAccount> { $0.isActive }, sort: \NetWorthAccount.name)

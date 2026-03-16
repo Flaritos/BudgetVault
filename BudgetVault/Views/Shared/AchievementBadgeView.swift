@@ -123,7 +123,7 @@ struct AchievementBadgeView: View {
 // MARK: - Achievement Grid
 
 struct AchievementGridView: View {
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     private let columns = [
         GridItem(.adaptive(minimum: 80, maximum: 100), spacing: BudgetVaultTheme.spacingMD)

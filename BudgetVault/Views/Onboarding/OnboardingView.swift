@@ -4,10 +4,10 @@ import UserNotifications
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage("selectedCurrency") private var selectedCurrency = "USD"
-    @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("dailyReminderEnabled") private var dailyReminderEnabled = false
+    @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
+    @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+    @AppStorage(AppStorageKeys.dailyReminderEnabled) private var dailyReminderEnabled = false
 
     @State private var currentPage = 0
     @State private var monthlyIncome = ""

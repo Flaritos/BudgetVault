@@ -8,7 +8,7 @@ struct CurrencyFormatter {
     private static var _cachedCurrencyCode: String?
 
     private static func formattedString(for currencyCode: String, value: NSDecimalNumber) -> String {
-        let code = currencyCode.isEmpty ? (UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD") : currencyCode
+        let code = currencyCode.isEmpty ? (UserDefaults.standard.string(forKey: AppStorageKeys.selectedCurrency) ?? "USD") : currencyCode
         lock.lock()
         defer { lock.unlock() }
         if let cached = _cachedFormatter, _cachedCurrencyCode == code {
@@ -23,7 +23,7 @@ struct CurrencyFormatter {
     }
 
     private static func resolvedSymbol(for currencyCode: String) -> String {
-        let code = currencyCode.isEmpty ? (UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD") : currencyCode
+        let code = currencyCode.isEmpty ? (UserDefaults.standard.string(forKey: AppStorageKeys.selectedCurrency) ?? "USD") : currencyCode
         lock.lock()
         defer { lock.unlock() }
         if let cached = _cachedFormatter, _cachedCurrencyCode == code {

@@ -103,7 +103,7 @@ enum InsightsEngine {
         }
 
         // 5. Streak
-        let streak = UserDefaults.standard.integer(forKey: "currentStreak")
+        let streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
         if streak >= 7 {
             insights.append(Insight(
                 icon: "🔥",
@@ -114,7 +114,7 @@ enum InsightsEngine {
         }
 
         // 6. Streak at risk
-        let lastLogDate = UserDefaults.standard.string(forKey: "lastLogDate") ?? ""
+        let lastLogDate = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
         if streak > 0 && !lastLogDate.isEmpty {
             let todayStr = DateHelpers.dateString(calendar.startOfDay(for: today))
             let hour = calendar.component(.hour, from: today)

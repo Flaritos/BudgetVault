@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct DebtTrackingView: View {
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @Environment(\.modelContext) private var modelContext
 
     @Query(filter: #Predicate<DebtAccount> { $0.isActive }, sort: \DebtAccount.createdAt)

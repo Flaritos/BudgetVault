@@ -19,7 +19,7 @@ enum RecurringExpenseScheduler {
         guard let overdueExpenses = try? context.fetch(descriptor) else { return 0 }
 
         // Fetch the current-period budget to resolve categories against
-        let resetDay = max(1, min(UserDefaults.standard.integer(forKey: "resetDay"), 28))
+        let resetDay = max(1, min(UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay), 28))
         let currentPeriod = DateHelpers.budgetPeriod(containing: today, resetDay: resetDay)
         let cm = currentPeriod.0
         let cy = currentPeriod.1

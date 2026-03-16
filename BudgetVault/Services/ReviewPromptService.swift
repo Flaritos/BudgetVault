@@ -20,7 +20,7 @@ enum ReviewPromptService {
         guard count < 3 else { return }
 
         // Suppress 48h after paywall decline
-        let lastDecline = defaults.double(forKey: "lastPaywallDecline")
+        let lastDecline = defaults.double(forKey: AppStorageKeys.lastPaywallDecline)
         if lastDecline > 0 {
             let hoursSinceDecline = (Date().timeIntervalSince1970 - lastDecline) / 3600
             guard hoursSinceDecline > 48 else { return }

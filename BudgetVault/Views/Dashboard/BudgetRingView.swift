@@ -12,9 +12,9 @@ struct BudgetRingView: View {
     }
 
     private var ringColor: Color {
-        if progress < 0.5 { return .green }
-        if progress < 0.75 { return .orange }
-        return .red
+        if progress < 0.5 { return BudgetVaultTheme.positive }
+        if progress < 0.75 { return BudgetVaultTheme.caution }
+        return BudgetVaultTheme.negative
     }
 
     var body: some View {

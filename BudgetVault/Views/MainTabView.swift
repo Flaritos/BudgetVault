@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @AppStorage("accentColorHex") private var accentColorHex = "#2563EB"
+    @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
 
     var body: some View {
         TabView {
@@ -26,6 +26,6 @@ struct MainTabView: View {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
         }
-        .tint(BudgetVaultTheme.userAccentColor)
+        .tint(Color.accentColor)
     }
 }

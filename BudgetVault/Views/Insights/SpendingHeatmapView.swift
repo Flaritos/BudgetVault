@@ -4,7 +4,7 @@ struct SpendingHeatmapView: View {
     let budget: Budget
     let allTransactions: [Transaction]
 
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @State private var selectedDay: DayData?
     @State private var popoverAnchor: CGPoint = .zero
 

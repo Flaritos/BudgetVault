@@ -190,12 +190,12 @@ enum DebugSeedService {
         // MARK: - Streak Data
 
         // Enable premium for testing
-        UserDefaults.standard.set(true, forKey: "isPremium")
-        UserDefaults.standard.set(true, forKey: "debugPremiumOverride")
-        UserDefaults.standard.set(12, forKey: "currentStreak")
-        UserDefaults.standard.set(DateHelpers.dateString(calendar.startOfDay(for: Date())), forKey: "lastLogDate")
-        UserDefaults.standard.set(true, forKey: "hasLoggedFirstTransaction")
-        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        UserDefaults.standard.set(true, forKey: AppStorageKeys.isPremium)
+        UserDefaults.standard.set(true, forKey: AppStorageKeys.debugPremiumOverride)
+        UserDefaults.standard.set(12, forKey: AppStorageKeys.currentStreak)
+        UserDefaults.standard.set(DateHelpers.dateString(calendar.startOfDay(for: Date())), forKey: AppStorageKeys.lastLogDate)
+        UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
+        UserDefaults.standard.set(true, forKey: AppStorageKeys.hasCompletedOnboarding)
 
         SafeSave.save(context)
     }

@@ -304,8 +304,8 @@ struct TransactionEntryView: View {
 
         HapticManager.notification(.success)
         StreakService.recordLogEntry()
-        WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: "resetDay"))
-        UserDefaults.standard.set(true, forKey: "hasLoggedFirstTransaction")
+        WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay))
+        UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
 
         dismiss()
     }
@@ -325,8 +325,8 @@ struct TransactionEntryView: View {
 
         HapticManager.notification(.success)
         StreakService.recordLogEntry()
-        WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: "resetDay"))
-        UserDefaults.standard.set(true, forKey: "hasLoggedFirstTransaction")
+        WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay))
+        UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
 
         // Reset form but keep category
         amountText = ""

@@ -51,8 +51,8 @@ enum WidgetDataService {
             remainingBudgetCents: budget.remainingCents,
             totalBudgetCents: budget.totalIncomeCents,
             percentRemaining: budget.percentRemaining,
-            currencyCode: UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD",
-            isPremium: UserDefaults.standard.bool(forKey: "isPremium"),
+            currencyCode: UserDefaults.standard.string(forKey: AppStorageKeys.selectedCurrency) ?? "USD",
+            isPremium: UserDefaults.standard.bool(forKey: AppStorageKeys.isPremium),
             topCategories: categories
         )
 

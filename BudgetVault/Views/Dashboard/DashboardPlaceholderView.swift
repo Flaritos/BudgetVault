@@ -3,15 +3,15 @@ import SwiftData
 
 struct DashboardPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage("resetDay") private var resetDay = 1
-    @AppStorage("currentStreak") private var currentStreak = 0
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+    @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @Query(sort: \RecurringExpense.nextDueDate) private var recurringExpenses: [RecurringExpense]
 
-    @AppStorage("lastSummaryViewed") private var lastSummaryViewed = ""
+    @AppStorage(AppStorageKeys.lastSummaryViewed) private var lastSummaryViewed = ""
 
     @State private var viewModel = DashboardViewModel()
     @State private var showTransactionEntry = false
@@ -21,7 +21,7 @@ struct DashboardPlaceholderView: View {
     @State private var showMonthlyWrapped = false
     @State private var showAchievements = false
     @State private var newAchievementBanner: String?
-    @AppStorage("isPremium") private var isPremium = false
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     private var currentBudget: Budget? {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)

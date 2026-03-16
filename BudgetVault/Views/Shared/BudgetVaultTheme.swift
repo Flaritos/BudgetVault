@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum BudgetVaultTheme {
     // MARK: - Brand Colors
@@ -21,7 +22,8 @@ enum BudgetVaultTheme {
 
     // MARK: - Gradients
     static let healthyGradient: [Color] = [navyDark, electricBlue]
-    static let warningGradient: [Color] = [Color(hex: "#FBBF24"), Color(hex: "#D97706")]
+    /// WCAG AA compliant with white text (4.5:1+ contrast ratio)
+    static let warningGradient: [Color] = [Color(hex: "#B45309"), Color(hex: "#92400E")]
     static let dangerGradient: [Color] = [Color(hex: "#F87171"), Color(hex: "#DC2626")]
     static let premiumGradient: [Color] = [Color(hex: "#818CF8"), Color(hex: "#6366F1")]
 
@@ -38,12 +40,22 @@ enum BudgetVaultTheme {
     static let spacingLG: CGFloat = 16
     static let spacingXL: CGFloat = 24
     static let spacing2XL: CGFloat = 32
+    static let spacingSection: CGFloat = 32
+    static let spacingPage: CGFloat = 40
 
     // MARK: - Corner Radii
+    static let radiusXS: CGFloat = 4
     static let radiusSM: CGFloat = 8
+    static let radiusPad: CGFloat = 10
     static let radiusMD: CGFloat = 12
+    static let radiusButton: CGFloat = 14
     static let radiusLG: CGFloat = 16
     static let radiusXL: CGFloat = 20
+
+    // MARK: - Animation Durations
+    static let animationQuick: Double = 0.15
+    static let animationStandard: Double = 0.3
+    static let animationSlow: Double = 0.6
 
     // MARK: - Shadows
     static func cardShadow() -> some View {
@@ -65,13 +77,35 @@ enum BudgetVaultTheme {
 
     // MARK: - Typography
     static let heroAmount = Font.system(size: 54, weight: .heavy, design: .rounded)
+    static let amountEntry = Font.system(size: 48, weight: .bold, design: .rounded)
+    static let wrappedHero = Font.system(size: 44, weight: .bold, design: .rounded)
     static let cardAmount = Font.system(size: 20, weight: .bold, design: .rounded)
     static let rowAmount = Font.system(size: 16, weight: .semibold, design: .rounded)
+    static let sectionIcon = Font.system(size: 64)
+
+    // MARK: - Adaptive Colors
+
+    /// Creates a dynamic color that adapts to light/dark mode.
+    /// - Parameters:
+    ///   - light: Hex color string for light mode
+    ///   - dark: Hex color string for dark mode
+    /// - Returns: A Color that automatically adapts to the current color scheme
+    static func adaptiveColor(light: String, dark: String) -> Color {
+        Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(Color(hex: dark))
+                : UIColor(Color(hex: light))
+        })
+    }
+
+    // MARK: - Surface Colors
+    static let cardBackground = adaptiveColor(light: "#FFFFFF", dark: "#1C1C1E")
+    static let surfaceBackground = adaptiveColor(light: "#F2F2F7", dark: "#000000")
 
     // MARK: - User Accent Color
 
     static var userAccentColor: Color {
-        let hex = UserDefaults.standard.string(forKey: "accentColorHex") ?? "#2563EB"
+        let hex = UserDefaults.standard.string(forKey: AppStorageKeys.accentColorHex) ?? "#2563EB"
         return Color(hex: hex)
     }
 

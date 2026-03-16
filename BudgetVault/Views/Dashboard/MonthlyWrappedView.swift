@@ -90,7 +90,7 @@ struct MonthlyWrappedView: View {
     }
 
     private var currentStreak: Int {
-        UserDefaults.standard.integer(forKey: "currentStreak")
+        UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
     }
 
     private var isUnderBudget: Bool {
