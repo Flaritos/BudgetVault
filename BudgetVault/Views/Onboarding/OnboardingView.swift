@@ -452,106 +452,115 @@ struct OnboardingView: View {
                 .ignoresSafeArea()
             subtleTopGradient
 
-            VStack(spacing: 24) {
-                stepIndicator(current: 4)
+            ScrollView {
+                VStack(spacing: 24) {
+                    stepIndicator(current: 4)
 
-                Text("Set Your Monthly Income")
-                    .font(.title2.bold())
+                    Text("Set Your Monthly Income")
+                        .font(.title2.bold())
 
-                let totalPct = selectedCategories.reduce(0.0) { $0 + $1.pct }
-                let pctString = String(format: "%.0f", totalPct * 100)
-                Text("We'll allocate \(pctString)% across your \(selectedCategories.count) categories. You can customize everything later.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-
-                HStack {
-                    Text(currencySymbol)
-                        .font(.title)
+                    let totalPct = selectedCategories.reduce(0.0) { $0 + $1.pct }
+                    let pctString = String(format: "%.0f", totalPct * 100)
+                    Text("We'll allocate \(pctString)% across your \(selectedCategories.count) categories. You can customize everything later.")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    TextField("0", text: $monthlyIncome)
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
-                }
-                .padding(.vertical, 16)
-                .padding(.horizontal, 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color(.secondarySystemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .strokeBorder(Color(.separator), lineWidth: 1)
-                        )
-                )
-                .padding(.horizontal, 40)
+                        .padding(.horizontal, 32)
 
-                if let cents = MoneyHelpers.parseCurrencyString(monthlyIncome), cents > 0 {
-                    let maxPct = selectedCategories.map(\.pct).max() ?? 1.0
-                    let totalPctVal = selectedCategories.reduce(0.0) { $0 + $1.pct }
-                    let allocated = selectedCategories.reduce(Int64(0)) { $0 + Int64(Double(cents) * $1.pct) }
-                    VStack(spacing: 10) {
-                        ForEach(selectedCategories.indices, id: \.self) { index in
-                            let cat = selectedCategories[index]
-                            let catCents = Int64(Double(cents) * cat.pct)
-                            let barFraction = maxPct > 0 ? cat.pct / maxPct : 0
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text("\(cat.emoji) \(cat.name) (\(Int(cat.pct * 100))%)")
-                                    Spacer()
-                                    Text(CurrencyFormatter.format(cents: catCents))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .font(.subheadline)
-
-                                GeometryReader { geo in
-                                    ZStack(alignment: .leading) {
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .fill(Color(.systemGray5))
-                                            .frame(height: 6)
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .fill(Color(hex: cat.color))
-                                            .frame(width: max(4, geo.size.width * barFraction), height: 6)
-                                    }
-                                }
-                                .frame(height: 6)
-                            }
-                        }
-
-                        if totalPctVal < 1.0 {
-                            let unallocatedPct = Int((1.0 - totalPctVal) * 100)
-                            HStack {
-                                Text("Unallocated (\(unallocatedPct)%)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text(CurrencyFormatter.format(cents: cents - allocated))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.top, 4)
-                        }
+                    HStack {
+                        Text(currencySymbol)
+                            .font(.title)
+                            .foregroundStyle(.secondary)
+                        TextField("0", text: $monthlyIncome)
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.center)
                     }
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color(.secondarySystemBackground))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .strokeBorder(Color(.separator), lineWidth: 1)
+                            )
+                    )
                     .padding(.horizontal, 40)
 
-                    Text("Total allocated: \(CurrencyFormatter.format(cents: allocated))")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(BudgetVaultTheme.electricBlue)
+                    if let cents = MoneyHelpers.parseCurrencyString(monthlyIncome), cents > 0 {
+                        let maxPct = selectedCategories.map(\.pct).max() ?? 1.0
+                        let totalPctVal = selectedCategories.reduce(0.0) { $0 + $1.pct }
+                        let allocated = selectedCategories.reduce(Int64(0)) { $0 + Int64(Double(cents) * $1.pct) }
+                        VStack(spacing: 10) {
+                            ForEach(selectedCategories.indices, id: \.self) { index in
+                                let cat = selectedCategories[index]
+                                let catCents = Int64(Double(cents) * cat.pct)
+                                let barFraction = maxPct > 0 ? cat.pct / maxPct : 0
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("\(cat.emoji) \(cat.name) (\(Int(cat.pct * 100))%)")
+                                        Spacer()
+                                        Text(CurrencyFormatter.format(cents: catCents))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .font(.subheadline)
+
+                                    GeometryReader { geo in
+                                        ZStack(alignment: .leading) {
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .fill(Color(.systemGray5))
+                                                .frame(height: 6)
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .fill(Color(hex: cat.color))
+                                                .frame(width: max(4, geo.size.width * barFraction), height: 6)
+                                        }
+                                    }
+                                    .frame(height: 6)
+                                }
+                            }
+
+                            if totalPctVal < 1.0 {
+                                let unallocatedPct = Int((1.0 - totalPctVal) * 100)
+                                HStack {
+                                    Text("Unallocated (\(unallocatedPct)%)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text(CurrencyFormatter.format(cents: cents - allocated))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.top, 4)
+                            }
+                        }
                         .padding(.horizontal, 40)
-                }
 
+                        Text("Total allocated: \(CurrencyFormatter.format(cents: allocated))")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(BudgetVaultTheme.electricBlue)
+                            .padding(.horizontal, 40)
+                    }
+
+                    Button {
+                        completeOnboarding()
+                    } label: {
+                        Text("Create My Budget")
+                    }
+                    .buttonStyle(PrimaryButtonStyle(isEnabled: isValidIncome))
+                    .disabled(!isValidIncome)
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 40)
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-
-                Button {
-                    completeOnboarding()
-                } label: {
-                    Text("Create My Budget")
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
-                .buttonStyle(PrimaryButtonStyle(isEnabled: isValidIncome))
-                .disabled(!isValidIncome)
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
             }
         }
     }
