@@ -17,6 +17,8 @@ struct NumberPadKeyStyle: ButtonStyle {
 struct NumberPadView: View {
     @Binding var text: String
 
+    @ScaledMetric(relativeTo: .title) private var keyMinHeight: CGFloat = 52
+
     private let buttons: [[String]] = [
         ["1", "2", "3"],
         ["4", "5", "6"],
@@ -35,11 +37,11 @@ struct NumberPadView: View {
                             if key == "delete.backward" {
                                 Image(systemName: "delete.backward")
                                     .font(.title2)
-                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .frame(maxWidth: .infinity, minHeight: keyMinHeight)
                             } else {
                                 Text(key)
                                     .font(.title.bold())
-                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .frame(maxWidth: .infinity, minHeight: keyMinHeight)
                             }
                         }
                         .buttonStyle(NumberPadKeyStyle(isSpecial: key == "delete.backward" || key == "."))

@@ -5,6 +5,9 @@ struct RecurringExpenseFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    @ScaledMetric(relativeTo: .body) private var chipSize: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) private var chipWidth: CGFloat = 56
+
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
 
     let expense: RecurringExpense?
@@ -63,18 +66,13 @@ struct RecurringExpenseFormView: View {
                                     selectedCategory = category
                                     HapticManager.selection()
                                 } label: {
-                                    VStack(spacing: 4) {
-                                        Text(category.emoji)
-                                            .font(.title2)
-                                            .frame(width: 44, height: 44)
-                                            .background(
-                                                Circle()
-                                                    .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
-                                            )
-                                        Text(category.name)
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
+                                    CategoryChipView(
+                                        emoji: category.emoji,
+                                        name: category.name,
+                                        isSelected: selectedCategory?.id == category.id,
+                                        chipSize: chipSize,
+                                        chipWidth: chipWidth
+                                    )
                                 }
                                 .accessibilityLabel(category.name)
                                 .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])

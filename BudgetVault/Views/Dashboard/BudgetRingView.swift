@@ -4,6 +4,7 @@ struct BudgetRingView: View {
     let spent: Int64
     let budgeted: Int64
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animatedProgress: Double = 0
 
     private var progress: Double {
@@ -27,13 +28,21 @@ struct BudgetRingView: View {
                 .rotationEffect(.degrees(-90))
         }
         .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            if reduceMotion {
                 animatedProgress = progress
+            } else {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    animatedProgress = progress
+                }
             }
         }
         .onChange(of: progress) { _, newValue in
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            if reduceMotion {
                 animatedProgress = newValue
+            } else {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    animatedProgress = newValue
+                }
             }
         }
     }

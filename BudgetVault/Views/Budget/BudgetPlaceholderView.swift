@@ -311,7 +311,7 @@ struct BudgetPlaceholderView: View {
                 .accessibilityLabel("Edit \(category.name) budget: \(CurrencyFormatter.format(cents: category.budgetedAmountCents))")
             }
 
-            // Spent progress (use cached values)
+            // Spent progress (use cached values) with color-blind accessible label
             let spent = cachedSpentMap[category.id] ?? category.spentCents(in: budget)
             let budgetedAmt = category.budgetedAmountCents
             let pct = budgetedAmt > 0 ? Double(spent) / Double(budgetedAmt) : 0
@@ -321,6 +321,23 @@ struct BudgetPlaceholderView: View {
                 Text(CurrencyFormatter.format(cents: spent))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                // Color-blind accessible status indicator
+                if pct > 0.9 {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(BudgetVaultTheme.negative)
+                        .accessibilityLabel("Over budget")
+                } else if pct > 0.75 {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(BudgetVaultTheme.caution)
+                        .accessibilityLabel("Near budget limit")
+                } else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(BudgetVaultTheme.positive)
+                        .accessibilityLabel("Under budget")
+                }
             }
 
             // Roll over toggle
@@ -354,7 +371,10 @@ struct BudgetPlaceholderView: View {
         NavigationStack {
             VStack(spacing: 24) {
                 Text(CurrencyFormatter.displayAmount(text: incomeText))
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .font(BudgetVaultTheme.amountEntry)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                     .padding(.top, 32)
 
                 NumberPadView(text: $incomeText)
@@ -393,7 +413,10 @@ struct BudgetPlaceholderView: View {
                         .padding(.top, 16)
 
                     Text(CurrencyFormatter.displayAmount(text: categoryAmountText))
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .font(BudgetVaultTheme.amountEntry)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
 
                     NumberPadView(text: $categoryAmountText)
                         .padding(.horizontal, 24)

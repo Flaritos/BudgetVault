@@ -4,6 +4,7 @@ import UserNotifications
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
@@ -22,6 +23,10 @@ struct OnboardingView: View {
     @State private var showWelcomeText = false
     @State private var showCategoryCapWarning = false
     @FocusState private var isInputFocused: Bool
+
+    @ScaledMetric(relativeTo: .body) private var backButtonSize: CGFloat = 52
+    @ScaledMetric(relativeTo: .body) private var stepCircleSize: CGFloat = 32
+    @ScaledMetric(relativeTo: .body) private var currencyBadgeSize: CGFloat = 80
 
     private let totalPages = 7
     private let freeCategoryLimit = 6
@@ -95,7 +100,8 @@ struct OnboardingView: View {
                     VaultDialMark(size: 36)
 
                     Text("BudgetVault")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(BudgetVaultTheme.brandTitle)
+                        .minimumScaleFactor(0.7)
                         .foregroundStyle(.white)
                 }
                 .opacity(showWelcomeText ? 1 : 0)
@@ -127,9 +133,9 @@ struct OnboardingView: View {
                         .foregroundStyle(BudgetVaultTheme.electricBlue)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                        .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, BudgetVaultTheme.spacingHero)
                 .opacity(showWelcomeText ? 1 : 0)
 
                 Button {
@@ -144,23 +150,29 @@ struct OnboardingView: View {
             }
         }
         .task {
-            // Small delay to ensure view is visible before animating
-            try? await Task.sleep(for: .milliseconds(400))
             guard !dialUnlocked else { return }
-            withAnimation(.easeInOut(duration: 1.2)) {
-                dialRotation = 270
-            }
-            try? await Task.sleep(for: .milliseconds(1200))
-            withAnimation(.easeOut(duration: 0.3)) {
+            if reduceMotion {
                 dialRotation = 240
-            }
-            try? await Task.sleep(for: .milliseconds(300))
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                 dialUnlocked = true
-            }
-            try? await Task.sleep(for: .milliseconds(200))
-            withAnimation(.easeOut(duration: 0.6)) {
                 showWelcomeText = true
+            } else {
+                // Small delay to ensure view is visible before animating
+                try? await Task.sleep(for: .milliseconds(400))
+                withAnimation(.easeInOut(duration: 1.2)) {
+                    dialRotation = 270
+                }
+                try? await Task.sleep(for: .milliseconds(1200))
+                withAnimation(.easeOut(duration: 0.3)) {
+                    dialRotation = 240
+                }
+                try? await Task.sleep(for: .milliseconds(300))
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                    dialUnlocked = true
+                }
+                try? await Task.sleep(for: .milliseconds(200))
+                withAnimation(.easeOut(duration: 0.6)) {
+                    showWelcomeText = true
+                }
             }
         }
     }
@@ -179,7 +191,7 @@ struct OnboardingView: View {
                 Spacer()
 
                 Image(systemName: "tray.2.fill")
-                    .font(.system(size: 64))
+                    .font(BudgetVaultTheme.sectionIcon)
                     .foregroundStyle(BudgetVaultTheme.electricBlue)
                     .symbolEffect(.pulse)
 
@@ -215,7 +227,7 @@ struct OnboardingView: View {
                     Button { withAnimation { currentPage = 0 } } label: {
                         Image(systemName: "chevron.left")
                             .font(.headline)
-                            .frame(width: 52, height: 52)
+                            .frame(width: backButtonSize, height: backButtonSize)
                             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                     }
                     Button { withAnimation { currentPage = 2 } } label: { Text("Continue") }
@@ -240,9 +252,9 @@ struct OnboardingView: View {
             Text(number)
                 .font(.headline)
                 .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
+                .frame(width: stepCircleSize, height: stepCircleSize)
                 .background(BudgetVaultTheme.electricBlue, in: Circle())
-                .scaleEffect(stepIconScales[index] ?? 1.0)
+                .scaleEffect(reduceMotion ? 1.0 : (stepIconScales[index] ?? 1.0))
             Text(text)
                 .font(.subheadline)
         }
@@ -260,9 +272,10 @@ struct OnboardingView: View {
                 stepIndicator(current: 2)
 
                 Text(selectedCurrencySymbol)
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(BudgetVaultTheme.wrappedHero)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(.white)
-                    .frame(width: 80, height: 80)
+                    .frame(width: currencyBadgeSize, height: currencyBadgeSize)
                     .background(BudgetVaultTheme.electricBlue, in: Circle())
                     .padding(.top, 8)
 
@@ -279,7 +292,7 @@ struct OnboardingView: View {
                     Button { withAnimation { currentPage = 1 } } label: {
                         Image(systemName: "chevron.left")
                             .font(.headline)
-                            .frame(width: 52, height: 52)
+                            .frame(width: backButtonSize, height: backButtonSize)
                             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                     }
                     Button {
@@ -444,7 +457,7 @@ struct OnboardingView: View {
                     Button { withAnimation { currentPage = 2 } } label: {
                         Image(systemName: "chevron.left")
                             .font(.headline)
-                            .frame(width: 52, height: 52)
+                            .frame(width: backButtonSize, height: backButtonSize)
                             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                     }
                     Button {
@@ -489,7 +502,8 @@ struct OnboardingView: View {
                             .font(.title)
                             .foregroundStyle(.secondary)
                         TextField("0", text: $monthlyIncome)
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .font(BudgetVaultTheme.amountEntry)
+                            .minimumScaleFactor(0.5)
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.center)
                             .focused($isInputFocused)
@@ -568,7 +582,7 @@ struct OnboardingView: View {
                         Button { withAnimation { currentPage = 3 } } label: {
                             Image(systemName: "chevron.left")
                                 .font(.headline)
-                                .frame(width: 52, height: 52)
+                                .frame(width: backButtonSize, height: backButtonSize)
                                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                         }
                         Button {
@@ -632,8 +646,12 @@ struct OnboardingView: View {
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+            if reduceMotion {
                 showCelebrationCheck = true
+            } else {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                    showCelebrationCheck = true
+                }
             }
         }
     }
@@ -649,7 +667,7 @@ struct OnboardingView: View {
                 Spacer()
 
                 Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 64))
+                    .font(BudgetVaultTheme.sectionIcon)
                     .foregroundStyle(.white)
 
                 Text("Stay on Track")

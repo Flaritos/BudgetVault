@@ -6,6 +6,8 @@ struct PaywallView: View {
     @Environment(StoreKitManager.self) private var storeKit
     @State private var showWelcomePremium = false
 
+    @ScaledMetric(relativeTo: .body) private var featureIconSize: CGFloat = 36
+
     private let features: [(icon: String, title: String, detail: String)] = [
         ("brain.head.profile", "Smart Insights", "Predictions, anomaly detection & spending patterns"),
         ("square.grid.2x2", "Unlimited Categories", "Organize with unlimited categories"),
@@ -102,7 +104,7 @@ struct PaywallView: View {
                                 Image(systemName: feature.icon)
                                     .font(.system(size: 16))
                                     .foregroundStyle(.white)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: featureIconSize, height: featureIconSize)
                                     .background(Color.accentColor, in: Circle())
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(feature.title)
@@ -140,7 +142,10 @@ struct PaywallView: View {
                                 .font(.subheadline.bold())
                                 .foregroundStyle(BudgetVaultTheme.electricBlue)
                             Text(price)
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
+                                .font(BudgetVaultTheme.priceDisplay)
+                                .minimumScaleFactor(0.7)
+                                .lineLimit(1)
+                                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                             Text("one-time purchase \u{2014} forever")
                                 .font(.subheadline.bold())
                                 .foregroundStyle(BudgetVaultTheme.positive)
