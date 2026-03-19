@@ -9,14 +9,8 @@ struct BudgetPlaceholderView: View {
 
     @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
 
-    @State private var viewingMonth: Int = {
-        let rd = UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay)
-        return DateHelpers.currentBudgetPeriod(resetDay: rd > 0 ? rd : 1).month
-    }()
-    @State private var viewingYear: Int = {
-        let rd = UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay)
-        return DateHelpers.currentBudgetPeriod(resetDay: rd > 0 ? rd : 1).year
-    }()
+    @State private var viewingMonth: Int = 0
+    @State private var viewingYear: Int = 0
     @State private var showIncomeEditor = false
     @State private var incomeText = ""
     @State private var showAddCategory = false
@@ -37,7 +31,7 @@ struct BudgetPlaceholderView: View {
     }
 
     private var isCurrentPeriod: Bool {
-        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: max(resetDay, 1))
         return viewingMonth == m && viewingYear == y
     }
 
@@ -135,8 +129,8 @@ struct BudgetPlaceholderView: View {
                 }
             }
             .onAppear {
-                if viewingMonth == 0 {
-                    let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+                let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: max(resetDay, 1))
+                if viewingMonth == 0 || viewingBudget == nil {
                     viewingMonth = m
                     viewingYear = y
                 }
