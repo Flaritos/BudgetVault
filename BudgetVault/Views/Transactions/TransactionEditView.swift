@@ -130,6 +130,8 @@ struct TransactionEditView: View {
                     HapticManager.notification(.warning)
                     dismiss()
                 }
+            } message: {
+                Text("\(CurrencyFormatter.format(cents: transaction.amountCents)) \u{2022} \(transaction.note.isEmpty ? "No note" : transaction.note)\n\(transaction.date.formatted(date: .abbreviated, time: .omitted))\n\(transaction.category?.name ?? "Income")")
             }
         }
     }

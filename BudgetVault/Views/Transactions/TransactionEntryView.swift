@@ -313,10 +313,10 @@ struct TransactionEntryView: View {
         WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay))
         UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
 
-        // Reset form but keep category
+        // Reset form but preserve selected category
         amountText = ""
         note = ""
-        manualCategorySelection = false
+        // Keep selectedCategory and manualCategorySelection as-is
         withAnimation { showSavedBanner = true }
     }
 }

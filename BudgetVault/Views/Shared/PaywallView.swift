@@ -4,6 +4,7 @@ import StoreKit
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StoreKitManager.self) private var storeKit
+    @State private var showWelcomePremium = false
 
     private let features: [(icon: String, title: String, detail: String)] = [
         ("brain.head.profile", "Smart Insights", "Predictions, anomaly detection & spending patterns"),
@@ -57,6 +58,31 @@ struct PaywallView: View {
                     .frame(maxWidth: .infinity)
                     .background(BudgetVaultTheme.brandGradient)
 
+                    // Trial status
+                    if storeKit.isTrialActive {
+                        HStack(spacing: 6) {
+                            Image(systemName: "clock.fill")
+                                .foregroundStyle(BudgetVaultTheme.caution)
+                            Text("\(storeKit.trialDaysRemaining) day\(storeKit.trialDaysRemaining == 1 ? "" : "s") left of free trial")
+                                .font(.caption.bold())
+                                .foregroundStyle(BudgetVaultTheme.caution)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(BudgetVaultTheme.caution.opacity(0.12), in: Capsule())
+                    } else if !storeKit.isPremium && storeKit.trialDaysRemaining == 0 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(BudgetVaultTheme.negative)
+                            Text("Trial expired \u{2014} unlock Premium to keep all features")
+                                .font(.caption.bold())
+                                .foregroundStyle(BudgetVaultTheme.negative)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(BudgetVaultTheme.negative.opacity(0.12), in: Capsule())
+                    }
+
                     // Save vs subscriptions callout
                     HStack(spacing: 6) {
                         Image(systemName: "tag.fill")
@@ -90,14 +116,34 @@ struct PaywallView: View {
                     }
                     .padding(.horizontal, 32)
 
+                    // Price anchoring: competitor comparison
+                    VStack(spacing: 8) {
+                        Text("Other apps charge yearly:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        VStack(spacing: 4) {
+                            competitorRow(name: "YNAB", price: "$109/year")
+                            competitorRow(name: "Monarch", price: "$99/year")
+                            competitorRow(name: "Copilot", price: "$70/year")
+                        }
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 24)
+
                     // Price
                     if let price = displayPrice {
                         VStack(spacing: 4) {
+                            Text("BudgetVault")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(BudgetVaultTheme.electricBlue)
                             Text(price)
                                 .font(.system(size: 36, weight: .bold, design: .rounded))
-                            Text("one-time purchase")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            Text("one-time purchase \u{2014} forever")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(BudgetVaultTheme.positive)
                             Text("Pay once, use forever")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -185,12 +231,80 @@ struct PaywallView: View {
             .onChange(of: storeKit.purchaseState) { _, newState in
                 if newState == .success {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        dismiss()
-                    }
+                    showWelcomePremium = true
                 }
             }
+            .sheet(isPresented: $showWelcomePremium) {
+                postPurchaseWelcomeView
+            }
+        }
+    }
+
+    // MARK: - Post-Purchase Welcome
+
+    @ViewBuilder
+    private var postPurchaseWelcomeView: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                Spacer()
+
+                VaultDialMark(size: 80, showGlow: true)
+
+                Text("Welcome to Premium!")
+                    .font(.title.bold())
+
+                Text("You've unlocked the full vault.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    unlockRow(icon: "square.grid.2x2", text: "Unlimited categories")
+                    unlockRow(icon: "repeat", text: "Unlimited recurring expenses")
+                    unlockRow(icon: "brain.head.profile", text: "Smart insights & predictions")
+                    unlockRow(icon: "chart.xyaxis.line", text: "Historical charts & trends")
+                    unlockRow(icon: "doc.text", text: "Full CSV import & export")
+                    unlockRow(icon: "flame", text: "Weekly streak freeze")
+                }
+                .padding(.horizontal, 40)
+
+                Spacer()
+
+                Button {
+                    showWelcomePremium = false
+                    dismiss()
+                } label: {
+                    Text("Start Exploring")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal, 32)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+
+    private func unlockRow(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(BudgetVaultTheme.positive)
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 24)
+            Text(text)
+                .font(.subheadline)
+        }
+    }
+
+    private func competitorRow(name: String, price: String) -> some View {
+        HStack {
+            Text(name)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(price)
+                .font(.subheadline)
+                .strikethrough()
+                .foregroundStyle(.secondary)
         }
     }
 

@@ -22,7 +22,11 @@ struct DashboardPlaceholderView: View {
     @State private var showMonthlyWrapped = false
     @State private var showAchievements = false
     @State private var newAchievementBanner: String?
+    @State private var showProactivePaywall = false
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
+    @AppStorage(AppStorageKeys.hasSeenTransactionPaywall) private var hasSeenTransactionPaywall = false
+    @AppStorage(AppStorageKeys.hasSeenStreakPaywall) private var hasSeenStreakPaywall = false
 
     private var currentBudget: Budget? {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -147,6 +151,10 @@ struct DashboardPlaceholderView: View {
                 AchievementGridView()
                     .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showProactivePaywall) {
+                PaywallView()
+                    .presentationDragIndicator(.visible)
+            }
             .task {
                 // Check spending alerts
                 if let budget = currentBudget {
@@ -162,6 +170,28 @@ struct DashboardPlaceholderView: View {
                         newAchievementBanner = first.title
                         try? await Task.sleep(for: .seconds(3))
                         newAchievementBanner = nil
+                    }
+                }
+
+                // Proactive paywall triggers (only for non-premium users)
+                if !isPremium {
+                    // Update transaction count
+                    let txCount = allTransactions.count
+                    transactionCount = txCount
+
+                    // After 5th transaction
+                    if txCount >= 5 && !hasSeenTransactionPaywall {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        hasSeenTransactionPaywall = true
+                        showProactivePaywall = true
+                        return
+                    }
+
+                    // After 7-day streak
+                    if currentStreak >= 7 && !hasSeenStreakPaywall {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        hasSeenStreakPaywall = true
+                        showProactivePaywall = true
                     }
                 }
             }

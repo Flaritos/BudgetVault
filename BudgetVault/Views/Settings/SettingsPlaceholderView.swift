@@ -39,6 +39,7 @@ struct SettingsPlaceholderView: View {
     @State private var showExportError = false
     @State private var exportErrorMessage = ""
     @State private var showDeleteAllConfirm = false
+    @State private var showDeleteAllFinalConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -109,12 +110,31 @@ struct SettingsPlaceholderView: View {
                 Text(exportErrorMessage)
             }
             .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
+                Button("Export Data First") {
+                    // Trigger export, then show final confirm
+                    do {
+                        let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay)
+                        exportURL = url
+                        showExportShare = true
+                    } catch {
+                        // If export fails, go straight to final confirm
+                        showDeleteAllFinalConfirm = true
+                    }
+                }
+                Button("Continue Without Exporting", role: .destructive) {
+                    showDeleteAllFinalConfirm = true
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("We recommend exporting your data before deleting. This cannot be undone.")
+            }
+            .alert("Are you sure?", isPresented: $showDeleteAllFinalConfirm) {
                 Button("Delete Everything", role: .destructive) {
                     deleteAllData()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This will permanently delete all budgets, transactions, and settings. This cannot be undone.")
+                Text("This will permanently delete all budgets, transactions, and settings. This action cannot be undone.")
             }
         }
     }
@@ -679,7 +699,7 @@ struct BudgetTemplateSheetView: View {
         var nextOrder = maxSortOrder + 1
 
         let currentCount = (budget.categories ?? []).filter { !$0.isHidden }.count
-        let freeLimit = 4
+        let freeLimit = 6
         var added = 0
 
         for cat in template.categories {
