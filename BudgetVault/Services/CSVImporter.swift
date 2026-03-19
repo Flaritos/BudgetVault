@@ -146,6 +146,26 @@ enum CSVImporter {
             }
 
             let cents = Int64((row.amount * 100).rounded())
+
+            // Deduplication: skip if a transaction with the same date, amount, and note already exists in this budget
+            let txDate = row.date
+            let txNote = row.note
+            let txCents = cents
+            let budgetStart = budget.periodStart
+            let budgetEnd = budget.nextPeriodStart
+            let dupDescriptor = FetchDescriptor<Transaction>(
+                predicate: #Predicate<Transaction> {
+                    $0.amountCents == txCents &&
+                    $0.note == txNote &&
+                    $0.date >= budgetStart &&
+                    $0.date < budgetEnd &&
+                    $0.date == txDate
+                }
+            )
+            if let existingCount = try? context.fetchCount(dupDescriptor), existingCount > 0 {
+                continue
+            }
+
             let tx = Transaction(amountCents: cents, note: row.note, date: row.date, isIncome: row.isIncome, category: category)
             context.insert(tx)
             txCount += 1

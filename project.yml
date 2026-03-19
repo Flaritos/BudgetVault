@@ -18,9 +18,14 @@ schemes:
       targets:
         BudgetVault: all
         BudgetVaultWidgetExtension: all
+        BudgetVaultTests: [test]
     run:
       config: Debug
       storeKitConfiguration: BudgetVault/Configuration.storekit
+    test:
+      config: Debug
+      targets:
+        - BudgetVaultTests
 
 targets:
   BudgetVault:
@@ -56,6 +61,18 @@ targets:
 
     dependencies:
       - target: BudgetVaultWidgetExtension
+
+  BudgetVaultTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - BudgetVaultTests
+    dependencies:
+      - target: BudgetVault
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.tests
+        GENERATE_INFOPLIST_FILE: YES
 
   BudgetVaultWidgetExtension:
     type: app-extension
