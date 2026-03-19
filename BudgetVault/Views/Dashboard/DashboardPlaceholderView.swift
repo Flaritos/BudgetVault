@@ -1029,6 +1029,8 @@ struct DashboardPlaceholderView: View {
     /// Look up cached spent value for a category, falling back to live computation
     private func cachedSpent(for category: Category, in budget: Budget) -> Int64 {
         cachedSpentMap[category.id] ?? category.spentCents(in: budget)
+    }
+
     // MARK: - Notification Scheduling Helpers
 
     private func schedulePersonalizedWeeklySummary(budget: Budget) {

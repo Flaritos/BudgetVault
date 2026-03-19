@@ -36,7 +36,9 @@ final class CloudSyncService {
 
         // Run budget dedup after remote sync (0.4)
         if let container = modelContainer {
-            deduplicateBudgets(context: container.mainContext)
+            Task { @MainActor in
+                deduplicateBudgets(context: container.mainContext)
+            }
         }
     }
 
