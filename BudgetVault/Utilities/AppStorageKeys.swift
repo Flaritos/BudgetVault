@@ -39,4 +39,10 @@ enum AppStorageKeys {
 
     // MARK: - Cloud
     static let iCloudSyncEnabled = "iCloudSyncEnabled"
+
+    // MARK: - Engagement & Retention
+    static let lastActiveDate = "lastActiveDate"
+    static let morningBriefingEnabled = "morningBriefingEnabled"
+    static let morningBriefingHour = "morningBriefingHour"
+    static let catchUpDismissedDate = "catchUpDismissedDate"
 }

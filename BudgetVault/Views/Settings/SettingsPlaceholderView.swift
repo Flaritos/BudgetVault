@@ -14,6 +14,8 @@ struct SettingsPlaceholderView: View {
     @AppStorage(AppStorageKeys.dailyReminderHour) private var dailyReminderHour = 20
     @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
     @AppStorage(AppStorageKeys.billDueReminders) private var billDueReminders = false
+    @AppStorage(AppStorageKeys.morningBriefingEnabled) private var morningBriefingEnabled = false
+    @AppStorage(AppStorageKeys.morningBriefingHour) private var morningBriefingHour = 8
     @AppStorage(AppStorageKeys.reviewPromptCount) private var reviewPromptCount = 0
     @AppStorage(AppStorageKeys.iCloudSyncEnabled) private var iCloudSyncEnabled = false
 
@@ -391,6 +393,28 @@ struct SettingsPlaceholderView: View {
                         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
                     }
                 }
+
+            Toggle("Morning Briefing", isOn: $morningBriefingEnabled)
+                .onChange(of: morningBriefingEnabled) { _, enabled in
+                    if enabled {
+                        checkNotificationPermission()
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                            if granted {
+                                // Will be scheduled with real data from dashboard .task
+                            }
+                        }
+                    } else {
+                        NotificationService.cancelMorningBriefing()
+                    }
+                }
+
+            if morningBriefingEnabled {
+                Picker("Briefing Time", selection: $morningBriefingHour) {
+                    ForEach(5...11, id: \.self) { hour in
+                        Text(formatHour(hour)).tag(hour)
+                    }
+                }
+            }
         }
         .alert("Notifications Disabled", isPresented: $showNotificationDeniedAlert) {
             Button("Open Settings") {
@@ -587,12 +611,20 @@ struct SettingsPlaceholderView: View {
             AppStorageKeys.iCloudSyncEnabled, AppStorageKeys.accentColorHex, AppStorageKeys.lastSummaryViewed,
             AppStorageKeys.reviewPromptCount, AppStorageKeys.userName,
             "unlockedAchievements", "underBudgetMonthCount",
+            AppStorageKeys.lastActiveDate, AppStorageKeys.morningBriefingEnabled,
+            AppStorageKeys.morningBriefingHour, AppStorageKeys.catchUpDismissedDate,
+            "categoryLearningMappings",
+            "reviewTriggered_firstMonthUnderBudget", "reviewTriggered_10thTransaction",
+            "lastReviewPromptDate",
         ]
         for key in keysToReset {
             UserDefaults.standard.removeObject(forKey: key)
         }
         NotificationService.cancelDailyReminder()
         NotificationService.cancelWeeklySummary()
+        NotificationService.cancelMorningBriefing()
+        NotificationService.cancelReengagementNotifications()
+        NotificationService.cancelEndOfPeriodNotifications()
     }
 
     private func formatHour(_ hour: Int) -> String {

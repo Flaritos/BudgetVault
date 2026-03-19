@@ -86,6 +86,8 @@ struct BudgetVaultApp: App {
                             processRecurringExpenses(container: container)
                             StreakService.processOnForeground()
                             Task { await storeKit.checkEntitlements() }
+                            // Schedule re-engagement notifications (reset timer on each foreground)
+                            NotificationService.scheduleReengagementNotifications()
                         } else if newPhase == .background {
                             try? container.mainContext.save()
                         }

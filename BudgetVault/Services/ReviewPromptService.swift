@@ -26,10 +26,45 @@ enum ReviewPromptService {
             guard hoursSinceDecline > 48 else { return }
         }
 
+        // Minimum 7 days between prompts
+        let lastPromptKey = "lastReviewPromptDate"
+        let lastPrompt = defaults.double(forKey: lastPromptKey)
+        if lastPrompt > 0 {
+            let daysSinceLastPrompt = (Date().timeIntervalSince1970 - lastPrompt) / 86400
+            guard daysSinceLastPrompt > 7 else { return }
+        }
+
         // Request review
         if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
             SKStoreReviewController.requestReview(in: scene)
             defaults.set(count + 1, forKey: countKey)
+            defaults.set(Date().timeIntervalSince1970, forKey: lastPromptKey)
+        }
+    }
+
+    // MARK: - Trigger-Based Prompts
+
+    /// Call after detecting the user finished their first month under budget.
+    static func checkFirstMonthUnderBudget() {
+        let defaults = UserDefaults.standard
+        let key = "reviewTriggered_firstMonthUnderBudget"
+        guard !defaults.bool(forKey: key) else { return }
+
+        if AchievementService.isUnlocked("under_budget_1") {
+            defaults.set(true, forKey: key)
+            requestIfAppropriate()
+        }
+    }
+
+    /// Call when transaction count in current period reaches a milestone.
+    static func checkTransactionMilestone(transactionCount: Int) {
+        let defaults = UserDefaults.standard
+        let key = "reviewTriggered_10thTransaction"
+        guard !defaults.bool(forKey: key) else { return }
+
+        if transactionCount >= 10 {
+            defaults.set(true, forKey: key)
+            requestIfAppropriate()
         }
     }
 }

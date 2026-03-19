@@ -94,8 +94,37 @@ enum NotificationService {
         center.add(request)
     }
 
-    // MARK: - Weekly Summary
+    // MARK: - Weekly Summary (Personalized)
 
+    /// Schedule a personalized weekly summary with computed spending data.
+    /// Call this from the dashboard or app lifecycle with actual budget data.
+    static func scheduleWeeklySummary(weeklySpent: Int64, transactionCount: Int, remaining: Int64, currencyCode: String) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
+
+        let spentFormatted = CurrencyFormatter.format(cents: weeklySpent, currencyCode: currencyCode)
+        let remainingFormatted = CurrencyFormatter.format(cents: remaining, currencyCode: currencyCode)
+
+        let content = UNMutableNotificationContent()
+        content.title = "Weekly Summary"
+        if weeklySpent > 0 {
+            content.body = "You spent \(spentFormatted) this week across \(transactionCount) transaction\(transactionCount == 1 ? "" : "s"). \(remainingFormatted) remaining."
+        } else {
+            content.body = "No spending logged this week. \(remainingFormatted) remaining in your budget."
+        }
+        content.sound = .default
+
+        // Sunday at 6pm
+        var components = DateComponents()
+        components.weekday = 1 // Sunday
+        components.hour = 18
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+
+        let request = UNNotificationRequest(identifier: "weeklySummary", content: content, trigger: trigger)
+        center.add(request)
+    }
+
+    /// Legacy method for backward compatibility when no data is available.
     static func scheduleWeeklySummary() {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
@@ -117,6 +146,120 @@ enum NotificationService {
 
     static func cancelWeeklySummary() {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
+    }
+
+    // MARK: - Lapsed User Re-engagement
+
+    private static let reengagementIdentifiers = ["reengagement3Day", "reengagement7Day"]
+
+    /// Schedule re-engagement notifications for lapsed users.
+    /// Call this whenever the user logs a transaction to reset the timers.
+    static func scheduleReengagementNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: reengagementIdentifiers)
+
+        // 3-day reminder
+        let content3 = UNMutableNotificationContent()
+        content3.title = "BudgetVault"
+        content3.body = "You haven't logged expenses in 3 days. Quick catch-up?"
+        content3.sound = .default
+        content3.userInfo = ["type": "reengagement"]
+
+        let trigger3 = UNTimeIntervalNotificationTrigger(timeInterval: 3 * 24 * 60 * 60, repeats: false)
+        let request3 = UNNotificationRequest(identifier: "reengagement3Day", content: content3, trigger: trigger3)
+        center.add(request3)
+
+        // 7-day reminder
+        let content7 = UNMutableNotificationContent()
+        content7.title = "BudgetVault"
+        content7.body = "Your budget is waiting. Tap to see where you stand."
+        content7.sound = .default
+        content7.userInfo = ["type": "reengagement"]
+
+        let trigger7 = UNTimeIntervalNotificationTrigger(timeInterval: 7 * 24 * 60 * 60, repeats: false)
+        let request7 = UNNotificationRequest(identifier: "reengagement7Day", content: content7, trigger: trigger7)
+        center.add(request7)
+    }
+
+    /// Cancel all re-engagement notifications.
+    static func cancelReengagementNotifications() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: reengagementIdentifiers)
+    }
+
+    // MARK: - Morning Briefing
+
+    /// Schedule a morning briefing notification with pre-computed budget data.
+    static func scheduleMorningBriefing(dailyAllowance: Int64, daysRemaining: Int, upcomingBills: Int, currencyCode: String, hour: Int = 8) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["morningBriefing"])
+
+        let allowanceFormatted = CurrencyFormatter.format(cents: dailyAllowance, currencyCode: currencyCode)
+
+        let content = UNMutableNotificationContent()
+        content.title = "Good Morning!"
+
+        var body = "You can spend \(allowanceFormatted)/day for the next \(daysRemaining) day\(daysRemaining == 1 ? "" : "s")."
+        if upcomingBills > 0 {
+            body += " \(upcomingBills) bill\(upcomingBills == 1 ? "" : "s") coming this week."
+        }
+        content.body = body
+        content.sound = .default
+
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+
+        let request = UNNotificationRequest(identifier: "morningBriefing", content: content, trigger: trigger)
+        center.add(request)
+    }
+
+    static func cancelMorningBriefing() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["morningBriefing"])
+    }
+
+    // MARK: - End-of-Period Notifications
+
+    /// Schedule end-of-period notifications: 3 days before reset and on reset day.
+    static func scheduleEndOfPeriodNotifications(periodEnd: Date, remainingCents: Int64, currencyCode: String) {
+        let center = UNUserNotificationCenter.current()
+        let identifiers = ["periodEnd3Days", "periodReset"]
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+
+        let remainingFormatted = CurrencyFormatter.format(cents: remainingCents, currencyCode: currencyCode)
+
+        // 3 days before period end
+        if let threeDaysBefore = Calendar.current.date(byAdding: .day, value: -3, to: periodEnd),
+           threeDaysBefore > Date() {
+            let content3 = UNMutableNotificationContent()
+            content3.title = "3 Days Left"
+            content3.body = "3 days left in your budget period. You have \(remainingFormatted) remaining. Can you make it?"
+            content3.sound = .default
+
+            var components3 = Calendar.current.dateComponents([.year, .month, .day], from: threeDaysBefore)
+            components3.hour = 9
+            let trigger3 = UNCalendarNotificationTrigger(dateMatching: components3, repeats: false)
+            let request3 = UNNotificationRequest(identifier: "periodEnd3Days", content: content3, trigger: trigger3)
+            center.add(request3)
+        }
+
+        // On reset day
+        if periodEnd > Date() {
+            let contentReset = UNMutableNotificationContent()
+            contentReset.title = "Fresh Start!"
+            contentReset.body = "New month, fresh start! Your budget has reset."
+            contentReset.sound = .default
+
+            var componentsReset = Calendar.current.dateComponents([.year, .month, .day], from: periodEnd)
+            componentsReset.hour = 9
+            let triggerReset = UNCalendarNotificationTrigger(dateMatching: componentsReset, repeats: false)
+            let requestReset = UNNotificationRequest(identifier: "periodReset", content: contentReset, trigger: triggerReset)
+            center.add(requestReset)
+        }
+    }
+
+    static func cancelEndOfPeriodNotifications() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["periodEnd3Days", "periodReset"])
     }
 
     // MARK: - Spending Alerts (Category-Level)
