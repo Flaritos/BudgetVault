@@ -37,9 +37,16 @@ enum InsightsEngine {
         let daysSoFar = max(1, calendar.dateComponents([.day], from: budget.periodStart, to: today).day ?? 1)
         let totalSpent = budget.totalSpentCents()
 
+        // Pre-compute spent map once for all categories (0.1 performance fix)
+        var spentMap: [UUID: Int64] = [:]
+        for cat in categories {
+            spentMap[cat.id] = cat.spentCents(in: budget)
+        }
+
         // 1. Category >90% budget
         for cat in categories {
-            let pct = cat.percentSpent(in: budget)
+            let spent = spentMap[cat.id] ?? 0
+            let pct = cat.budgetedAmountCents > 0 ? Double(spent) / Double(cat.budgetedAmountCents) : 0
             if pct >= 0.9 && cat.budgetedAmountCents > 0 {
                 insights.append(Insight(
                     icon: cat.emoji,
@@ -276,7 +283,7 @@ enum InsightsEngine {
             var totalDeviation = 0.0
             for cat in catsWithBudget {
                 let budgetedRatio = Double(cat.budgetedAmountCents) / Double(budget.totalIncomeCents)
-                let actualRatio = Double(cat.spentCents(in: budget)) / Double(totalSpent)
+                let actualRatio = Double(spentMap[cat.id] ?? 0) / Double(totalSpent)
                 totalDeviation += abs(budgetedRatio - actualRatio)
             }
             // Score: 100 = perfect match, 0 = completely off
@@ -304,9 +311,9 @@ enum InsightsEngine {
             var fastestRate = 0.0
 
             for cat in catsWithBudget {
-                let spent = cat.spentCents(in: budget)
-                guard spent > 0 else { continue }
-                let dailyRate = Double(spent) / Double(daysSoFar)
+                let catSpent = spentMap[cat.id] ?? 0
+                guard catSpent > 0 else { continue }
+                let dailyRate = Double(catSpent) / Double(daysSoFar)
                 let projectedDays = Double(cat.budgetedAmountCents) / dailyRate
                 let burnRate = Double(daysSoFar) / projectedDays // >1 means draining faster than period
 
@@ -316,9 +323,10 @@ enum InsightsEngine {
                 }
             }
 
-            if let cat = fastestCat, cat.spentCents(in: budget) > 0 {
-                let dailyDrain = Double(cat.spentCents(in: budget)) / Double(daysSoFar)
-                let daysUntilEmpty = dailyDrain > 0 ? Int(Double(cat.budgetedAmountCents - cat.spentCents(in: budget)) / dailyDrain) : daysInPeriod
+            if let cat = fastestCat {
+                let catSpent = spentMap[cat.id] ?? 0
+                let dailyDrain = catSpent > 0 ? Double(catSpent) / Double(daysSoFar) : 0
+                let daysUntilEmpty = dailyDrain > 0 ? Int(Double(cat.budgetedAmountCents - catSpent) / dailyDrain) : daysInPeriod
                 if daysUntilEmpty > 0 && daysUntilEmpty < (daysInPeriod - daysSoFar) {
                     insights.append(Insight(
                         icon: "⏳",
@@ -384,7 +392,7 @@ enum InsightsEngine {
         var recurringSpent: Int64 = 0
         var discretionarySpent: Int64 = 0
         for cat in categories {
-            let spent = cat.spentCents(in: budget)
+            let spent = spentMap[cat.id] ?? 0
             let isRecurring = !(cat.recurringExpenses ?? []).isEmpty
             if isRecurring {
                 recurringSpent += spent

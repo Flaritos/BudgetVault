@@ -22,6 +22,7 @@ struct BudgetPlaceholderView: View {
     @State private var goalAmountText = ""
     @State private var goalDate = Date()
     @State private var isSavingsGoal = false
+    @State private var cachedSpentMap: [UUID: Int64] = [:]
     @FocusState private var isInputFocused: Bool
 
     private var viewingBudget: Budget? {
@@ -118,7 +119,10 @@ struct BudgetPlaceholderView: View {
                     viewingMonth = m
                     viewingYear = y
                 }
+                refreshCachedSpent()
             }
+            .onChange(of: viewingMonth) { _, _ in refreshCachedSpent() }
+            .onChange(of: viewingYear) { _, _ in refreshCachedSpent() }
             .sheet(isPresented: $showIncomeEditor) {
                 incomeEditorSheet
                     .presentationDragIndicator(.visible)
@@ -288,9 +292,10 @@ struct BudgetPlaceholderView: View {
                 .accessibilityLabel("Edit \(category.name) budget: \(CurrencyFormatter.format(cents: category.budgetedAmountCents))")
             }
 
-            // Spent progress
-            let spent = category.spentCents(in: budget)
-            let pct = category.percentSpent(in: budget)
+            // Spent progress (use cached values)
+            let spent = cachedSpentMap[category.id] ?? category.spentCents(in: budget)
+            let budgetedAmt = category.budgetedAmountCents
+            let pct = budgetedAmt > 0 ? Double(spent) / Double(budgetedAmt) : 0
             HStack {
                 ProgressView(value: min(pct, 1.0))
                     .tint(pct > 0.9 ? BudgetVaultTheme.negative : pct > 0.75 ? BudgetVaultTheme.caution : BudgetVaultTheme.positive)
@@ -460,5 +465,18 @@ struct BudgetPlaceholderView: View {
             cat.sortOrder = i
         }
         SafeSave.save(modelContext)
+    }
+
+    /// Pre-compute spent values for all categories (0.1 performance fix)
+    private func refreshCachedSpent() {
+        guard let budget = viewingBudget else {
+            cachedSpentMap = [:]
+            return
+        }
+        var map: [UUID: Int64] = [:]
+        for cat in budget.categories ?? [] {
+            map[cat.id] = cat.spentCents(in: budget)
+        }
+        cachedSpentMap = map
     }
 }

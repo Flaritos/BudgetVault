@@ -12,10 +12,10 @@ enum BudgetMLEngine {
     /// Predicts total month-end spending using weighted linear regression
     /// on daily cumulative spending. More accurate than simple daily rate
     /// extrapolation because it accounts for spending acceleration/deceleration.
-    static func predictMonthEndSpending(budget: Budget) -> SpendingPrediction? {
+    static func predictMonthEndSpending(budget: Budget, expenses: [Transaction]? = nil) -> SpendingPrediction? {
         let calendar = Calendar.current
         let today = Date()
-        let allTxs = gatherExpenses(budget: budget)
+        let allTxs = expenses ?? gatherExpenses(budget: budget)
         guard !allTxs.isEmpty else { return nil }
 
         let daysInPeriod = calendar.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30
@@ -137,10 +137,10 @@ enum BudgetMLEngine {
     /// Classifies the user's spending behavior based on temporal patterns.
     /// Uses feature extraction + rule-based classification trained on
     /// common behavioral finance patterns.
-    static func classifySpendingPattern(budget: Budget) -> SpendingPattern? {
+    static func classifySpendingPattern(budget: Budget, expenses: [Transaction]? = nil) -> SpendingPattern? {
         let calendar = Calendar.current
         let today = Date()
-        let allTxs = gatherExpenses(budget: budget)
+        let allTxs = expenses ?? gatherExpenses(budget: budget)
         let daysSoFar = max(1, calendar.dateComponents([.day], from: budget.periodStart, to: today).day ?? 1)
         guard allTxs.count >= 5 && daysSoFar >= 7 else { return nil }
 
@@ -375,7 +375,8 @@ enum BudgetMLEngine {
 
     // MARK: - Data Helpers
 
-    private static func gatherExpenses(budget: Budget) -> [Transaction] {
+    /// Gather all expense transactions for a budget period. Call once and pass to ML functions.
+    static func gatherExpenses(budget: Budget) -> [Transaction] {
         (budget.categories ?? []).flatMap { cat in
             (cat.transactions ?? []).filter {
                 !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart

@@ -227,6 +227,37 @@ struct BudgetVaultApp: App {
         }
 
         SafeSave.save(context)
+
+        // Dedup check: merge any duplicate budgets for the same month/year (0.4)
+        deduplicateBudgets(context: context)
+    }
+
+    /// Removes duplicate budgets for the same month/year, merging categories into the oldest one.
+    @MainActor
+    private func deduplicateBudgets(context: ModelContext) {
+        let descriptor = FetchDescriptor<Budget>(
+            sortBy: [SortDescriptor(\Budget.year), SortDescriptor(\Budget.month)]
+        )
+        guard let allBudgets = try? context.fetch(descriptor) else { return }
+
+        var seen: [String: Budget] = [:]
+        for budget in allBudgets {
+            let key = "\(budget.year)-\(budget.month)"
+            if let existing = seen[key] {
+                // Merge: move any categories from the duplicate to the keeper
+                for cat in budget.categories ?? [] {
+                    let existingNames = Set((existing.categories ?? []).map { $0.name.lowercased() })
+                    if !existingNames.contains(cat.name.lowercased()) {
+                        cat.budget = existing
+                    }
+                }
+                // Move any transactions that reference categories in the duplicate
+                context.delete(budget)
+            } else {
+                seen[key] = budget
+            }
+        }
+        SafeSave.save(context)
     }
 
     // MARK: - Recurring Expenses

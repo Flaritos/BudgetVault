@@ -578,18 +578,20 @@ struct SettingsPlaceholderView: View {
         }
         try? modelContext.save()
 
-        // Reset UserDefaults
-        let keysToReset = [
-            AppStorageKeys.currentStreak, AppStorageKeys.lastLogDate, AppStorageKeys.hasLoggedFirstTransaction,
-            AppStorageKeys.hasCompletedOnboarding, AppStorageKeys.streakFreezesRemaining, AppStorageKeys.lastFreezeReset,
-            AppStorageKeys.isPremium, AppStorageKeys.resetDay, AppStorageKeys.selectedCurrency, AppStorageKeys.dailyReminderEnabled,
-            AppStorageKeys.dailyReminderHour, AppStorageKeys.weeklyDigestEnabled, AppStorageKeys.billDueReminders,
-            AppStorageKeys.iCloudSyncEnabled, AppStorageKeys.accentColorHex, AppStorageKeys.lastSummaryViewed,
-            AppStorageKeys.reviewPromptCount, AppStorageKeys.userName,
-            "unlockedAchievements", "underBudgetMonthCount",
+        // Reset UserDefaults — enumerate all keys and remove any that match app prefixes
+        // This catches dynamic keys like "lastCategoryAlert-*" and "underBudget_*_*"
+        let appPrefixes = [
+            "resetDay", "hasCompleted", "hasLogged", "userName", "isPremium",
+            "debugPremium", "lastPaywall", "reviewPrompt", "selectedCurrency",
+            "accentColor", "biometricLock", "currentStreak", "lastLog",
+            "streakFreezes", "lastFreeze", "lastSummary", "dailyReminder",
+            "weeklyDigest", "billDue", "iCloudSync", "underBudget",
+            "lastCategoryAlert", "unlockedAchievements",
         ]
-        for key in keysToReset {
-            UserDefaults.standard.removeObject(forKey: key)
+        for key in UserDefaults.standard.dictionaryRepresentation().keys {
+            if appPrefixes.contains(where: { key.hasPrefix($0) }) {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
         NotificationService.cancelDailyReminder()
         NotificationService.cancelWeeklySummary()

@@ -15,6 +15,13 @@ struct InsightsPlaceholderView: View {
     @State private var showShareSheet = false
     @State private var shareUIImage: UIImage?
 
+    // Cached ML results (0.1 — computed in .task, not view body)
+    @State private var cachedPrediction: SpendingPrediction?
+    @State private var cachedPattern: SpendingPattern?
+    @State private var cachedForecasts: [CategoryForecast] = []
+    @State private var cachedAnomalies: [AnomalyResult] = []
+    @State private var cachedInsights: [Insight] = []
+
     enum DateRange: String, CaseIterable {
         case thisMonth = "This Month"
         case lastMonth = "Last Month"
@@ -74,10 +81,7 @@ struct InsightsPlaceholderView: View {
             }
     }
 
-    private var insights: [Insight] {
-        guard let budget = currentBudget else { return [] }
-        return InsightsEngine.generateInsights(budget: budget, previousBudget: previousBudget, allBudgets: allBudgets)
-    }
+    // insights is now cached in @State cachedInsights, computed in .task
 
     var body: some View {
         NavigationStack {
@@ -146,15 +150,14 @@ struct InsightsPlaceholderView: View {
                         // PREMIUM: Smart Forecasts (consolidated teaser 1)
                         premiumSection("Smart Forecasts") {
                             VStack(spacing: 12) {
-                                if let prediction = BudgetMLEngine.predictMonthEndSpending(budget: budget) {
+                                if let prediction = cachedPrediction {
                                     SpendingPredictionCard(prediction: prediction)
                                 }
-                                if let pattern = BudgetMLEngine.classifySpendingPattern(budget: budget) {
+                                if let pattern = cachedPattern {
                                     SpendingPatternCard(pattern: pattern)
                                 }
-                                let forecasts = BudgetMLEngine.forecastCategories(budget: budget)
-                                if !forecasts.isEmpty {
-                                    CategoryForecastCard(forecasts: forecasts)
+                                if !cachedForecasts.isEmpty {
+                                    CategoryForecastCard(forecasts: cachedForecasts)
                                 }
                             }
                         }
@@ -162,8 +165,7 @@ struct InsightsPlaceholderView: View {
                         // PREMIUM: Deep Analysis (consolidated teaser 2)
                         premiumSection("Deep Analysis") {
                             VStack(spacing: 12) {
-                                let anomalies = BudgetMLEngine.detectAnomalies(budget: budget)
-                                AnomalyListCard(anomalies: anomalies)
+                                AnomalyListCard(anomalies: cachedAnomalies)
 
                                 SpendingHeatmapView(budget: budget, allTransactions: periodTransactions)
 
@@ -205,9 +207,10 @@ struct InsightsPlaceholderView: View {
                 PaywallView()
             }
             .task {
-                if let budget = currentBudget {
-                    NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
-                }
+                await computeMLResults()
+            }
+            .task(id: selectedRange) {
+                await computeMLResults()
             }
         }
     }
@@ -332,12 +335,12 @@ struct InsightsPlaceholderView: View {
             Text("Insights")
                 .font(.headline)
 
-            if insights.isEmpty {
+            if cachedInsights.isEmpty {
                 Text("Keep logging — insights appear as patterns emerge.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(insights) { insight in
+                ForEach(cachedInsights) { insight in
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: insight.severity.iconName)
                             .foregroundStyle(severityColor(insight.severity))
@@ -403,6 +406,25 @@ struct InsightsPlaceholderView: View {
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - ML Computation (off main actor path, run once in .task)
+
+    private func computeMLResults() async {
+        guard let budget = currentBudget else { return }
+
+        NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
+
+        // Gather expenses once and pass to all ML functions (0.1)
+        let expenses = BudgetMLEngine.gatherExpenses(budget: budget)
+
+        cachedPrediction = BudgetMLEngine.predictMonthEndSpending(budget: budget, expenses: expenses)
+        cachedPattern = BudgetMLEngine.classifySpendingPattern(budget: budget, expenses: expenses)
+        cachedForecasts = BudgetMLEngine.forecastCategories(budget: budget)
+        cachedAnomalies = BudgetMLEngine.detectAnomalies(budget: budget)
+        cachedInsights = InsightsEngine.generateInsights(
+            budget: budget, previousBudget: previousBudget, allBudgets: allBudgets
+        )
     }
 
     // MARK: - Helpers

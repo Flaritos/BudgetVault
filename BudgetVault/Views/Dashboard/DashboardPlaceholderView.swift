@@ -24,6 +24,10 @@ struct DashboardPlaceholderView: View {
     @State private var newAchievementBanner: String?
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
+    // Cached computations (0.1 — avoid recomputing in view body)
+    @State private var cachedBudget: Budget?
+    @State private var cachedSpentMap: [UUID: Int64] = [:]
+
     private var currentBudget: Budget? {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
         return allBudgets.first { $0.month == month && $0.year == year }
@@ -148,8 +152,11 @@ struct DashboardPlaceholderView: View {
                     .presentationDragIndicator(.visible)
             }
             .task {
+                // Cache budget and spent map once
+                refreshCachedValues()
+
                 // Check spending alerts
-                if let budget = currentBudget {
+                if let budget = cachedBudget {
                     NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
 
                     // Check achievements
@@ -164,6 +171,9 @@ struct DashboardPlaceholderView: View {
                         newAchievementBanner = nil
                     }
                 }
+            }
+            .onChange(of: allTransactions.count) { _, _ in
+                refreshCachedValues()
             }
         }
         .overlay(alignment: .top) {
@@ -324,6 +334,7 @@ struct DashboardPlaceholderView: View {
                 .font(BudgetVaultTheme.heroAmount)
                 .foregroundStyle(.white)
                 .contentTransition(.numericText())
+                .animation(.default, value: budget.remainingCents)
                 .padding(.top, currentStreak > 0 ? 0 : 24)
 
             Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
@@ -416,7 +427,7 @@ struct DashboardPlaceholderView: View {
 
     @ViewBuilder
     private func envelopeCard(category: Category, budget: Budget) -> some View {
-        let spent = category.spentCents(in: budget)
+        let spent = cachedSpent(for: category, in: budget)
         let budgeted = category.budgetedAmountCents
 
         VStack(spacing: 8) {
@@ -672,6 +683,26 @@ struct DashboardPlaceholderView: View {
         let today = Date()
         let end = budget.nextPeriodStart
         return max(calendar.dateComponents([.day], from: today, to: end).day ?? 1, 1)
+    }
+
+    /// Pre-compute spent values once and cache them (0.1 performance fix)
+    private func refreshCachedValues() {
+        let budget = currentBudget
+        cachedBudget = budget
+        guard let budget else {
+            cachedSpentMap = [:]
+            return
+        }
+        var map: [UUID: Int64] = [:]
+        for cat in budget.categories ?? [] {
+            map[cat.id] = cat.spentCents(in: budget)
+        }
+        cachedSpentMap = map
+    }
+
+    /// Look up cached spent value for a category, falling back to live computation
+    private func cachedSpent(for category: Category, in budget: Budget) -> Int64 {
+        cachedSpentMap[category.id] ?? category.spentCents(in: budget)
     }
 
 }

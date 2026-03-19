@@ -19,6 +19,7 @@ struct TransactionEntryView: View {
     @State private var showSavedBanner = false
     @State private var manualCategorySelection = false
     @State private var showNoteSuggestions = false
+    @State private var showSaveError = false
     @FocusState private var isInputFocused: Bool
 
     /// Limit recent transactions to last 200 for performance
@@ -113,7 +114,9 @@ struct TransactionEntryView: View {
                 // Date and note
                 VStack(spacing: 4) {
                     HStack {
-                        DatePicker("Date", selection: $date, displayedComponents: .date)
+                        DatePicker("Date", selection: $date,
+                                   in: budget.periodStart...budget.nextPeriodStart.addingTimeInterval(-1),
+                                   displayedComponents: .date)
                             .labelsHidden()
                         TextField("Add a note", text: $note)
                             .textFieldStyle(.roundedBorder)
@@ -212,6 +215,11 @@ struct TransactionEntryView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .alert("Save Failed", isPresented: $showSaveError) {
+                Button("OK") {}
+            } message: {
+                Text("Your transaction could not be saved. Please try again.")
+            }
         }
     }
 
@@ -285,7 +293,11 @@ struct TransactionEntryView: View {
             category: isIncome ? nil : selectedCategory
         )
         modelContext.insert(transaction)
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            showSaveError = true
+            return
+        }
 
         HapticManager.notification(.success)
         StreakService.recordLogEntry()
@@ -306,7 +318,11 @@ struct TransactionEntryView: View {
             category: isIncome ? nil : selectedCategory
         )
         modelContext.insert(transaction)
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            showSaveError = true
+            return
+        }
 
         HapticManager.notification(.success)
         StreakService.recordLogEntry()

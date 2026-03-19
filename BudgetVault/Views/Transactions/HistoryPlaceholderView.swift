@@ -16,6 +16,7 @@ struct HistoryPlaceholderView: View {
     @State private var viewingMonth: Int = 0
     @State private var viewingYear: Int = 0
     @State private var csvExportText: String?
+    @State private var displayLimit = 50
 
     enum FilterMode: String, CaseIterable {
         case all = "All"
@@ -36,7 +37,8 @@ struct HistoryPlaceholderView: View {
         (currentBudget?.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
-    private var filteredTransactions: [Transaction] {
+    /// All matching transactions for the period (used for CSV export and counting)
+    private var allFilteredTransactions: [Transaction] {
         guard let budget = currentBudget else { return [] }
 
         var transactions = Array(allTransactions
@@ -62,6 +64,15 @@ struct HistoryPlaceholderView: View {
         return transactions.sorted { $0.date > $1.date }
     }
 
+    /// Paginated view of filtered transactions (0.1 — bounded at displayLimit)
+    private var filteredTransactions: [Transaction] {
+        Array(allFilteredTransactions.prefix(displayLimit))
+    }
+
+    private var hasMoreTransactions: Bool {
+        allFilteredTransactions.count > displayLimit
+    }
+
     private var groupedByDay: [(date: Date, transactions: [Transaction])] {
         let calendar = Calendar.current
         let grouped = Dictionary(grouping: filteredTransactions) { tx in
@@ -73,7 +84,7 @@ struct HistoryPlaceholderView: View {
 
     private func generateCSV() -> String {
         var lines = ["Date,Category,Note,Amount,Type"]
-        for tx in filteredTransactions.sorted(by: { $0.date < $1.date }) {
+        for tx in allFilteredTransactions.sorted(by: { $0.date < $1.date }) {
             let dateStr = tx.date.formatted(date: .numeric, time: .omitted)
             let cat = Self.csvEscape(tx.category?.name ?? "")
             let note = Self.csvEscape(tx.note)
@@ -215,6 +226,22 @@ struct HistoryPlaceholderView: View {
                     }
                 }
             }
+
+            // Pagination: Load More (0.1)
+            if hasMoreTransactions {
+                Section {
+                    Button {
+                        displayLimit += 50
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text("Load More")
+                                .font(.subheadline)
+                            Spacer()
+                        }
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
     }
@@ -235,6 +262,7 @@ struct HistoryPlaceholderView: View {
         let (m, y) = DateHelpers.navigateMonth(from: viewingMonth, year: viewingYear, delta: delta)
         viewingMonth = m
         viewingYear = y
+        displayLimit = 50 // Reset pagination on month change
     }
 
     private static func csvEscape(_ field: String) -> String {
