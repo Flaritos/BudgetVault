@@ -131,12 +131,15 @@ struct RecurringExpenseFormView: View {
         let cents = MoneyHelpers.parseCurrencyString(amountText) ?? 0
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
 
+        let expenseToSchedule: RecurringExpense
+
         if let expense {
             expense.name = trimmedName
             expense.amountCents = cents
             expense.frequency = frequency.rawValue
             expense.category = selectedCategory
             expense.nextDueDate = startDate
+            expenseToSchedule = expense
         } else {
             let newExpense = RecurringExpense(
                 name: trimmedName,
@@ -146,8 +149,19 @@ struct RecurringExpenseFormView: View {
                 category: selectedCategory
             )
             modelContext.insert(newExpense)
+            expenseToSchedule = newExpense
         }
         SafeSave.save(modelContext)
+
+        // Schedule bill due reminder if enabled
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.billDueReminders) {
+            NotificationService.scheduleBillDueReminder(
+                expenseName: trimmedName,
+                dueDate: expenseToSchedule.nextDueDate,
+                id: expenseToSchedule.id.uuidString
+            )
+        }
+
         HapticManager.notification(.success)
         dismiss()
     }

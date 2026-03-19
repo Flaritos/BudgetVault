@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 
 struct HistoryPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
@@ -256,9 +257,17 @@ struct HistoryPlaceholderView: View {
         HapticManager.notification(.success)
     }
 
+    private let swipeToDeleteTip = SwipeToDeleteTip()
+
     @ViewBuilder
     private var transactionList: some View {
         List {
+            // Tip
+            TipView(swipeToDeleteTip)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+                .padding(.horizontal)
+
             // Filter chips
             Section {
                 VStack(alignment: .leading, spacing: 8) {

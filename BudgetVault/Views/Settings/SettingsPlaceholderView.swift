@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import StoreKit
+import TipKit
 
 struct SettingsPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
@@ -108,6 +109,15 @@ struct SettingsPlaceholderView: View {
                 Button("OK") {}
             } message: {
                 Text(exportErrorMessage)
+            }
+            .onChange(of: selectedCurrency) { _, _ in
+                SettingsSyncService.pushAllSettings()
+            }
+            .onChange(of: resetDay) { _, _ in
+                SettingsSyncService.pushAllSettings()
+            }
+            .onChange(of: accentColorHex) { _, _ in
+                SettingsSyncService.pushAllSettings()
             }
             .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
                 Button("Export Data First") {
@@ -260,8 +270,12 @@ struct SettingsPlaceholderView: View {
 
     // MARK: - Data
 
+    private let recurringExpenseTip = RecurringExpenseTip()
+
     private var dataSection: some View {
         Section("Data") {
+            TipView(recurringExpenseTip)
+
             Button {
                 showRecurring = true
             } label: {

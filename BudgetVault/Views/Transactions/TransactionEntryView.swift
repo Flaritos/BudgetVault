@@ -10,6 +10,9 @@ struct TransactionEntryView: View {
 
     let budget: Budget
     let categories: [Category]
+    var prefillAmount: Double?
+    var prefillCategoryName: String?
+    var prefillNote: String?
 
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
     @Query(sort: \Transaction.date, order: .reverse) private var allRecentTransactions: [Transaction]
@@ -23,6 +26,7 @@ struct TransactionEntryView: View {
     @State private var manualCategorySelection = false
     @State private var showNoteSuggestions = false
     @State private var showSaveError = false
+    @State private var didApplyIntentPrefill = false
     @FocusState private var isInputFocused: Bool
 
     /// Limit recent transactions to last 200 for performance
@@ -201,6 +205,25 @@ struct TransactionEntryView: View {
             }
             .navigationTitle(isIncome ? "Add Income" : "Add Expense")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                if !didApplyIntentPrefill {
+                    didApplyIntentPrefill = true
+                    if let amount = prefillAmount, amount > 0 {
+                        let cents = Int64(amount * 100)
+                        amountText = CurrencyFormatter.formatRaw(cents: cents)
+                    }
+                    if let catName = prefillCategoryName {
+                        let lowered = catName.lowercased()
+                        if let match = categories.first(where: { $0.name.lowercased() == lowered }) {
+                            selectedCategory = match
+                            manualCategorySelection = true
+                        }
+                    }
+                    if let prefillNote, !prefillNote.isEmpty {
+                        note = prefillNote
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()

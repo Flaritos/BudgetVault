@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 
 struct BudgetPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
@@ -179,9 +180,19 @@ struct BudgetPlaceholderView: View {
 
     // MARK: - Budget Content
 
+    private let moveMoneyTip = MoveMoneyTip()
+
     @ViewBuilder
     private func budgetContent(budget: Budget) -> some View {
         List {
+            // Move money tip
+            if isCurrentPeriod && visibleCategories.count >= 2 {
+                TipView(moveMoneyTip)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .padding(.horizontal)
+            }
+
             // Income section
             Section {
                 Button {

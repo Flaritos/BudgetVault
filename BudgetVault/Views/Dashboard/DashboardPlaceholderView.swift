@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import TipKit
 
 struct DashboardPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
@@ -26,6 +27,9 @@ struct DashboardPlaceholderView: View {
     @State private var viewModel = DashboardViewModel()
     @State private var hasAppeared = false
     @State private var showTransactionEntry = false
+    @State private var intentPrefillAmount: Double?
+    @State private var intentPrefillCategory: String?
+    @State private var intentPrefillNote: String?
     @State private var editingTransaction: Transaction?
     @State private var showMonthlySummary = false
     @State private var showPaywall = false
@@ -131,13 +135,27 @@ struct DashboardPlaceholderView: View {
                 }
             }
             .navigationTitle(headerTitle)
-            .sheet(isPresented: $showTransactionEntry) {
+            .sheet(isPresented: $showTransactionEntry, onDismiss: {
+                // Clear prefill data when sheet is dismissed
+                intentPrefillAmount = nil
+                intentPrefillCategory = nil
+                intentPrefillNote = nil
+            }) {
                 if let budget = currentBudget {
-                    TransactionEntryView(budget: budget, categories: visibleCategories)
-                        .presentationDragIndicator(.visible)
+                    TransactionEntryView(
+                        budget: budget,
+                        categories: visibleCategories,
+                        prefillAmount: intentPrefillAmount,
+                        prefillCategoryName: intentPrefillCategory,
+                        prefillNote: intentPrefillNote
+                    )
+                    .presentationDragIndicator(.visible)
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openTransactionEntry)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .openTransactionEntry)) { notification in
+                intentPrefillAmount = notification.userInfo?["amount"] as? Double
+                intentPrefillCategory = notification.userInfo?["category"] as? String
+                intentPrefillNote = notification.userInfo?["note"] as? String
                 showTransactionEntry = true
             }
             .sheet(item: $editingTransaction) { transaction in
@@ -319,6 +337,10 @@ struct DashboardPlaceholderView: View {
                         .opacity(hasAppeared ? 1 : 0)
                         .offset(y: hasAppeared ? 0 : 20)
                 }
+
+                // Siri tip
+                TipView(SiriTip())
+                    .padding(.horizontal)
 
                 // Premium teaser
                 if !isPremium {
