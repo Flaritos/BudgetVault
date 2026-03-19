@@ -297,7 +297,6 @@ struct BudgetPlaceholderView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .environment(\.editMode, isCurrentPeriod ? .constant(.active) : .constant(.inactive))
     }
 
     // MARK: - Category Row
