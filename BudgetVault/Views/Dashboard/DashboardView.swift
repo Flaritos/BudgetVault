@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import TipKit
 
-struct DashboardPlaceholderView: View {
+struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
@@ -82,7 +82,7 @@ struct DashboardPlaceholderView: View {
     private var showWrappedCard: Bool {
         // Show when month is >= 80% complete or when viewing a completed month
         guard let budget = currentBudget else { return false }
-        let fraction = dayProgressFraction(budget: budget)
+        let fraction = viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
         return fraction >= 0.8 || previousBudget != nil
     }
 
@@ -561,8 +561,7 @@ struct DashboardPlaceholderView: View {
     private func heroCard(budget: Budget) -> some View {
         let pct = budget.percentRemaining
         let status = viewModel.statusText(for: pct)
-        let daysRemaining = daysRemainingInPeriod(budget: budget)
-        let dailyAllowanceCents = budget.remainingCents > 0 ? budget.remainingCents / Int64(max(daysRemaining, 1)) : 0
+        let dailyAllowanceCents = viewModel.dailyAllowanceCents(remainingCents: budget.remainingCents, periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
 
         ZStack(alignment: .topTrailing) {
             VaultDialMark(size: 24)
@@ -607,11 +606,11 @@ struct DashboardPlaceholderView: View {
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.white.opacity(0.9))
 
-            ProgressView(value: dayProgressFraction(budget: budget))
+            ProgressView(value: viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart))
                 .tint(.white)
                 .padding(.horizontal, 24)
 
-            Text(budgetDayProgress(budget: budget))
+            Text(viewModel.budgetDayProgress(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart))
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.7))
 

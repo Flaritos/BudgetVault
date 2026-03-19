@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import TipKit
 
-struct HistoryPlaceholderView: View {
+struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
 
