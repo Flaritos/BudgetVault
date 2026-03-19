@@ -124,8 +124,11 @@ final class StoreKitManager {
                 await checkEntitlements()
                 purchaseState = .success
                 showPostPurchaseWelcome = true
-                // Cache for instant UI
+                // Cache for instant UI + Keychain source of truth
                 UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
+                if isPremium {
+                    KeychainService.set(true, forKey: "isPremium")
+                }
 
             case .userCancelled:
                 purchaseState = .idle
@@ -163,6 +166,7 @@ final class StoreKitManager {
         if UserDefaults.standard.bool(forKey: AppStorageKeys.debugPremiumOverride) {
             isPremium = true
             UserDefaults.standard.set(true, forKey: AppStorageKeys.isPremium)
+            KeychainService.set(true, forKey: "isPremium")
             return
         }
         #endif
@@ -179,6 +183,14 @@ final class StoreKitManager {
         isPremium = hasPremium
         // Cache for instant UI
         UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
+
+        // Keychain is the authoritative source of truth for premium status.
+        // Sync Keychain to match StoreKit's verified entitlement state.
+        if hasPremium {
+            KeychainService.set(true, forKey: "isPremium")
+        } else {
+            KeychainService.delete(forKey: "isPremium")
+        }
     }
 
     // MARK: - Transaction Listener
