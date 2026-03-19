@@ -9,8 +9,12 @@ struct BudgetPlaceholderView: View {
 
     @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
 
-    @State private var viewingMonth: Int = 0
-    @State private var viewingYear: Int = 0
+    @State private var viewingMonth: Int = {
+        DateHelpers.currentBudgetPeriod(resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay)).month
+    }()
+    @State private var viewingYear: Int = {
+        DateHelpers.currentBudgetPeriod(resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay)).year
+    }()
     @State private var showIncomeEditor = false
     @State private var incomeText = ""
     @State private var showAddCategory = false
