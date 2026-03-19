@@ -224,12 +224,6 @@ struct DashboardPlaceholderView: View {
                 PaywallView()
                     .presentationDragIndicator(.visible)
             }
-            .task {
-                // Cache budget and spent map once
-                refreshCachedValues()
-
-                // Check spending alerts
-                if let budget = cachedBudget {
             .sheet(isPresented: $showShareCard) {
                 if let image = shareCardImage {
                     ShareLink(item: Image(uiImage: image), preview: SharePreview("BudgetVault Milestone", image: Image(uiImage: image))) {
@@ -248,6 +242,8 @@ struct DashboardPlaceholderView: View {
                 }
             }
             .task {
+                // Cache budget and spent map once
+                refreshCachedValues()
                 // Update last active date
                 lastActiveDate = Date().timeIntervalSince1970
 
