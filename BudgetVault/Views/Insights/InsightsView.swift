@@ -145,6 +145,8 @@ struct InsightsView: View {
                             }
                             .padding()
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Monthly spending bar chart showing \(monthlyTotals.count) months of spending data")
                         }
 
                         // PREMIUM: Smart Forecasts (consolidated teaser 1)
@@ -195,6 +197,7 @@ struct InsightsView: View {
                         } label: {
                             Image(systemName: "square.and.arrow.up")
                         }
+                        .accessibilityLabel("Share insights")
                     }
                 }
             }

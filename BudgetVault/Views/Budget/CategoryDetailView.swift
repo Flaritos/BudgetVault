@@ -36,6 +36,8 @@ struct CategoryDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(category.emoji) \(category.name): spent \(CurrencyFormatter.format(cents: category.spentCents(in: budget))) of \(CurrencyFormatter.format(cents: category.budgetedAmountCents))")
             }
 
             // Transactions
@@ -52,6 +54,7 @@ struct CategoryDetailView: View {
                             TransactionRowView(transaction: transaction)
                         }
                         .tint(.primary)
+                        .accessibilityHint("Double tap to edit transaction")
                     }
                 }
             }

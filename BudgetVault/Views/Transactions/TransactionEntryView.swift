@@ -110,6 +110,7 @@ struct TransactionEntryView: View {
                                     .background(Color.accentColor.opacity(0.1), in: Capsule())
                                 }
                                 .tint(.primary)
+                                .accessibilityLabel("Quick add: \(template.category?.emoji ?? "") \(template.note), \(CurrencyFormatter.format(cents: template.amountCents))")
                             }
                         }
                         .padding(.horizontal)

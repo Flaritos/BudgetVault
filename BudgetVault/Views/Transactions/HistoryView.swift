@@ -343,6 +343,7 @@ struct HistoryView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
+                        .accessibilityHint("Double tap to edit. Swipe left to delete, swipe right to duplicate.")
                     }
                 } header: {
                     HStack {

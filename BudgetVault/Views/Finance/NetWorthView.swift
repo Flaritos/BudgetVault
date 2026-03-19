@@ -74,6 +74,7 @@ struct NetWorthView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
                     }
+                    .accessibilityLabel("Add account")
                 }
             }
             .sheet(isPresented: $showAddAccount) {
@@ -142,6 +143,8 @@ struct NetWorthView: View {
                 }
             }
             .padding(.vertical, BudgetVaultTheme.spacingSM)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Net worth: \(CurrencyFormatter.format(cents: netWorthCents)). Assets: \(CurrencyFormatter.format(cents: totalAssetsCents)). Liabilities: \(CurrencyFormatter.format(cents: totalLiabilitiesCents))")
         }
     }
 
@@ -196,6 +199,8 @@ struct NetWorthView: View {
             }
             .frame(height: 200)
             .padding(.vertical, BudgetVaultTheme.spacingSM)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Net worth trend chart showing \(snapshots.count) data points")
         }
     }
 
@@ -253,6 +258,8 @@ struct NetWorthView: View {
                 .font(BudgetVaultTheme.rowAmount)
                 .foregroundStyle(account.isAsset ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(account.emoji) \(account.name): \(CurrencyFormatter.format(cents: account.balanceCents))")
     }
 
     // MARK: - Update Balances

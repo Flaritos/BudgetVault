@@ -40,6 +40,8 @@ struct OnboardingView: View {
             }
         }
         .padding(.top, 16)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(current + 1) of \(totalPages)")
     }
 
     private var selectedCurrencySymbol: String {
@@ -230,6 +232,7 @@ struct OnboardingView: View {
                             .frame(width: backButtonSize, height: backButtonSize)
                             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                     }
+                    .accessibilityLabel("Go back")
                     Button { withAnimation { currentPage = 2 } } label: { Text("Continue") }
                         .buttonStyle(PrimaryButtonStyle())
                 }
@@ -295,6 +298,7 @@ struct OnboardingView: View {
                             .frame(width: backButtonSize, height: backButtonSize)
                             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                     }
+                    .accessibilityLabel("Go back")
                     Button {
                         selectedCurrency = tempCurrency
                         withAnimation { currentPage = 3 }
@@ -376,6 +380,8 @@ struct OnboardingView: View {
                             .shadow(color: isSelected ? BudgetVaultTheme.electricBlue.opacity(0.3) : Color.clear, radius: 8, y: 2)
                         }
                         .foregroundStyle(isSelected ? BudgetVaultTheme.electricBlue : .primary)
+                        .accessibilityLabel("\(template.rawValue) template")
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                 }
                 .padding(.horizontal, 24)
@@ -460,6 +466,7 @@ struct OnboardingView: View {
                             .frame(width: backButtonSize, height: backButtonSize)
                             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                     }
+                    .accessibilityLabel("Go back")
                     Button {
                         withAnimation { currentPage = 4 }
                     } label: {
@@ -585,6 +592,7 @@ struct OnboardingView: View {
                                 .frame(width: backButtonSize, height: backButtonSize)
                                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
                         }
+                        .accessibilityLabel("Go back")
                         Button {
                             completeOnboarding()
                         } label: {

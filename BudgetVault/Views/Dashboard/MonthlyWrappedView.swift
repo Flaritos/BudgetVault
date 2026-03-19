@@ -175,6 +175,8 @@ struct MonthlyWrappedView: View {
                 endPoint: .bottomTrailing
             )
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Your \(monthYearString) recap: \(CurrencyFormatter.format(cents: totalSpentCents)) total spent")
     }
 
     // MARK: - Slide 2: Top Category
@@ -203,6 +205,8 @@ struct MonthlyWrappedView: View {
         .padding(.vertical, 48)
         .padding(.horizontal, BudgetVaultTheme.spacingXL)
         .background(BudgetVaultTheme.navyMid)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Top category: \(topCategory?.name ?? "none"), \(CurrencyFormatter.format(cents: topCategorySpent)) spent, \(String(format: "%.0f", topCategoryPercent)) percent of total")
     }
 
     // MARK: - Slide 3: Daily Pattern
@@ -268,6 +272,8 @@ struct MonthlyWrappedView: View {
                 endPoint: .bottomTrailing
             )
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Daily spending pattern. Average daily spend: \(CurrencyFormatter.format(cents: averageDailySpendCents))")
     }
 
     // MARK: - Slide 4: Streak & Discipline
@@ -326,6 +332,8 @@ struct MonthlyWrappedView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 48)
         .background(BudgetVaultTheme.navyMid)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(currentStreak) day streak. \(daysUnderAllowance) days under allowance, \(daysOverAllowance) days over. Verdict: \(verdict)")
     }
 
     // MARK: - Slide 5: Summary Card (Shareable)

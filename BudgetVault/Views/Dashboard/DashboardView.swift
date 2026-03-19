@@ -705,6 +705,8 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM))
             .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Spending velocity: At this pace, you'll spend \(CurrencyFormatter.format(cents: projectedCents)) this month, \(overBudget ? "over budget" : "on track")")
         }
     }
 
@@ -721,6 +723,7 @@ struct DashboardView: View {
                         envelopeCard(category: category, budget: budget)
                     }
                     .tint(.primary)
+                    .accessibilityHint("Double tap to view category details")
                 }
             }
             .padding(.horizontal)
@@ -807,6 +810,8 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(expense.name.isEmpty ? "Unnamed" : expense.name), \(CurrencyFormatter.format(cents: expense.amountCents)), \(daysUntil == 0 ? "due today" : "due in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")")
                 }
             }
         }
@@ -841,6 +846,7 @@ struct DashboardView: View {
                         .padding(.vertical, 4)
                 }
                 .tint(.primary)
+                .accessibilityHint("Double tap to edit transaction")
             }
         }
     }
@@ -877,6 +883,7 @@ struct DashboardView: View {
                 }
                 .padding(.horizontal)
                 .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: category.budgetedAmountCents)) saved of \(CurrencyFormatter.format(cents: category.goalAmountCents ?? 0)) goal, \(Int(category.goalProgress * 100)) percent")
             }
         }
     }

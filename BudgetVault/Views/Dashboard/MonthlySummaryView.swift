@@ -54,6 +54,8 @@ struct MonthlySummaryView: View {
                     .padding(.vertical, 24)
                     .frame(maxWidth: .infinity)
                     .background(BudgetVaultTheme.heroBrandGradient)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(DateHelpers.monthYearString(month: budget.month, year: budget.year)) summary. Income: \(CurrencyFormatter.format(cents: budget.totalIncomeCents)), Spent: \(CurrencyFormatter.format(cents: totalSpent))")
 
                     // Delta
                     HStack {
@@ -84,6 +86,8 @@ struct MonthlySummaryView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(cat.name): \(CurrencyFormatter.format(cents: spent)) of \(CurrencyFormatter.format(cents: budgeted)), \(under ? "under budget" : "over budget")")
                         }
                     }
                     .padding()

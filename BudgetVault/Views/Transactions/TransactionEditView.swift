@@ -50,6 +50,7 @@ struct TransactionEditView: View {
                     .foregroundStyle(amountText.isEmpty ? .secondary : .primary)
                     .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                     .padding(.top, 8)
+                    .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
 
                 if !isIncome && categories.isEmpty {
                     Text("Create a category in the Budget tab first.")

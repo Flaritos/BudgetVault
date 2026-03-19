@@ -328,6 +328,7 @@ struct BudgetView: View {
             HStack {
                 ProgressView(value: min(pct, 1.0))
                     .tint(pct > 0.9 ? BudgetVaultTheme.negative : pct > 0.75 ? BudgetVaultTheme.caution : BudgetVaultTheme.positive)
+                    .accessibilityValue("\(Int(min(pct, 1.0) * 100)) percent spent")
                 Text(CurrencyFormatter.format(cents: spent))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -373,6 +374,7 @@ struct BudgetView: View {
                 .tint(BudgetVaultTheme.caution)
             }
         }
+        .accessibilityHint(isCurrentPeriod ? "Swipe left to archive" : "")
     }
 
     // MARK: - Income Editor Sheet

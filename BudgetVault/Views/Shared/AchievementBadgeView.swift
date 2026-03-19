@@ -172,6 +172,8 @@ struct AchievementGridView: View {
                 }
             }
             .frame(height: 6)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Achievement progress: \(unlocked.count) of \(AchievementService.allAchievements.count) unlocked")
 
             // Grid
             ZStack {
