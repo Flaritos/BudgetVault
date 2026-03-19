@@ -69,12 +69,26 @@ struct BudgetPlaceholderView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        navigateMonthBy(-1)
-                    } label: {
-                        Image(systemName: "chevron.left")
+                    HStack(spacing: 12) {
+                        Button {
+                            navigateMonthBy(-1)
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
+                        .accessibilityLabel("Previous month")
+
+                        if !isCurrentPeriod {
+                            Button {
+                                let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+                                viewingMonth = m
+                                viewingYear = y
+                            } label: {
+                                Text("Today")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .accessibilityLabel("Go to current period")
+                        }
                     }
-                    .accessibilityLabel("Previous month")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
@@ -207,7 +221,12 @@ struct BudgetPlaceholderView: View {
             // Categories
             Section("Categories") {
                 ForEach(visibleCategories, id: \.id) { category in
-                    categoryRow(category: category, budget: budget)
+                    NavigationLink {
+                        CategoryDetailView(category: category, budget: budget)
+                    } label: {
+                        categoryRow(category: category, budget: budget)
+                    }
+                    .tint(.primary)
                 }
                 .onMove { from, to in
                     guard isCurrentPeriod else { return }
@@ -217,7 +236,7 @@ struct BudgetPlaceholderView: View {
                 if isCurrentPeriod {
                     Button {
                         let count = visibleCategories.count
-                        if !isPremium && count >= 4 {
+                        if !isPremium && count >= 6 {
                             showPaywall = true
                         } else {
                             showAddCategory = true
@@ -227,7 +246,7 @@ struct BudgetPlaceholderView: View {
                             Label("Add Category", systemImage: "plus.circle")
                             if !isPremium {
                                 Spacer()
-                                Text("\(visibleCategories.count)/4 categories")
+                                Text("\(visibleCategories.count)/6 categories")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -251,7 +270,7 @@ struct BudgetPlaceholderView: View {
                             .swipeActions(edge: .trailing) {
                                 if isCurrentPeriod {
                                     Button("Restore") {
-                                        if !isPremium && visibleCategories.count >= 4 {
+                                        if !isPremium && visibleCategories.count >= 6 {
                                             showPaywall = true
                                         } else {
                                             category.isHidden = false

@@ -13,7 +13,7 @@ struct OnboardingView: View {
     @State private var monthlyIncome = ""
     @State private var tempCurrency = "USD"
     @State private var selectedTemplate: BudgetTemplates.OnboardingTemplate = .single
-    @State private var selectedCategories: [(name: String, emoji: String, color: String, pct: Double)] = Array(BudgetTemplates.OnboardingTemplate.single.categories.prefix(4))
+    @State private var selectedCategories: [(name: String, emoji: String, color: String, pct: Double)] = Array(BudgetTemplates.OnboardingTemplate.single.categories.prefix(6))
     @State private var budgetCreated = false
     @State private var showCelebrationCheck = false
     @State private var stepIconScales: [Int: CGFloat] = [:]
@@ -24,7 +24,7 @@ struct OnboardingView: View {
     @FocusState private var isInputFocused: Bool
 
     private let totalPages = 7
-    private let freeCategoryLimit = 4
+    private let freeCategoryLimit = 6
 
     private func stepIndicator(current: Int) -> some View {
         HStack(spacing: 6) {
@@ -130,7 +130,16 @@ struct OnboardingView: View {
                         .background(.white, in: RoundedRectangle(cornerRadius: 14))
                 }
                 .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                .opacity(showWelcomeText ? 1 : 0)
+
+                Button {
+                    withAnimation { currentPage = 3 }
+                } label: {
+                    Text("Skip to Setup")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .padding(.bottom, 24)
                 .opacity(showWelcomeText ? 1 : 0)
             }
         }
@@ -213,7 +222,15 @@ struct OnboardingView: View {
                         .buttonStyle(PrimaryButtonStyle())
                 }
                 .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+
+                Button {
+                    withAnimation { currentPage = 3 }
+                } label: {
+                    Text("Skip to Setup")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.bottom, 24)
             }
         }
     }
@@ -274,7 +291,16 @@ struct OnboardingView: View {
                     .buttonStyle(PrimaryButtonStyle())
                 }
                 .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+
+                Button {
+                    selectedCurrency = tempCurrency
+                    withAnimation { currentPage = 3 }
+                } label: {
+                    Text("Skip to Setup")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.bottom, 24)
             }
         }
     }
@@ -480,6 +506,10 @@ struct OnboardingView: View {
                     )
                     .padding(.horizontal, 40)
 
+                    Text("Enter your monthly take-home pay (after taxes)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     if let cents = MoneyHelpers.parseCurrencyString(monthlyIncome), cents > 0 {
                         let maxPct = selectedCategories.map(\.pct).max() ?? 1.0
                         let totalPctVal = selectedCategories.reduce(0.0) { $0 + $1.pct }
@@ -676,8 +706,8 @@ struct OnboardingView: View {
         let budget = Budget(month: month, year: year, totalIncomeCents: incomeCents, resetDay: resetDay)
         modelContext.insert(budget)
 
-        // Free tier: cap at 4 categories (onboarding always runs before any purchase)
-        let categoriesToCreate = Array(selectedCategories.prefix(4))
+        // Free tier: cap at 6 categories (onboarding always runs before any purchase)
+        let categoriesToCreate = Array(selectedCategories.prefix(6))
         for (index, cat) in categoriesToCreate.enumerated() {
             let catCents = Int64(Double(incomeCents) * cat.pct)
             let category = Category(name: cat.name, emoji: cat.emoji, budgetedAmountCents: catCents, color: cat.color, sortOrder: index)

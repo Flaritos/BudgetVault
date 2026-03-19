@@ -29,3 +29,4 @@ scripts/cron.log
 *.xcarchive
 *.dSYM
 *.mobileprovision
+.claude/worktrees/

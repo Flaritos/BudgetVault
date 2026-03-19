@@ -17,11 +17,20 @@ struct HistoryPlaceholderView: View {
     @State private var viewingYear: Int = 0
     @State private var csvExportText: String?
     @State private var displayLimit = 50
+    @State private var sortMode: SortMode = .date
+    @State private var transactionToDelete: Transaction?
+    @State private var showDeleteConfirmation = false
 
     enum FilterMode: String, CaseIterable {
         case all = "All"
         case expenses = "Expenses"
         case income = "Income"
+    }
+
+    enum SortMode: String, CaseIterable {
+        case date = "Date"
+        case amount = "Amount"
+        case category = "Category"
     }
 
     private var currentBudget: Budget? {
@@ -61,7 +70,16 @@ struct HistoryPlaceholderView: View {
             }
         }
 
-        return transactions.sorted { $0.date > $1.date }
+        switch sortMode {
+        case .date:
+            return transactions.sorted { $0.date > $1.date }
+        case .amount:
+            return transactions.sorted { $0.amountCents > $1.amountCents }
+        case .category:
+            return transactions.sorted {
+                ($0.category?.name ?? "") < ($1.category?.name ?? "")
+            }
+        }
     }
 
     /// Paginated view of filtered transactions (0.1 — bounded at displayLimit)
@@ -115,15 +133,47 @@ struct HistoryPlaceholderView: View {
             .searchable(text: $searchText, prompt: "Search notes")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        navigateMonth(-1)
-                    } label: {
-                        Image(systemName: "chevron.left")
+                    HStack(spacing: 12) {
+                        Button {
+                            navigateMonth(-1)
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
+                        .accessibilityLabel("Previous month")
+
+                        if !isCurrentPeriod {
+                            Button {
+                                let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+                                viewingMonth = m
+                                viewingYear = y
+                            } label: {
+                                Text("Today")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .accessibilityLabel("Go to current period")
+                        }
                     }
-                    .accessibilityLabel("Previous month")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
+                        Menu {
+                            ForEach(SortMode.allCases, id: \.self) { mode in
+                                Button {
+                                    sortMode = mode
+                                } label: {
+                                    HStack {
+                                        Text(mode.rawValue)
+                                        if sortMode == mode {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                        }
+                        .accessibilityLabel("Sort transactions")
+
                         Button {
                             csvExportText = generateCSV()
                         } label: {
@@ -168,7 +218,42 @@ struct HistoryPlaceholderView: View {
                     .presentationDetents([.medium])
                 }
             }
+            .confirmationDialog(
+                deleteConfirmationTitle,
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let tx = transactionToDelete {
+                        modelContext.delete(tx)
+                        SafeSave.save(modelContext)
+                        HapticManager.notification(.warning)
+                        transactionToDelete = nil
+                    }
+                }
+            } message: {
+                if let tx = transactionToDelete {
+                    Text("\(CurrencyFormatter.format(cents: tx.amountCents)) \u{2022} \(tx.note.isEmpty ? "No note" : tx.note)\n\(tx.date.formatted(date: .abbreviated, time: .omitted))\n\(tx.category?.name ?? "Income")")
+                }
+            }
         }
+    }
+
+    private var deleteConfirmationTitle: String {
+        "Delete this transaction?"
+    }
+
+    private func duplicateTransaction(_ transaction: Transaction) {
+        let duplicate = Transaction(
+            amountCents: transaction.amountCents,
+            note: transaction.note,
+            date: Date(),
+            isIncome: transaction.isIncome,
+            category: transaction.category
+        )
+        modelContext.insert(duplicate)
+        SafeSave.save(modelContext)
+        HapticManager.notification(.success)
     }
 
     @ViewBuilder
@@ -215,6 +300,40 @@ struct HistoryPlaceholderView: View {
                             TransactionRowView(transaction: transaction)
                         }
                         .tint(.primary)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                duplicateTransaction(transaction)
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            .tint(Color.accentColor)
+                        }
+                        .contextMenu {
+                            Button {
+                                editingTransaction = transaction
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            Button {
+                                duplicateTransaction(transaction)
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 } header: {
                     HStack {

@@ -14,6 +14,10 @@ enum AppStorageKeys {
     static let debugPremiumOverride = "debugPremiumOverride"
     static let lastPaywallDecline = "lastPaywallDecline"
     static let reviewPromptCount = "reviewPromptCount"
+    static let installDate = "installDate"
+    static let transactionCount = "transactionCount"
+    static let hasSeenTransactionPaywall = "hasSeenTransactionPaywall"
+    static let hasSeenStreakPaywall = "hasSeenStreakPaywall"
 
     // MARK: - Appearance
     static let selectedCurrency = "selectedCurrency"
