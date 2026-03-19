@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-struct DashboardPlaceholderView: View {
+struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
@@ -51,7 +51,7 @@ struct DashboardPlaceholderView: View {
     private var showWrappedCard: Bool {
         // Show when month is >= 80% complete or when viewing a completed month
         guard let budget = currentBudget else { return false }
-        let fraction = dayProgressFraction(budget: budget)
+        let fraction = viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
         return fraction >= 0.8 || previousBudget != nil
     }
 
@@ -292,8 +292,7 @@ struct DashboardPlaceholderView: View {
     private func heroCard(budget: Budget) -> some View {
         let pct = budget.percentRemaining
         let status = viewModel.statusText(for: pct)
-        let daysRemaining = daysRemainingInPeriod(budget: budget)
-        let dailyAllowanceCents = budget.remainingCents > 0 ? budget.remainingCents / Int64(max(daysRemaining, 1)) : 0
+        let dailyAllowanceCents = viewModel.dailyAllowanceCents(remainingCents: budget.remainingCents, periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
 
         ZStack(alignment: .topTrailing) {
             VaultDialMark(size: 24)
@@ -334,11 +333,11 @@ struct DashboardPlaceholderView: View {
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.white.opacity(0.9))
 
-            ProgressView(value: dayProgressFraction(budget: budget))
+            ProgressView(value: viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart))
                 .tint(.white)
                 .padding(.horizontal, 24)
 
-            Text(budgetDayProgress(budget: budget))
+            Text(viewModel.budgetDayProgress(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart))
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.7))
 
@@ -642,36 +641,6 @@ struct DashboardPlaceholderView: View {
         .tint(.primary)
         .padding(.horizontal)
         .accessibilityLabel("Achievements. View your badges.")
-    }
-
-    // MARK: - Helpers
-
-    private func budgetDayProgress(budget: Budget) -> String {
-        let calendar = Calendar.current
-        let today = Date()
-        let start = budget.periodStart
-        let end = budget.nextPeriodStart
-        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
-        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 0)
-        let dayNumber = min(elapsed + 1, totalDays)
-        return "Day \(dayNumber) of \(totalDays)"
-    }
-
-    private func dayProgressFraction(budget: Budget) -> Double {
-        let calendar = Calendar.current
-        let today = Date()
-        let start = budget.periodStart
-        let end = budget.nextPeriodStart
-        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
-        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 0)
-        return min(Double(elapsed) / Double(totalDays), 1.0)
-    }
-
-    private func daysRemainingInPeriod(budget: Budget) -> Int {
-        let calendar = Calendar.current
-        let today = Date()
-        let end = budget.nextPeriodStart
-        return max(calendar.dateComponents([.day], from: today, to: end).day ?? 1, 1)
     }
 
 }

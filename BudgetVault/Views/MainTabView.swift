@@ -5,23 +5,23 @@ struct MainTabView: View {
 
     var body: some View {
         TabView {
-            DashboardPlaceholderView()
+            DashboardView()
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.pie.fill")
                 }
-            BudgetPlaceholderView()
+            BudgetView()
                 .tabItem {
                     Label("Budget", systemImage: "list.bullet.rectangle.fill")
                 }
-            HistoryPlaceholderView()
+            HistoryView()
                 .tabItem {
                     Label("History", systemImage: "clock.fill")
                 }
-            InsightsPlaceholderView()
+            InsightsView()
                 .tabItem {
                     Label("Insights", systemImage: "lightbulb.fill")
                 }
-            SettingsPlaceholderView()
+            SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }

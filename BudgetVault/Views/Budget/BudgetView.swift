@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-struct BudgetPlaceholderView: View {
+struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false

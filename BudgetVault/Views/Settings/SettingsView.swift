@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import StoreKit
 
-struct SettingsPlaceholderView: View {
+struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(AppStorageKeys.biometricLockEnabled) private var biometricLockEnabled = false
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"

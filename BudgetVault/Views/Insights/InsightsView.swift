@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import Charts
 
-struct InsightsPlaceholderView: View {
+struct InsightsView: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
