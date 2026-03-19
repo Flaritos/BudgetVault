@@ -63,6 +63,15 @@ struct BudgetVaultApp: App {
 
         do {
             container = try ModelContainer(for: schema, migrationPlan: BudgetVaultMigrationPlan.self, configurations: [config])
+
+            // Set NSFileProtectionComplete on the Application Support directory
+            // so the SwiftData store is encrypted at rest and inaccessible while the device is locked.
+            if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                try? (appSupport as NSURL).setResourceValue(
+                    URLFileProtection.complete,
+                    forKey: .fileProtectionKey
+                )
+            }
         } catch {
             container = nil
             _containerError = State(initialValue: error.localizedDescription)

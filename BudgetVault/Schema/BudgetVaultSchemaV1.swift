@@ -1,6 +1,43 @@
 import Foundation
 import SwiftData
 
+// MARK: - SchemaV2 Migration Checklist (requires iOS 18 minimum)
+//
+// When iOS 18 becomes the minimum deployment target, create BudgetVaultSchemaV2 with:
+//
+// 1. Transaction Indexes (query performance):
+//    - #Index<Transaction>([\.date])
+//      Speeds up date-range queries in dashboard, history, and reports.
+//    - #Index<Transaction>([\.category, \.date])
+//      Compound index for per-category spending calculations (spentCents(in:)).
+//    - #Index<Transaction>([\.isIncome, \.date])
+//      Speeds up income-vs-expense filtering across date ranges.
+//
+// 2. Budget Indexes:
+//    - #Index<Budget>([\.year, \.month])
+//      Speeds up budget lookup by period (used in rollover, dedup, navigation).
+//
+// 3. RecurringExpense Indexes:
+//    - #Index<RecurringExpense>([\.nextDueDate])
+//      Speeds up overdue processing in RecurringExpenseScheduler.
+//    - #Index<RecurringExpense>([\.isActive, \.nextDueDate])
+//      Compound index for active-only overdue queries.
+//
+// 4. DebtPayment Indexes:
+//    - #Index<DebtPayment>([\.date])
+//      Speeds up payment history queries.
+//
+// 5. NetWorthSnapshot Indexes:
+//    - #Index<NetWorthSnapshot>([\.date])
+//      Speeds up chart/trend queries.
+//
+// 6. Migration Stage:
+//    - Add BudgetVaultSchemaV2 to BudgetVaultMigrationPlan.schemas
+//    - Add a lightweight migration stage from V1 to V2 (index-only changes
+//      are additive and should not require custom migration logic).
+//
+// 7. Remove the inline TODO comment on Transaction.date below.
+
 enum BudgetVaultSchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
 
