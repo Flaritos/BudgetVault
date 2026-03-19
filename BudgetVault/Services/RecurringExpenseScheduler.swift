@@ -56,6 +56,15 @@ enum RecurringExpenseScheduler {
                 context.insert(transaction)
                 expense.advanceNextDueDate()
                 transactionsCreated += 1
+
+                // Reschedule bill due reminder for the next occurrence
+                if UserDefaults.standard.bool(forKey: AppStorageKeys.billDueReminders) {
+                    NotificationService.scheduleBillDueReminder(
+                        expenseName: expense.name,
+                        dueDate: expense.nextDueDate,
+                        id: expense.id.uuidString
+                    )
+                }
             }
         }
 

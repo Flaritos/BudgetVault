@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // MARK: - Shared Data Types (duplicated from main app for widget target)
 
@@ -64,11 +65,23 @@ extension WidgetBudgetData {
             currencyCode: "USD",
             isPremium: false,
             topCategories: [
-                .init(emoji: "🏠", name: "Rent", spentCents: 150_000, budgetedCents: 150_000),
-                .init(emoji: "🛒", name: "Groceries", spentCents: 8000, budgetedCents: 10000),
-                .init(emoji: "🚗", name: "Transport", spentCents: 3000, budgetedCents: 5000),
+                .init(emoji: "\u{1F3E0}", name: "Rent", spentCents: 150_000, budgetedCents: 150_000),
+                .init(emoji: "\u{1F6D2}", name: "Groceries", spentCents: 8000, budgetedCents: 10000),
+                .init(emoji: "\u{1F697}", name: "Transport", spentCents: 3000, budgetedCents: 5000),
             ]
         )
+    }
+}
+
+// MARK: - Widget Intent for Interactive Button
+
+struct OpenAddExpenseIntent: AppIntent {
+    static var title: LocalizedStringResource = "Add Expense"
+    static var description = IntentDescription("Open BudgetVault to add an expense")
+    static var openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        return .result()
     }
 }
 
@@ -123,7 +136,7 @@ struct SmallBudgetWidgetView: View {
     }
 }
 
-// MARK: - Medium Widget View
+// MARK: - Medium Widget View (with Interactive Button)
 
 struct MediumBudgetWidgetView: View {
     let entry: BudgetEntry
@@ -159,30 +172,48 @@ struct MediumBudgetWidgetView: View {
             }
 
             // Right: Categories or upgrade prompt
-            if entry.data.isPremium {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(entry.data.topCategories.prefix(3), id: \.name) { cat in
-                        HStack(spacing: 4) {
-                            Text(cat.emoji)
-                                .font(.system(size: 12))
-                            Text(cat.name)
-                                .font(.system(size: 11))
-                                .lineLimit(1)
-                            Spacer()
-                            miniProgressBar(spent: cat.spentCents, budgeted: cat.budgetedCents)
+            VStack(alignment: .leading, spacing: 4) {
+                if entry.data.isPremium {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(entry.data.topCategories.prefix(2), id: \.name) { cat in
+                            HStack(spacing: 4) {
+                                Text(cat.emoji)
+                                    .font(.system(size: 12))
+                                Text(cat.name)
+                                    .font(.system(size: 11))
+                                    .lineLimit(1)
+                                Spacer()
+                                miniProgressBar(spent: cat.spentCents, budgeted: cat.budgetedCents)
+                            }
                         }
                     }
+                } else {
+                    VStack(spacing: 4) {
+                        Image(systemName: "lock.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("Upgrade for\ncategory breakdown")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
-            } else {
-                VStack(spacing: 4) {
-                    Image(systemName: "lock.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text("Upgrade for\ncategory breakdown")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+
+                Spacer(minLength: 2)
+
+                // Interactive Add Expense button
+                Button(intent: OpenAddExpenseIntent()) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 12))
+                        Text("Add Expense")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.15), in: Capsule())
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 4)
@@ -212,6 +243,71 @@ struct MediumBudgetWidgetView: View {
     }
 }
 
+// MARK: - Lock Screen Widget Views
+
+#if os(iOS)
+
+struct AccessoryCircularBudgetView: View {
+    let entry: BudgetEntry
+
+    var body: some View {
+        Gauge(value: max(0, min(entry.data.percentRemaining, 1.0))) {
+            Image(systemName: "vault.fill")
+                .font(.system(size: 10))
+        } currentValueLabel: {
+            Text(compactAmount(entry.data.remainingBudgetCents))
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .minimumScaleFactor(0.5)
+        }
+        .gaugeStyle(.accessoryCircular)
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+}
+
+struct AccessoryInlineBudgetView: View {
+    let entry: BudgetEntry
+
+    var body: some View {
+        Text("\(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining")
+            .containerBackground(.fill.tertiary, for: .widget)
+    }
+}
+
+struct AccessoryRectangularBudgetView: View {
+    let entry: BudgetEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "vault.fill")
+                    .font(.system(size: 9))
+                Text("BudgetVault")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+            .foregroundStyle(.secondary)
+
+            Text(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .minimumScaleFactor(0.6)
+
+            if let topCat = entry.data.topCategories.first {
+                HStack(spacing: 2) {
+                    Text(topCat.emoji)
+                        .font(.system(size: 9))
+                    Text(topCat.name)
+                        .font(.system(size: 9))
+                    Text(formatCents(topCat.spentCents, code: entry.data.currencyCode))
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+}
+
+#endif
+
 // MARK: - Widgets
 
 struct BudgetVaultSmallWidget: Widget {
@@ -235,16 +331,53 @@ struct BudgetVaultMediumWidget: Widget {
             MediumBudgetWidgetView(entry: entry)
         }
         .configurationDisplayName("Budget Overview")
-        .description("Budget remaining with top categories.")
+        .description("Budget remaining with top categories and quick add.")
         .supportedFamilies([.systemMedium])
     }
 }
+
+#if os(iOS)
+
+struct LockScreenBudgetView: View {
+    @Environment(\.widgetFamily) var widgetFamily
+    let entry: BudgetEntry
+
+    var body: some View {
+        switch widgetFamily {
+        case .accessoryCircular:
+            AccessoryCircularBudgetView(entry: entry)
+        case .accessoryInline:
+            AccessoryInlineBudgetView(entry: entry)
+        case .accessoryRectangular:
+            AccessoryRectangularBudgetView(entry: entry)
+        default:
+            AccessoryCircularBudgetView(entry: entry)
+        }
+    }
+}
+
+struct BudgetVaultLockScreenWidget: Widget {
+    let kind = "BudgetVaultLockScreenWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: BudgetTimelineProvider()) { entry in
+            LockScreenBudgetView(entry: entry)
+        }
+        .configurationDisplayName("Budget at a Glance")
+        .description("See your remaining budget on the Lock Screen.")
+        .supportedFamilies([.accessoryCircular, .accessoryInline, .accessoryRectangular])
+    }
+}
+#endif
 
 @main
 struct BudgetVaultWidgetBundle: WidgetBundle {
     var body: some Widget {
         BudgetVaultSmallWidget()
         BudgetVaultMediumWidget()
+        #if os(iOS)
+        BudgetVaultLockScreenWidget()
+        #endif
     }
 }
 
@@ -257,3 +390,15 @@ private func formatCents(_ cents: Int64, code: String) -> String {
     let decimal = Decimal(cents) / 100
     return formatter.string(from: decimal as NSDecimalNumber) ?? "$0.00"
 }
+
+private func compactAmount(_ cents: Int64) -> String {
+    let value = Double(cents) / 100.0
+    if value >= 10_000 {
+        return String(format: "%.0fk", value / 1000.0)
+    } else if value >= 1_000 {
+        return String(format: "%.1fk", value / 1000.0)
+    } else {
+        return String(format: "%.0f", value)
+    }
+}
+

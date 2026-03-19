@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import UserNotifications
+import BackgroundTasks
+import TipKit
+import WidgetKit
 
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
@@ -9,6 +12,18 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
+        let actionIdentifier = response.actionIdentifier
+
+        // Handle "Log Expense" action from notification
+        if actionIdentifier == NotificationService.logExpenseActionIdentifier {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+            }
+            completionHandler()
+            return
+        }
+
+        // Handle tap on daily reminder notification
         if let type = userInfo["type"] as? String, type == "dailyReminder" {
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
@@ -36,9 +51,22 @@ struct BudgetVaultApp: App {
     @State private var containerError: String?
 
     private static let notificationDelegate = NotificationDelegate()
+    static let bgRefreshIdentifier = "io.budgetvault.app.refresh"
 
     init() {
         UNUserNotificationCenter.current().delegate = Self.notificationDelegate
+
+        // Register notification categories with actions
+        NotificationService.registerCategories()
+
+        // Configure TipKit
+        try? Tips.configure([
+            .displayFrequency(.daily),
+            .datastoreLocation(.applicationDefault)
+        ])
+
+        // Configure iCloud KVS settings sync
+        SettingsSyncService.configure()
 
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithDefaultBackground()
@@ -88,12 +116,39 @@ struct BudgetVaultApp: App {
                             Task { await storeKit.checkEntitlements() }
                         } else if newPhase == .background {
                             try? container.mainContext.save()
+                            scheduleBackgroundRefresh()
                         }
                     }
             } else {
                 databaseErrorView
             }
         }
+        .backgroundTask(.appRefresh(Self.bgRefreshIdentifier)) {
+            await handleBackgroundRefresh()
+        }
+    }
+
+    // MARK: - Background App Refresh
+
+    private func scheduleBackgroundRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: Self.bgRefreshIdentifier)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60) // 1 hour
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    @MainActor
+    private func handleBackgroundRefresh() async {
+        guard let container else { return }
+
+        // Process overdue recurring expenses
+        let _ = RecurringExpenseScheduler.processOverdue(context: container.mainContext)
+
+        // Update widget data
+        let rd = max(1, min(UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay), 28))
+        WidgetDataService.update(from: container.mainContext, resetDay: rd)
+
+        // Schedule next refresh
+        scheduleBackgroundRefresh()
     }
 
     // MARK: - Database Error Recovery

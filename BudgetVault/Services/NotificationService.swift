@@ -3,6 +3,29 @@ import UserNotifications
 
 enum NotificationService {
 
+    // MARK: - Notification Categories & Actions
+
+    static let dailyReminderCategoryIdentifier = "DAILY_REMINDER"
+    static let logExpenseActionIdentifier = "LOG_EXPENSE_ACTION"
+
+    /// Register notification categories with actions. Call once on app launch.
+    static func registerCategories() {
+        let logExpenseAction = UNNotificationAction(
+            identifier: logExpenseActionIdentifier,
+            title: "Log Expense",
+            options: [.foreground]
+        )
+
+        let dailyReminderCategory = UNNotificationCategory(
+            identifier: dailyReminderCategoryIdentifier,
+            actions: [logExpenseAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        UNUserNotificationCenter.current().setNotificationCategories([dailyReminderCategory])
+    }
+
     // MARK: - Daily Reminder
 
     private static let dailyMessages = [
@@ -31,6 +54,7 @@ enum NotificationService {
             content.body = message
             content.sound = .default
             content.userInfo = ["type": "dailyReminder"]
+            content.categoryIdentifier = dailyReminderCategoryIdentifier
 
             var components = DateComponents()
             components.hour = hour
