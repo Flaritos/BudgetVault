@@ -22,7 +22,7 @@ struct DashboardPlaceholderView: View {
     @Query(sort: \RecurringExpense.nextDueDate) private var recurringExpenses: [RecurringExpense]
 
     @AppStorage(AppStorageKeys.lastSummaryViewed) private var lastSummaryViewed = ""
-    @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = true
+    @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
     @AppStorage(AppStorageKeys.lastActiveDate) private var lastActiveDate: Double = 0
     @AppStorage(AppStorageKeys.catchUpDismissedDate) private var catchUpDismissedDate: Double = 0
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
