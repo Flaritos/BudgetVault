@@ -204,6 +204,7 @@ struct HistoryPlaceholderView: View {
                             TransactionRowView(transaction: transaction)
                         }
                         .tint(.primary)
+                        .accessibilityHint("Double tap to edit transaction")
                     }
                 } header: {
                     HStack {

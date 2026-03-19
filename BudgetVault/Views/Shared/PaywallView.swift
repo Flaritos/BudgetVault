@@ -86,6 +86,7 @@ struct PaywallView: View {
                                         .foregroundStyle(.secondary)
                                 }
                             }
+                            .accessibilityElement(children: .combine)
                         }
                     }
                     .padding(.horizontal, 32)

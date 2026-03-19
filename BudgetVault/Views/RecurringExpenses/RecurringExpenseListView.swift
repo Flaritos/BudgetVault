@@ -102,6 +102,7 @@ struct RecurringExpenseListView: View {
                             }
                             .tint(BudgetVaultTheme.caution)
                         }
+                        .accessibilityHint("Double tap to edit. Swipe left to deactivate.")
                     }
                 }
             }

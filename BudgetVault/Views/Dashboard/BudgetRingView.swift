@@ -36,5 +36,8 @@ struct BudgetRingView: View {
                 animatedProgress = newValue
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Budget progress")
+        .accessibilityValue("\(Int(progress * 100)) percent spent")
     }
 }

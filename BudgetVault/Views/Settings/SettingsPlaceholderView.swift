@@ -158,6 +158,7 @@ struct SettingsPlaceholderView: View {
                         .fill(BudgetVaultTheme.brandGradient)
                         .padding(.vertical, 2)
                 )
+                .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")
             }
         }
     }

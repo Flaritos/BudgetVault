@@ -392,6 +392,8 @@ struct DashboardPlaceholderView: View {
             .frame(maxWidth: .infinity)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM))
             .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Spending velocity: At this pace, you'll spend \(CurrencyFormatter.format(cents: projectedCents)) this month, \(overBudget ? "over budget" : "on track")")
         }
     }
 
@@ -408,6 +410,7 @@ struct DashboardPlaceholderView: View {
                         envelopeCard(category: category, budget: budget)
                     }
                     .tint(.primary)
+                    .accessibilityHint("Double tap to view category details")
                 }
             }
             .padding(.horizontal)
@@ -492,6 +495,8 @@ struct DashboardPlaceholderView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(expense.name.isEmpty ? "Unnamed" : expense.name), \(CurrencyFormatter.format(cents: expense.amountCents)), \(daysUntil == 0 ? "due today" : "due in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")")
                 }
             }
         }
@@ -526,6 +531,7 @@ struct DashboardPlaceholderView: View {
                         .padding(.vertical, 4)
                 }
                 .tint(.primary)
+                .accessibilityHint("Double tap to edit transaction")
             }
         }
     }
@@ -562,6 +568,7 @@ struct DashboardPlaceholderView: View {
                 }
                 .padding(.horizontal)
                 .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: category.budgetedAmountCents)) saved of \(CurrencyFormatter.format(cents: category.goalAmountCents ?? 0)) goal, \(Int(category.goalProgress * 100)) percent")
             }
         }
     }

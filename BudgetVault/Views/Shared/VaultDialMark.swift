@@ -67,6 +67,7 @@ struct VaultDialMark: View {
             }
         }
         .frame(width: size * (showGlow ? 1.4 : 1), height: size * (showGlow ? 1.4 : 1))
+        .accessibilityHidden(true)
     }
 }
 

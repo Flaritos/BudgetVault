@@ -88,6 +88,7 @@ struct DebtTrackingView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
                     }
+                    .accessibilityLabel("Add debt")
                 }
             }
             .sheet(isPresented: $showAddDebt) {
@@ -129,6 +130,8 @@ struct DebtTrackingView: View {
                 }
             }
             .padding(.vertical, BudgetVaultTheme.spacingSM)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Total debt: \(CurrencyFormatter.format(cents: totalDebtCents)), \(Int(overallPaidPercentage * 100)) percent paid off, \(activeDebts.count) active debts")
         }
     }
 
@@ -231,6 +234,8 @@ struct DebtTrackingView: View {
                 .tint(BudgetVaultTheme.positive)
         }
         .padding(.vertical, BudgetVaultTheme.spacingXS)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(debt.emoji) \(debt.name): \(CurrencyFormatter.format(cents: debt.currentBalanceCents)) of \(CurrencyFormatter.format(cents: debt.originalBalanceCents))\(debt.interestRate > 0 ? ", \(String(format: "%.1f", debt.interestRate)) percent APR" : ""), \(Int(debt.paidOffPercentage * 100)) percent paid off")
     }
 
     // MARK: - Paid Off Section

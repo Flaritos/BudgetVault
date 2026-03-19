@@ -50,6 +50,7 @@ struct DebtDetailView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .accessibilityLabel("More options")
             }
         }
         .sheet(isPresented: $showLogPayment) {
@@ -104,6 +105,8 @@ struct DebtDetailView: View {
                 }
             }
             .padding(.vertical, BudgetVaultTheme.spacingSM)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(debt.emoji) \(debt.name): current balance \(CurrencyFormatter.format(cents: debt.currentBalanceCents)), \(Int(debt.paidOffPercentage * 100)) percent paid off, original \(CurrencyFormatter.format(cents: debt.originalBalanceCents))")
         }
     }
 
@@ -224,6 +227,8 @@ struct DebtDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Payment of \(CurrencyFormatter.format(cents: payment.amountCents))\(payment.note.isEmpty ? "" : ", \(payment.note)"), \(payment.date.formatted(date: .abbreviated, time: .omitted))")
                 }
                 .onDelete(perform: deletePayments)
             }
@@ -369,6 +374,8 @@ private struct EditDebtForm: View {
                                         .strokeBorder(emoji == e ? Color.accentColor : Color.clear, lineWidth: 3)
                                 )
                         }
+                        .accessibilityLabel(e)
+                        .accessibilityAddTraits(emoji == e ? .isSelected : [])
                     }
                 }
             }
