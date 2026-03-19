@@ -3,8 +3,17 @@ import SwiftData
 
 struct DashboardPlaceholderView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
+
+    // MARK: - Scaled Metrics for Dynamic Type
+    @ScaledMetric(relativeTo: .body) private var fabSize: CGFloat = 56
+    @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 150
+    @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 185
+    @ScaledMetric(relativeTo: .body) private var envelopeCardHeightTall: CGFloat = 200
+    @ScaledMetric(relativeTo: .body) private var ringSize: CGFloat = 56
+    @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
@@ -15,6 +24,7 @@ struct DashboardPlaceholderView: View {
     @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = true
 
     @State private var viewModel = DashboardViewModel()
+    @State private var hasAppeared = false
     @State private var showTransactionEntry = false
     @State private var editingTransaction: Transaction?
     @State private var showMonthlySummary = false
@@ -102,7 +112,7 @@ struct DashboardPlaceholderView: View {
                         Image(systemName: "plus")
                             .font(.title2.bold())
                             .foregroundStyle(.white)
-                            .frame(width: 56, height: 56)
+                            .frame(width: fabSize, height: fabSize)
                             .background(Color.accentColor, in: Circle())
                             .shadow(radius: 4, y: 2)
                     }
@@ -180,8 +190,8 @@ struct DashboardPlaceholderView: View {
                 .shadow(radius: 4, y: 2)
                 .scaleEffect(newAchievementBanner != nil ? 1.0 : 0.5)
                 .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
+                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                .animation(reduceMotion ? .default : .spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
             }
         }
     }
@@ -224,34 +234,50 @@ struct DashboardPlaceholderView: View {
 
                 // Hero budget card
                 heroCard(budget: budget)
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: hasAppeared ? 0 : 20)
 
                 // Spending velocity
                 spendingVelocity(budget: budget)
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: hasAppeared ? 0 : 20)
 
                 // Envelope cards
                 if !visibleCategories.isEmpty {
                     envelopeCards(budget: budget)
+                        .opacity(hasAppeared ? 1 : 0)
+                        .offset(y: hasAppeared ? 0 : 20)
                 }
 
                 // Savings goals
                 if !goalCategories.isEmpty {
                     savingsGoalsSection
+                        .opacity(hasAppeared ? 1 : 0)
+                        .offset(y: hasAppeared ? 0 : 20)
                 }
 
                 // Monthly Wrapped card (premium)
                 if showWrappedCard {
                     wrappedCard
+                        .opacity(hasAppeared ? 1 : 0)
+                        .offset(y: hasAppeared ? 0 : 20)
                 }
 
                 // Recent achievements
                 achievementsPreview
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: hasAppeared ? 0 : 20)
 
                 // Upcoming bills
                 upcomingBills
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: hasAppeared ? 0 : 20)
 
                 // Recent transactions
                 if !recentTransactions.isEmpty {
                     recentTransactionsSection
+                        .opacity(hasAppeared ? 1 : 0)
+                        .offset(y: hasAppeared ? 0 : 20)
                 }
 
                 // Premium teaser
@@ -280,9 +306,21 @@ struct DashboardPlaceholderView: View {
                     .tint(.primary)
                     .padding(.horizontal)
                     .accessibilityLabel("Unlock Premium Insights. Track trends, compare months, and more.")
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: hasAppeared ? 0 : 20)
                 }
             }
             .padding(.bottom, 80) // space for FAB
+            .onAppear {
+                guard !hasAppeared else { return }
+                if reduceMotion {
+                    hasAppeared = true
+                } else {
+                    withAnimation(.easeOut(duration: 0.5).delay(0.1)) {
+                        hasAppeared = true
+                    }
+                }
+            }
         }
     }
 
@@ -322,8 +360,12 @@ struct DashboardPlaceholderView: View {
 
             Text(CurrencyFormatter.format(cents: budget.remainingCents))
                 .font(BudgetVaultTheme.heroAmount)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
                 .foregroundStyle(.white)
                 .contentTransition(.numericText())
+                .animation(.default, value: budget.remainingCents)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 .padding(.top, currentStreak > 0 ? 0 : 24)
 
             Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
@@ -414,6 +456,8 @@ struct DashboardPlaceholderView: View {
         }
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     @ViewBuilder
     private func envelopeCard(category: Category, budget: Budget) -> some View {
         let spent = category.spentCents(in: budget)
@@ -427,7 +471,7 @@ struct DashboardPlaceholderView: View {
                 .lineLimit(1)
 
             BudgetRingView(spent: spent, budgeted: budgeted)
-                .frame(width: 56, height: 56)
+                .frame(width: ringSize, height: ringSize)
 
             Text(CurrencyFormatter.format(cents: spent))
                 .font(.caption)
@@ -441,10 +485,10 @@ struct DashboardPlaceholderView: View {
                     .foregroundStyle(BudgetVaultTheme.info)
             }
         }
-        .frame(width: 150, height: category.rollOverUnspent ? 200 : 185)
+        .frame(width: envelopeCardWidth, height: category.rollOverUnspent ? envelopeCardHeightTall : envelopeCardHeight)
         .background(
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                .fill(Color(hex: category.color).opacity(0.08))
+                .fill(Color(hex: category.color).opacity(colorScheme == .dark ? 0.15 : 0.08))
         )
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
         .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
@@ -474,7 +518,7 @@ struct DashboardPlaceholderView: View {
                     HStack(spacing: 12) {
                         Text(expense.category?.emoji ?? "\u{1F4E6}")
                             .font(.title3)
-                            .frame(width: 36)
+                            .frame(width: billIconWidth)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(expense.name.isEmpty ? "Unnamed" : expense.name)

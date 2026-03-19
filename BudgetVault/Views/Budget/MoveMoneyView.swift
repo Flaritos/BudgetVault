@@ -5,6 +5,8 @@ struct MoveMoneyView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    @ScaledMetric(relativeTo: .body) private var pickerSize: CGFloat = 64
+
     let categories: [Category]
     var budget: Budget? = nil
 
@@ -76,7 +78,7 @@ struct MoveMoneyView: View {
                                     .font(.caption2)
                                     .lineLimit(1)
                             }
-                            .frame(width: 64, height: 64)
+                            .frame(width: pickerSize, height: pickerSize)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
@@ -112,7 +114,7 @@ struct MoveMoneyView: View {
                                     .font(.caption2)
                                     .lineLimit(1)
                             }
-                            .frame(width: 64, height: 64)
+                            .frame(width: pickerSize, height: pickerSize)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
@@ -131,7 +133,10 @@ struct MoveMoneyView: View {
     @ViewBuilder
     private var amountSection: some View {
         Text(displayAmount)
-            .font(.system(size: 36, weight: .bold, design: .rounded))
+            .font(BudgetVaultTheme.priceDisplay)
+            .minimumScaleFactor(0.7)
+            .lineLimit(1)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility3)
             .padding(.top, 8)
 
         NumberPadView(text: $amountText)

@@ -101,7 +101,9 @@ struct NetWorthView: View {
                     .foregroundStyle(.secondary)
 
                 Text(CurrencyFormatter.format(cents: netWorthCents))
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
+                    .font(BudgetVaultTheme.priceDisplay)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
                     .foregroundStyle(netWorthCents >= 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
 
                 HStack(spacing: BudgetVaultTheme.spacingXL) {

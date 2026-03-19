@@ -79,9 +79,24 @@ enum BudgetVaultTheme {
     static let heroAmount = Font.system(size: 54, weight: .heavy, design: .rounded)
     static let amountEntry = Font.system(size: 48, weight: .bold, design: .rounded)
     static let wrappedHero = Font.system(size: 44, weight: .bold, design: .rounded)
+    static let priceDisplay = Font.system(size: 36, weight: .bold, design: .rounded)
+    static let brandTitle = Font.system(size: 32, weight: .bold, design: .rounded)
+    static let statistic = Font.system(size: 28, weight: .bold, design: .rounded)
     static let cardAmount = Font.system(size: 20, weight: .bold, design: .rounded)
     static let rowAmount = Font.system(size: 16, weight: .semibold, design: .rounded)
     static let sectionIcon = Font.system(size: 64)
+    static let iconLarge = Font.system(size: 48)
+
+    // MARK: - Hero Spacing
+    static let spacingHero: CGFloat = 40
+
+    // MARK: - Achievement Badge Colors
+    static let badgeBronze = Color(hex: "#CD7F32")
+    static let badgeBronzeDark = Color(hex: "#8B5A2B")
+    static let badgeSilver = Color(hex: "#C0C0C0")
+    static let badgeSilverDark = Color(hex: "#808080")
+    static let badgeGold = Color(hex: "#FFD700")
+    static let badgeGoldDark = Color(hex: "#DAA520")
 
     // MARK: - Adaptive Colors
 

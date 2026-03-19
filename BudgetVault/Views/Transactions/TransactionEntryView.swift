@@ -5,6 +5,9 @@ struct TransactionEntryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    @ScaledMetric(relativeTo: .body) private var chipSize: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) private var chipWidth: CGFloat = 56
+
     let budget: Budget
     let categories: [Category]
 
@@ -39,8 +42,11 @@ struct TransactionEntryView: View {
 
                 // Amount display
                 Text(CurrencyFormatter.displayAmount(text: amountText))
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .font(BudgetVaultTheme.amountEntry)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
                     .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                     .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
                     .padding(.top, 8)
 
@@ -87,20 +93,13 @@ struct TransactionEntryView: View {
                                     manualCategorySelection = true
                                     HapticManager.selection()
                                 } label: {
-                                    VStack(spacing: 4) {
-                                        Text(category.emoji)
-                                            .font(.title2)
-                                            .frame(width: 44, height: 44)
-                                            .background(
-                                                Circle()
-                                                    .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
-                                            )
-                                        Text(category.name)
-                                            .font(.caption2)
-                                            .lineLimit(1)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(width: 56)
+                                    CategoryChipView(
+                                        emoji: category.emoji,
+                                        name: category.name,
+                                        isSelected: selectedCategory?.id == category.id,
+                                        chipSize: chipSize,
+                                        chipWidth: chipWidth
+                                    )
                                 }
                                 .accessibilityLabel(category.name)
                                 .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
@@ -191,12 +190,8 @@ struct TransactionEntryView: View {
                     saveAndAddAnother()
                 } label: {
                     Text("Save & Add Another")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(10)
-                        .background(canSave ? Color.accentColor.opacity(0.15) : Color.gray.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(canSave ? Color.accentColor : .gray)
                 }
+                .buttonStyle(SecondaryButtonStyle(isEnabled: canSave))
                 .disabled(!canSave)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
