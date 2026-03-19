@@ -23,7 +23,7 @@ struct Insight: Identifiable {
 
 enum InsightsEngine {
 
-    static func generateInsights(budget: Budget, previousBudget: Budget?, allBudgets: [Budget] = []) -> [Insight] {
+    static func generateInsights(budget: Budget, previousBudget: Budget?, allBudgets: [Budget] = [], currentStreak: Int? = nil, lastLogDate: String? = nil) -> [Insight] {
         var insights: [Insight] = []
         let calendar = Calendar.current
         let today = Date()
@@ -103,7 +103,7 @@ enum InsightsEngine {
         }
 
         // 5. Streak
-        let streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
+        let streak = currentStreak ?? UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
         if streak >= 7 {
             insights.append(Insight(
                 icon: "🔥",
@@ -114,11 +114,11 @@ enum InsightsEngine {
         }
 
         // 6. Streak at risk
-        let lastLogDate = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
-        if streak > 0 && !lastLogDate.isEmpty {
+        let resolvedLastLogDate = lastLogDate ?? UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
+        if streak > 0 && !resolvedLastLogDate.isEmpty {
             let todayStr = DateHelpers.dateString(calendar.startOfDay(for: today))
             let hour = calendar.component(.hour, from: today)
-            if lastLogDate != todayStr && hour >= 18 {
+            if resolvedLastLogDate != todayStr && hour >= 18 {
                 insights.append(Insight(
                     icon: "⚠️",
                     title: "Streak at risk!",
