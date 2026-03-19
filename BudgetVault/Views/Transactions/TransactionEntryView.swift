@@ -17,6 +17,8 @@ struct TransactionEntryView: View {
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
     @Query(sort: \Transaction.date, order: .reverse) private var allRecentTransactions: [Transaction]
 
+    @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
+
     @State private var amountText = ""
     @State private var isIncome = false
     @State private var selectedCategory: Category?
@@ -27,7 +29,10 @@ struct TransactionEntryView: View {
     @State private var showNoteSuggestions = false
     @State private var showSaveError = false
     @State private var didApplyIntentPrefill = false
+    @State private var categoryAutoSelected = false
     @FocusState private var isInputFocused: Bool
+
+    private let categoryLearning = CategoryLearningService()
 
     /// Limit recent transactions to last 200 for performance
     private var recentTransactions: [Transaction] {
@@ -45,15 +50,43 @@ struct TransactionEntryView: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
 
-                // Amount display
-                Text(CurrencyFormatter.displayAmount(text: amountText))
-                    .font(BudgetVaultTheme.amountEntry)
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
-                    .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
-                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-                    .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
-                    .padding(.top, 8)
+                // Amount display with ghost text for suggested amount
+                ZStack {
+                    if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
+                        Text(CurrencyFormatter.displayAmount(text: suggestedAmount))
+                            .font(BudgetVaultTheme.amountEntry)
+                            .foregroundStyle(.secondary.opacity(0.3))
+                    }
+
+                    Text(CurrencyFormatter.displayAmount(text: amountText))
+                        .font(BudgetVaultTheme.amountEntry)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                        .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+                }
+                .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
+                .padding(.top, 8)
+
+                // Suggested amount tap target
+                if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
+                    Button {
+                        amountText = suggestedAmount
+                        HapticManager.selection()
+                    } label: {
+                        Text("Use suggested amount")
+                            .font(.caption)
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(Color.accentColor.opacity(0.1), in: Capsule())
+                    }
+                }
+
+                // Quick amount chips
+                if !isIncome {
+                    quickAmountChips
+                }
 
                 // Quick Add templates
                 if !frequentTemplates.isEmpty && !isIncome {
@@ -96,15 +129,26 @@ struct TransactionEntryView: View {
                                 Button {
                                     selectedCategory = category
                                     manualCategorySelection = true
+                                    categoryAutoSelected = false
                                     HapticManager.selection()
                                 } label: {
-                                    CategoryChipView(
-                                        emoji: category.emoji,
-                                        name: category.name,
-                                        isSelected: selectedCategory?.id == category.id,
-                                        chipSize: chipSize,
-                                        chipWidth: chipWidth
-                                    )
+                                    ZStack(alignment: .topTrailing) {
+                                        CategoryChipView(
+                                            emoji: category.emoji,
+                                            name: category.name,
+                                            isSelected: selectedCategory?.id == category.id,
+                                            chipSize: chipSize,
+                                            chipWidth: chipWidth
+                                        )
+
+                                        // Smart category auto-select indicator
+                                        if categoryAutoSelected && selectedCategory?.id == category.id {
+                                            Image(systemName: "sparkle")
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(Color.accentColor)
+                                                .offset(x: 2, y: -2)
+                                        }
+                                    }
                                 }
                                 .accessibilityLabel(category.name)
                                 .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
@@ -126,9 +170,19 @@ struct TransactionEntryView: View {
                             .focused($isInputFocused)
                             .onChange(of: note) { _, newValue in
                                 showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
-                                // Auto-suggest category when user hasn't manually picked one
-                                if !manualCategorySelection, let suggested = suggestedCategory {
-                                    selectedCategory = suggested
+
+                                // Auto-suggest category from learning service
+                                if !manualCategorySelection {
+                                    if let suggestion = categoryLearning.suggestCategory(for: newValue),
+                                       let match = categories.first(where: { $0.name == suggestion.categoryName }) {
+                                        selectedCategory = match
+                                        categoryAutoSelected = true
+                                    } else if let suggested = suggestedCategory {
+                                        selectedCategory = suggested
+                                        categoryAutoSelected = true
+                                    } else {
+                                        categoryAutoSelected = false
+                                    }
                                 }
                             }
                     }
@@ -142,8 +196,15 @@ struct TransactionEntryView: View {
                                     Button {
                                         note = suggestion
                                         showNoteSuggestions = false
-                                        if !manualCategorySelection, let suggested = suggestedCategory {
-                                            selectedCategory = suggested
+                                        if !manualCategorySelection {
+                                            if let learned = categoryLearning.suggestCategory(for: suggestion),
+                                               let match = categories.first(where: { $0.name == learned.categoryName }) {
+                                                selectedCategory = match
+                                                categoryAutoSelected = true
+                                            } else if let suggested = suggestedCategory {
+                                                selectedCategory = suggested
+                                                categoryAutoSelected = true
+                                            }
                                         }
                                     } label: {
                                         Text(suggestion)
@@ -241,6 +302,49 @@ struct TransactionEntryView: View {
         }
     }
 
+    // MARK: - Quick Amount Chips
+
+    @ViewBuilder
+    private var quickAmountChips: some View {
+        let symbol = CurrencyFormatter.currencySymbol(for: selectedCurrency)
+        let amounts: [Int64] = [500, 1000, 2000, 5000] // $5, $10, $20, $50 in cents
+
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(amounts, id: \.self) { cents in
+                    let dollars = cents / 100
+                    Button {
+                        amountText = "\(dollars)"
+                        HapticManager.selection()
+                    } label: {
+                        Text("\(symbol)\(dollars)")
+                            .font(.caption.bold())
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.accentColor.opacity(amountText == "\(dollars)" ? 0.2 : 0.08))
+                            )
+                    }
+                    .tint(.primary)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    // MARK: - Amount Auto-Suggest
+
+    /// When note matches a previous transaction's note exactly, show the last amount as ghost text.
+    private var suggestedAmountText: String? {
+        guard !note.isEmpty else { return nil }
+        let lowered = note.lowercased()
+        guard let match = recentTransactions.first(where: {
+            !$0.isIncome && $0.note.lowercased() == lowered && $0.amountCents > 0
+        }) else { return nil }
+        return CurrencyFormatter.formatRaw(cents: match.amountCents)
+    }
+
     // MARK: - Computed
 
     private var canSave: Bool {
@@ -317,10 +421,19 @@ struct TransactionEntryView: View {
             return
         }
 
+        // Record category learning
+        if !isIncome, let category = selectedCategory {
+            categoryLearning.recordMapping(note: note, categoryName: category.name)
+        }
+
         HapticManager.notification(.success)
         StreakService.recordLogEntry()
         WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay))
         UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
+
+        // Update last active date and reschedule re-engagement notifications
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.lastActiveDate)
+        NotificationService.scheduleReengagementNotifications()
 
         dismiss()
     }
@@ -342,14 +455,24 @@ struct TransactionEntryView: View {
             return
         }
 
+        // Record category learning
+        if !isIncome, let category = selectedCategory {
+            categoryLearning.recordMapping(note: note, categoryName: category.name)
+        }
+
         HapticManager.notification(.success)
         StreakService.recordLogEntry()
         WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay))
         UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
 
+        // Update last active date and reschedule re-engagement notifications
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.lastActiveDate)
+        NotificationService.scheduleReengagementNotifications()
+
         // Reset form but preserve selected category
         amountText = ""
         note = ""
+        categoryAutoSelected = false
         // Keep selectedCategory and manualCategorySelection as-is
         withAnimation { showSavedBanner = true }
     }

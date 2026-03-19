@@ -23,6 +23,12 @@ struct DashboardPlaceholderView: View {
 
     @AppStorage(AppStorageKeys.lastSummaryViewed) private var lastSummaryViewed = ""
     @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = true
+    @AppStorage(AppStorageKeys.lastActiveDate) private var lastActiveDate: Double = 0
+    @AppStorage(AppStorageKeys.catchUpDismissedDate) private var catchUpDismissedDate: Double = 0
+    @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
+    @AppStorage(AppStorageKeys.morningBriefingEnabled) private var morningBriefingEnabled = false
+    @AppStorage(AppStorageKeys.morningBriefingHour) private var morningBriefingHour = 8
+    @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
 
     @State private var viewModel = DashboardViewModel()
     @State private var hasAppeared = false
@@ -36,7 +42,10 @@ struct DashboardPlaceholderView: View {
     @State private var showMonthlyWrapped = false
     @State private var showAchievements = false
     @State private var newAchievementBanner: String?
+
     @State private var showProactivePaywall = false
+    @State private var showShareCard = false
+    @State private var shareCardImage: UIImage?
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
     @AppStorage(AppStorageKeys.hasSeenTransactionPaywall) private var hasSeenTransactionPaywall = false
@@ -83,6 +92,33 @@ struct DashboardPlaceholderView: View {
             .lazy
             .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
             .prefix(5))
+    }
+
+    // MARK: - Inactivity Detection
+
+    private var daysSinceLastActive: Int {
+        guard lastActiveDate > 0 else { return 0 }
+        let lastDate = Date(timeIntervalSince1970: lastActiveDate)
+        return max(Calendar.current.dateComponents([.day], from: lastDate, to: Date()).day ?? 0, 0)
+    }
+
+    private var showCatchUpCard: Bool {
+        guard daysSinceLastActive >= 3 else { return false }
+        // Don't show if dismissed today
+        if catchUpDismissedDate > 0 {
+            let dismissedDate = Date(timeIntervalSince1970: catchUpDismissedDate)
+            if Calendar.current.isDateInToday(dismissedDate) { return false }
+        }
+        return true
+    }
+
+    /// Recurring expenses that were auto-posted while user was away.
+    private var autoPostedWhileAway: [RecurringExpense] {
+        guard lastActiveDate > 0 else { return [] }
+        let lastDate = Date(timeIntervalSince1970: lastActiveDate)
+        return recurringExpenses.filter { expense in
+            expense.isActive && expense.nextDueDate > lastDate && expense.nextDueDate <= Date()
+        }
     }
 
     var body: some View {
@@ -183,6 +219,7 @@ struct DashboardPlaceholderView: View {
                 AchievementGridView()
                     .presentationDragIndicator(.visible)
             }
+
             .sheet(isPresented: $showProactivePaywall) {
                 PaywallView()
                     .presentationDragIndicator(.visible)
@@ -193,7 +230,47 @@ struct DashboardPlaceholderView: View {
 
                 // Check spending alerts
                 if let budget = cachedBudget {
+            .sheet(isPresented: $showShareCard) {
+                if let image = shareCardImage {
+                    ShareLink(item: Image(uiImage: image), preview: SharePreview("BudgetVault Milestone", image: Image(uiImage: image))) {
+                        VStack(spacing: 16) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: 320)
+                                .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL))
+
+                            Text("Share your achievement!")
+                                .font(.headline)
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .task {
+                // Update last active date
+                lastActiveDate = Date().timeIntervalSince1970
+
+                if let budget = currentBudget {
+                    // Check spending alerts
                     NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
+
+                    // Schedule personalized weekly summary
+                    if weeklyDigestEnabled {
+                        schedulePersonalizedWeeklySummary(budget: budget)
+                    }
+
+                    // Schedule morning briefing if enabled
+                    if morningBriefingEnabled {
+                        scheduleMorningBriefingWithData(budget: budget)
+                    }
+
+                    // Schedule end-of-period notifications
+                    NotificationService.scheduleEndOfPeriodNotifications(
+                        periodEnd: budget.nextPeriodStart,
+                        remainingCents: budget.remainingCents,
+                        currencyCode: selectedCurrency
+                    )
 
                     // Check achievements
                     let newBadges = AchievementService.checkAchievements(
@@ -203,9 +280,22 @@ struct DashboardPlaceholderView: View {
                     if let first = newBadges.first {
                         HapticManager.notification(.success)
                         newAchievementBanner = first.title
+
+                        // Check if this is a share-worthy milestone
+                        if first.id == "under_budget_1" || first.id == "streak_30" {
+                            prepareShareCard(for: first, budget: budget)
+                        }
+
                         try? await Task.sleep(for: .seconds(3))
                         newAchievementBanner = nil
                     }
+
+                    // Review prompt triggers
+                    ReviewPromptService.checkFirstMonthUnderBudget()
+                    let periodTxCount = allTransactions.filter {
+                        $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart
+                    }.count
+                    ReviewPromptService.checkTransactionMilestone(transactionCount: periodTxCount)
                 }
 
                 // Proactive paywall triggers (only for non-premium users)
@@ -267,6 +357,11 @@ struct DashboardPlaceholderView: View {
     private func dashboardContent(budget: Budget) -> some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Catch-up card for returning users (Phase 5.2 + 6.8)
+                if showCatchUpCard {
+                    catchUpCard(budget: budget)
+                }
+
                 // Monthly summary banner
                 if showSummaryBanner, let prev = previousBudget {
                     Button {
@@ -295,6 +390,9 @@ struct DashboardPlaceholderView: View {
                     .opacity(hasAppeared ? 1 : 0)
                     .offset(y: hasAppeared ? 0 : 20)
 
+                // Buffer days metric (Phase 6.1)
+                bufferDaysCard(budget: budget)
+
                 // Spending velocity
                 spendingVelocity(budget: budget)
                     .opacity(hasAppeared ? 1 : 0)
@@ -307,11 +405,14 @@ struct DashboardPlaceholderView: View {
                         .offset(y: hasAppeared ? 0 : 20)
                 }
 
-                // Savings goals
+                // Savings goals (Phase 5.7 - show empty state when no goals)
                 if !goalCategories.isEmpty {
                     savingsGoalsSection
+
                         .opacity(hasAppeared ? 1 : 0)
                         .offset(y: hasAppeared ? 0 : 20)
+                } else {
+                    savingsGoalEmptyState
                 }
 
                 // Monthly Wrapped card (premium)
@@ -384,6 +485,78 @@ struct DashboardPlaceholderView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Catch-Up Card (Phase 5.2 + 6.8)
+
+    @ViewBuilder
+    private func catchUpCard(budget: Budget) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "hand.wave.fill")
+                    .foregroundStyle(Color.accentColor)
+                Text("Welcome back!")
+                    .font(.subheadline.bold())
+                Spacer()
+                Button {
+                    withAnimation {
+                        catchUpDismissedDate = Date().timeIntervalSince1970
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Dismiss catch-up card")
+            }
+
+            Text("Here's what happened while you were away:")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            // Show auto-posted recurring expenses
+            let recentRecurring = recentAutoPostedExpenses(budget: budget)
+            if !recentRecurring.isEmpty {
+                ForEach(recentRecurring, id: \.id) { expense in
+                    HStack(spacing: 8) {
+                        Text(expense.category?.emoji ?? "")
+                        Text(expense.name)
+                            .font(.caption)
+                        Spacer()
+                        Text(CurrencyFormatter.format(cents: expense.amountCents))
+                            .font(.caption.bold())
+                    }
+                }
+            } else {
+                Text("No auto-posted expenses while you were away.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Button {
+                showTransactionEntry = true
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Quick add expense")
+                }
+                .font(.caption.bold())
+                .foregroundStyle(Color.accentColor)
+            }
+            .padding(.top, 4)
+        }
+        .padding(12)
+        .background(Color.accentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+        .padding(.horizontal)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// Get recently auto-posted recurring expenses (active ones with amounts, shown during catch-up).
+    private func recentAutoPostedExpenses(budget: Budget) -> [RecurringExpense] {
+        guard lastActiveDate > 0 else { return [] }
+        return recurringExpenses.filter { expense in
+            expense.isActive && expense.amountCents > 0
+        }.prefix(5).map { $0 }
     }
 
     // MARK: - Hero Budget Card
@@ -463,6 +636,47 @@ struct DashboardPlaceholderView: View {
         .padding(.horizontal, BudgetVaultTheme.spacingLG)
         .accessibilityElement(children: .combine)
         .accessibilityValue("\(CurrencyFormatter.format(cents: budget.remainingCents)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)), \(status)")
+    }
+
+    // MARK: - Buffer Days (Phase 6.1)
+
+    @ViewBuilder
+    private func bufferDaysCard(budget: Budget) -> some View {
+        if let days = computeBufferDays(budget: budget), days >= 0 {
+            HStack(spacing: 10) {
+                Image(systemName: "shield.checkered")
+                    .font(.title3)
+                    .foregroundStyle(days > 7 ? BudgetVaultTheme.positive : (days > 3 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("\(days)")
+                            .font(.title3.bold())
+                        Text("buffer day\(days == 1 ? "" : "s")")
+                            .font(.subheadline)
+                    }
+                    Text("Days your remaining budget could last at your current pace")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding(12)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+        }
+    }
+
+    private func computeBufferDays(budget: Budget) -> Int? {
+        let remaining = budget.remainingCents
+        guard remaining > 0 else { return 0 }
+        let totalSpent = budget.totalSpentCents()
+        guard totalSpent > 0 else { return nil }
+        let daysSoFar = max(Calendar.current.dateComponents([.day], from: budget.periodStart, to: Date()).day ?? 1, 1)
+        let avgDaily = totalSpent / Int64(daysSoFar)
+        guard avgDaily > 0 else { return nil }
+        return Int(remaining / avgDaily)
     }
 
     // MARK: - Spending Velocity
@@ -636,7 +850,7 @@ struct DashboardPlaceholderView: View {
         }
     }
 
-    // MARK: - Savings Goals
+    // MARK: - Savings Goals (Phase 5.7)
 
     private var goalCategories: [Category] {
         visibleCategories.filter { $0.isSavingsGoal && $0.goalAmountCents != nil }
@@ -670,6 +884,26 @@ struct DashboardPlaceholderView: View {
                 .accessibilityElement(children: .combine)
             }
         }
+    }
+
+    /// Subtle prompt when no savings goals exist.
+    @ViewBuilder
+    private var savingsGoalEmptyState: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "target")
+                .foregroundStyle(.secondary)
+            Text("Set a savings goal for any category")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM))
+        .padding(.horizontal)
+        .accessibilityLabel("Set a savings goal for any category. Navigate to Budget tab.")
     }
 
     // MARK: - Monthly Wrapped Card
@@ -780,6 +1014,7 @@ struct DashboardPlaceholderView: View {
         return max(calendar.dateComponents([.day], from: today, to: end).day ?? 1, 1)
     }
 
+
     /// Pre-compute spent values once and cache them (0.1 performance fix)
     private func refreshCachedValues() {
         let budget = currentBudget
@@ -798,6 +1033,55 @@ struct DashboardPlaceholderView: View {
     /// Look up cached spent value for a category, falling back to live computation
     private func cachedSpent(for category: Category, in budget: Budget) -> Int64 {
         cachedSpentMap[category.id] ?? category.spentCents(in: budget)
+    // MARK: - Notification Scheduling Helpers
+
+    private func schedulePersonalizedWeeklySummary(budget: Budget) {
+        let calendar = Calendar.current
+        let today = Date()
+        guard let weekAgo = calendar.date(byAdding: .day, value: -7, to: today) else { return }
+
+        let weekTransactions = allTransactions.filter {
+            !$0.isIncome && $0.date >= weekAgo && $0.date < today
+        }
+        let weeklySpent = weekTransactions.reduce(Int64(0)) { $0 + $1.amountCents }
+
+        NotificationService.scheduleWeeklySummary(
+            weeklySpent: weeklySpent,
+            transactionCount: weekTransactions.count,
+            remaining: budget.remainingCents,
+            currencyCode: selectedCurrency
+        )
+    }
+
+    private func scheduleMorningBriefingWithData(budget: Budget) {
+        let daysRemaining = daysRemainingInPeriod(budget: budget)
+        let dailyAllowance = budget.remainingCents > 0 ? budget.remainingCents / Int64(max(daysRemaining, 1)) : 0
+
+        let upcoming = upcomingRecurringExpenses
+        NotificationService.scheduleMorningBriefing(
+            dailyAllowance: dailyAllowance,
+            daysRemaining: daysRemaining,
+            upcomingBills: upcoming.count,
+            currencyCode: selectedCurrency,
+            hour: morningBriefingHour
+        )
+    }
+
+    // MARK: - Share Card (Phase 5.5)
+
+    private func prepareShareCard(for achievement: AchievementService.Achievement, budget: Budget) {
+        let card = ShareCardView(
+            title: "Achievement Unlocked!",
+            subtitle: achievement.description,
+            metric: achievement.emoji,
+            metricLabel: achievement.title
+        )
+        shareCardImage = card.renderImage()
+        // Show share prompt after achievement banner dismisses
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            await MainActor.run { showShareCard = true }
+        }
     }
 
 }
