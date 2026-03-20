@@ -6,23 +6,7 @@ struct PaywallView: View {
     @Environment(StoreKitManager.self) private var storeKit
     @State private var showWelcomePremium = false
 
-    @ScaledMetric(relativeTo: .body) private var featureIconSize: CGFloat = 36
-
-    private let features: [(icon: String, title: String, detail: String)] = [
-        ("brain.head.profile", "Smart Insights", "Predictions, anomaly detection & spending patterns"),
-        ("square.grid.2x2", "Unlimited Categories", "Organize with unlimited categories"),
-        ("repeat", "Unlimited Recurring", "Automate all your bills"),
-        ("doc.text", "Full CSV Import/Export", "Full history export & import"),
-        ("chart.xyaxis.line", "Historical Charts", "Month comparisons & smart insights"),
-        ("flame", "Streak Freeze", "Protect your streak once a week"),
-    ]
-
-    private var daysRemaining: Int {
-        let now = Date()
-        let end = StoreKitManager.launchPricingEndDate
-        let components = Calendar.current.dateComponents([.day], from: now, to: end)
-        return max(components.day ?? 0, 0)
-    }
+    @ScaledMetric(relativeTo: .body) private var heroIconSize: CGFloat = 44
 
     private var displayPrice: String? {
         storeKit.premiumProduct?.displayPrice
@@ -31,156 +15,113 @@ struct PaywallView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
-                    // Hero header
-                    VStack(spacing: 12) {
-                        VaultDialMark(size: 72)
-                            .padding(.top, 32)
+                VStack(spacing: 0) {
+                    // MARK: - Navy Gradient Hero
+                    heroSection
 
-                        Text("Unlock BudgetVault Premium")
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-
-                        if storeKit.isLaunchPricing, let price = displayPrice {
-                            VStack(spacing: 4) {
-                                Text("Launch Special: \(price) — limited time")
-                                    .font(.subheadline.bold())
-                                    .foregroundStyle(.white)
-                                Text("\(daysRemaining) days left at this price")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.9))
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(.white.opacity(0.2), in: Capsule())
-                        }
-                    }
-                    .padding(.bottom, 24)
-                    .frame(maxWidth: .infinity)
-                    .background(BudgetVaultTheme.brandGradient)
-
-                    // Save vs subscriptions callout
-                    HStack(spacing: 6) {
-                        Image(systemName: "tag.fill")
-                            .foregroundStyle(BudgetVaultTheme.positive)
-                        Text("One-time purchase — no subscription")
-                            .font(.caption.bold())
-                            .foregroundStyle(BudgetVaultTheme.positive)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(BudgetVaultTheme.positive.opacity(0.12), in: Capsule())
-
-                    // Feature list
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(features, id: \.title) { feature in
-                            HStack(spacing: 12) {
-                                Image(systemName: feature.icon)
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.white)
-                                    .frame(width: featureIconSize, height: featureIconSize)
-                                    .background(Color.accentColor, in: Circle())
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(feature.title)
-                                        .font(.subheadline.bold())
-                                    Text(feature.detail)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .accessibilityElement(children: .combine)
-                        }
-                    }
-                    .padding(.horizontal, 32)
-
-                    // Price anchoring: competitor comparison
-                    VStack(spacing: 8) {
-                        Text("Other apps charge yearly:")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        VStack(spacing: 4) {
-                            competitorRow(name: "YNAB", price: "$109/year")
-                            competitorRow(name: "Monarch", price: "$99/year")
-                            competitorRow(name: "Copilot", price: "$70/year")
-                        }
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 12)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 24)
-
-                    // Price
-                    if let price = displayPrice {
-                        VStack(spacing: 4) {
-                            Text("BudgetVault")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(BudgetVaultTheme.electricBlue)
-                            Text(price)
-                                .font(BudgetVaultTheme.priceDisplay)
-                                .minimumScaleFactor(0.7)
-                                .lineLimit(1)
-                                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-                            Text("one-time purchase \u{2014} forever")
-                                .font(.subheadline.bold())
+                    // MARK: - Content on white/system background
+                    VStack(spacing: BudgetVaultTheme.spacingXL) {
+                        // One-time purchase badge
+                        HStack(spacing: 6) {
+                            Image(systemName: "tag.fill")
                                 .foregroundStyle(BudgetVaultTheme.positive)
-                            Text("Pay once, use forever")
+                            Text("One-time purchase \u{2014} no subscription")
+                                .font(.caption.bold())
+                                .foregroundStyle(BudgetVaultTheme.positive)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(BudgetVaultTheme.positive.opacity(0.12), in: Capsule())
+                        .padding(.top, BudgetVaultTheme.spacingXL)
+
+                        // MARK: - Hero Feature Cards
+                        VStack(spacing: BudgetVaultTheme.spacingMD) {
+                            heroFeatureCard(
+                                icon: "brain.head.profile",
+                                title: "Vault Intelligence",
+                                description: "On-device AI predicts spending, spots anomalies, and finds patterns. Your data never leaves your phone."
+                            )
+
+                            heroFeatureCard(
+                                icon: "square.grid.2x2",
+                                title: "Unlimited Envelopes & Bills",
+                                description: "Build the budget you actually need. No limits on categories or recurring expenses."
+                            )
+
+                            heroFeatureCard(
+                                icon: "chart.xyaxis.line",
+                                title: "Advanced Reports",
+                                description: "Full CSV import/export, spending heatmaps, and category forecasts."
+                            )
+                        }
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                        // MARK: - Bonus Features
+                        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
+                            Text("Also included")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+
+                            bonusRow(icon: "arrow.triangle.branch", text: "Debt payoff tracker (Snowball & Avalanche)")
+                            bonusRow(icon: "star.circle.fill", text: "Monthly Wrapped spending recap")
+                            bonusRow(icon: "square.and.arrow.up", text: "Shareable insight cards")
+                        }
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+                        // MARK: - Competitor Comparison
+                        VStack(spacing: 8) {
+                            Text("Other apps charge yearly:")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+
+                            VStack(spacing: 4) {
+                                competitorRow(name: "YNAB", price: "$109/year")
+                                competitorRow(name: "Monarch", price: "$99/year")
+                                competitorRow(name: "Copilot", price: "$70/year")
+                            }
+
+                            if let price = displayPrice {
+                                HStack {
+                                    Text("BudgetVault")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(BudgetVaultTheme.electricBlue)
+                                    Spacer()
+                                    Text("\(price) once. Forever.")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(BudgetVaultTheme.positive)
+                                }
+                                .padding(.top, 4)
+                            }
+                        }
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                        .padding(.vertical, BudgetVaultTheme.spacingMD)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                        // MARK: - Purchase Area
+                        purchaseArea
+
+                        // MARK: - Footer
+                        VStack(spacing: 4) {
+                            Text("Family Sharing included \u{2014} one purchase covers your whole family.")
+                            Text("No subscription. No recurring charges. Ever.")
+                            Text("All data stays on your device. Always.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.top, 8)
-                    }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
-                    // Product load error (Bug 5)
-                    if let loadError = storeKit.productLoadError, storeKit.premiumProduct == nil {
-                        VStack(spacing: 12) {
-                            Text(loadError)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button("Try Again") {
-                                storeKit.retryLoadProducts()
-                            }
-                            .buttonStyle(PrimaryButtonStyle())
+                        HStack(spacing: 16) {
+                            Link("Privacy Policy", destination: URL(string: "https://budgetvault.io/privacy")!)
+                            Link("Terms of Service", destination: URL(string: "https://budgetvault.io/terms")!)
                         }
-                        .padding(.horizontal, 32)
-                    } else if storeKit.premiumProduct == nil {
-                        // Products still loading (Bug 8)
-                        ProgressView("Loading products...")
-                            .padding(.vertical, 8)
-                    } else {
-                        // Purchase button
-                        purchaseButton
-                            .padding(.horizontal, 32)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, BudgetVaultTheme.spacingXL)
                     }
-
-                    // Restore
-                    Button("Restore Purchases") {
-                        Task { await storeKit.restorePurchases() }
-                    }
-                    .font(.subheadline)
-
-                    // Footers
-                    VStack(spacing: 4) {
-                        Text("Family Sharing included — one purchase covers your whole family.")
-                        Text("No subscription. No recurring charges. Ever.")
-                        Text("All data stays on your device. Always.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-
-                    HStack(spacing: 16) {
-                        Link("Privacy Policy", destination: URL(string: "https://budgetvault.io/privacy")!)
-                        Link("Terms of Service", destination: URL(string: "https://budgetvault.io/terms")!)
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 24)
                 }
             }
             .toolbar {
@@ -221,6 +162,154 @@ struct PaywallView: View {
         }
     }
 
+    // MARK: - Hero Section
+
+    @ViewBuilder
+    private var heroSection: some View {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
+            VaultDialMark(size: 72)
+                .padding(.top, BudgetVaultTheme.spacingXL)
+
+            Text("Unlock the Full Vault")
+                .font(.title2.bold())
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+
+            Text("One-time purchase. Yours forever.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.8))
+        }
+        .padding(.bottom, BudgetVaultTheme.spacingXL)
+        .frame(maxWidth: .infinity)
+        .background(BudgetVaultTheme.brandGradient)
+    }
+
+    // MARK: - Hero Feature Card
+
+    @ViewBuilder
+    private func heroFeatureCard(icon: String, title: String, description: String) -> some View {
+        HStack(alignment: .top, spacing: BudgetVaultTheme.spacingMD) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.white)
+                .frame(width: heroIconSize, height: heroIconSize)
+                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.bold())
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(BudgetVaultTheme.spacingLG)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Bonus Row
+
+    @ViewBuilder
+    private func bonusRow(icon: String, text: String) -> some View {
+        HStack(spacing: BudgetVaultTheme.spacingSM) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(BudgetVaultTheme.positive)
+                .font(.caption)
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 20)
+            Text(text)
+                .font(.caption)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Competitor Row
+
+    private func competitorRow(name: String, price: String) -> some View {
+        HStack {
+            Text(name)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(price)
+                .font(.subheadline)
+                .strikethrough()
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Purchase Area
+
+    @ViewBuilder
+    private var purchaseArea: some View {
+        // Product load error
+        if let loadError = storeKit.productLoadError, storeKit.premiumProduct == nil {
+            VStack(spacing: 12) {
+                Text(loadError)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("Try Again") {
+                    storeKit.retryLoadProducts()
+                }
+                .buttonStyle(PrimaryButtonStyle())
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+        } else if storeKit.premiumProduct == nil {
+            // Products still loading
+            ProgressView("Loading products...")
+                .padding(.vertical, 8)
+        } else {
+            // Purchase button
+            purchaseButton
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+        }
+
+        // Restore
+        Button("Restore Purchases") {
+            Task { await storeKit.restorePurchases() }
+        }
+        .font(.subheadline)
+    }
+
+    // MARK: - Purchase Button
+
+    @ViewBuilder
+    private var purchaseButton: some View {
+        Button {
+            if let product = storeKit.premiumProduct {
+                Task { await storeKit.purchase(product) }
+            }
+        } label: {
+            Group {
+                switch storeKit.purchaseState {
+                case .idle, .error:
+                    Text("Unlock the Vault\(displayPrice.map { " for \($0)" } ?? "")")
+                        .font(.headline)
+                case .loading:
+                    ProgressView()
+                        .tint(.white)
+                case .success:
+                    VStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 28))
+                        Text("Vault Unlocked!")
+                            .font(.subheadline.bold())
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(PrimaryButtonStyle(isEnabled: storeKit.purchaseState != .loading && storeKit.purchaseState != .success))
+        .disabled(storeKit.purchaseState == .loading || storeKit.purchaseState == .success)
+    }
+
     // MARK: - Post-Purchase Welcome
 
     @ViewBuilder
@@ -231,20 +320,21 @@ struct PaywallView: View {
 
                 VaultDialMark(size: 80, showGlow: true)
 
-                Text("Welcome to Premium!")
+                Text("Welcome to the Full Vault!")
                     .font(.title.bold())
 
-                Text("You've unlocked the full vault.")
+                Text("You've unlocked every premium feature.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 12) {
+                    unlockRow(icon: "brain.head.profile", text: "Vault Intelligence & predictions")
                     unlockRow(icon: "square.grid.2x2", text: "Unlimited categories")
                     unlockRow(icon: "repeat", text: "Unlimited recurring expenses")
-                    unlockRow(icon: "brain.head.profile", text: "Smart insights & predictions")
-                    unlockRow(icon: "chart.xyaxis.line", text: "Historical charts & trends")
+                    unlockRow(icon: "chart.xyaxis.line", text: "Advanced reports & charts")
                     unlockRow(icon: "doc.text", text: "Full CSV import & export")
-                    unlockRow(icon: "flame", text: "Weekly streak freeze")
+                    unlockRow(icon: "creditcard.fill", text: "Debt payoff tracker")
+                    unlockRow(icon: "star.circle.fill", text: "Monthly Wrapped recap")
                 }
                 .padding(.horizontal, 40)
 
@@ -274,48 +364,5 @@ struct PaywallView: View {
             Text(text)
                 .font(.subheadline)
         }
-    }
-
-    private func competitorRow(name: String, price: String) -> some View {
-        HStack {
-            Text(name)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(price)
-                .font(.subheadline)
-                .strikethrough()
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    @ViewBuilder
-    private var purchaseButton: some View {
-        Button {
-            if let product = storeKit.premiumProduct {
-                Task { await storeKit.purchase(product) }
-            }
-        } label: {
-            Group {
-                switch storeKit.purchaseState {
-                case .idle, .error:
-                    Text("Unlock Premium\(displayPrice.map { " for \($0)" } ?? "")")
-                        .font(.headline)
-                case .loading:
-                    ProgressView()
-                        .tint(.white)
-                case .success:
-                    VStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 28))
-                        Text("Vault Unlocked!")
-                            .font(.subheadline.bold())
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(PrimaryButtonStyle(isEnabled: storeKit.purchaseState != .loading && storeKit.purchaseState != .success))
-        .disabled(storeKit.purchaseState == .loading || storeKit.purchaseState == .success)
     }
 }

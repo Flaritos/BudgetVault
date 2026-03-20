@@ -776,16 +776,16 @@ struct DashboardView: View {
     private var premiumTeaser: some View {
         VStack(spacing: BudgetVaultTheme.spacingMD) {
             premiumFeatureCard(
-                icon: "chart.xyaxis.line",
-                title: "Smart Insights",
-                subtitle: "AI-powered spending predictions and patterns",
+                icon: "brain.head.profile",
+                title: "Vault Intelligence",
+                subtitle: "AI-powered spending predictions and anomaly detection",
                 gradient: [BudgetVaultTheme.electricBlue, BudgetVaultTheme.brightBlue]
             )
 
             premiumFeatureCard(
-                icon: "creditcard.fill",
-                title: "Finance Tools",
-                subtitle: "Track debts, net worth, and savings goals",
+                icon: "lock.open.fill",
+                title: "Unlock the Vault",
+                subtitle: "Unlimited envelopes, debt tracker, and advanced reports",
                 gradient: [Color.purple, Color.indigo]
             )
         }

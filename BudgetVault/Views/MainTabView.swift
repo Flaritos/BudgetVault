@@ -19,7 +19,7 @@ struct MainTabView: View {
             if isPremium {
                 FinanceTabView()
                     .tabItem {
-                        Label("Finance", systemImage: "chart.bar.fill")
+                        Label("Vault", systemImage: "lock.open.fill")
                     }
             }
 

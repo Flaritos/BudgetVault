@@ -10,18 +10,15 @@ enum StreakService {
         let todayStr = DateHelpers.dateString(today)
         let lastLogDate = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
         var streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
-        let isPremium = UserDefaults.standard.bool(forKey: AppStorageKeys.isPremium)
         var freezes = UserDefaults.standard.integer(forKey: AppStorageKeys.streakFreezesRemaining)
 
-        // Reset freeze to 1 every Monday for premium users
-        if isPremium {
-            let weekday = calendar.component(.weekday, from: today)
-            let lastFreezeReset = UserDefaults.standard.string(forKey: AppStorageKeys.lastFreezeReset) ?? ""
-            if weekday == 2 && lastFreezeReset != todayStr { // Monday
-                freezes = 1
-                UserDefaults.standard.set(freezes, forKey: AppStorageKeys.streakFreezesRemaining)
-                UserDefaults.standard.set(todayStr, forKey: AppStorageKeys.lastFreezeReset)
-            }
+        // Reset freeze to 1 every Monday — free for everyone
+        let weekday = calendar.component(.weekday, from: today)
+        let lastFreezeReset = UserDefaults.standard.string(forKey: AppStorageKeys.lastFreezeReset) ?? ""
+        if weekday == 2 && lastFreezeReset != todayStr { // Monday
+            freezes = 1
+            UserDefaults.standard.set(freezes, forKey: AppStorageKeys.streakFreezesRemaining)
+            UserDefaults.standard.set(todayStr, forKey: AppStorageKeys.lastFreezeReset)
         }
 
         // Check if yesterday was missed and we can use a freeze

@@ -2,10 +2,7 @@ import SwiftUI
 
 struct ThemePickerView: View {
     @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
-    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @Environment(\.dismiss) private var dismiss
-
-    @State private var showPaywall = false
 
     private let columns = [
         GridItem(.adaptive(minimum: 70), spacing: 16)
@@ -27,19 +24,13 @@ struct ThemePickerView: View {
                 }
                 .padding(.top, 8)
 
-                // Color Grid
+                // Color Grid — all 10 colors free for everyone
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(BudgetVaultTheme.accentColorOptions, id: \.hex) { option in
                         let isSelected = accentColorHex == option.hex
-                        let isDefault = option.hex == "#2563EB"
-                        let isLocked = !isPremium && !isDefault
 
                         Button {
-                            if isLocked {
-                                showPaywall = true
-                            } else {
-                                accentColorHex = option.hex
-                            }
+                            accentColorHex = option.hex
                         } label: {
                             VStack(spacing: 6) {
                                 ZStack {
@@ -52,16 +43,6 @@ struct ThemePickerView: View {
                                             .font(.body.bold())
                                             .foregroundStyle(.white)
                                     }
-
-                                    if isLocked {
-                                        Circle()
-                                            .fill(.black.opacity(0.35))
-                                            .frame(width: 48, height: 48)
-
-                                        Image(systemName: "lock.fill")
-                                            .font(.caption)
-                                            .foregroundStyle(.white)
-                                    }
                                 }
 
                                 Text(option.name)
@@ -71,21 +52,10 @@ struct ThemePickerView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(option.name)\(isSelected ? ", selected" : "")\(isLocked ? ", premium required" : "")")
+                        .accessibilityLabel("\(option.name)\(isSelected ? ", selected" : "")")
                     }
                 }
                 .padding(.horizontal)
-
-                if !isPremium {
-                    HStack(spacing: 6) {
-                        Image(systemName: "lock.fill")
-                            .font(.caption)
-                        Text("Unlock all colors with Premium")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 4)
-                }
 
                 Spacer()
             }
@@ -97,9 +67,6 @@ struct ThemePickerView: View {
                         dismiss()
                     }
                 }
-            }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
             }
         }
     }
