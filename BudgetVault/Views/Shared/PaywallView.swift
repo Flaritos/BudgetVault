@@ -12,6 +12,7 @@ struct PaywallView: View {
         ("doc.text", "Full CSV Import/Export", "Full history export & import"),
         ("chart.xyaxis.line", "Historical Charts", "Month comparisons & smart insights"),
         ("flame", "Streak Freeze", "Protect your streak once a week"),
+        ("arrow.forward.circle", "Category Rollover", "Carry unspent funds to next month automatically"),
     ]
 
     private var daysRemaining: Int {
