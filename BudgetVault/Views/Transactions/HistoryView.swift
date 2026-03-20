@@ -262,7 +262,7 @@ struct HistoryView: View {
     private var gradientHeader: some View {
         VStack(spacing: 0) {
             HStack {
-                // Back month
+                // Left side — fixed width to balance right side
                 Button {
                     navigateMonth(-1)
                 } label: {
@@ -273,10 +273,11 @@ struct HistoryView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Previous month")
+                .frame(width: 88, alignment: .leading)
 
                 Spacer()
 
-                // Month/year title
+                // Center — Month/year title
                 VStack(spacing: 2) {
                     Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear))
                         .font(.title3.weight(.bold))
@@ -308,7 +309,7 @@ struct HistoryView: View {
 
                 Spacer()
 
-                // Forward month + overflow menu
+                // Right side — fixed width to balance left side
                 HStack(spacing: BudgetVaultTheme.spacingSM) {
                     Button {
                         navigateMonth(1)
@@ -355,6 +356,7 @@ struct HistoryView: View {
                     }
                     .accessibilityLabel("More options")
                 }
+                .frame(width: 88, alignment: .trailing)
             }
             .padding(.horizontal, BudgetVaultTheme.spacingMD)
         }

@@ -14,6 +14,7 @@ struct DashboardView: View {
     @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 160
     @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 130
     @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
+    @ScaledMetric(relativeTo: .title) private var dialRingSize: CGFloat = 180
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
@@ -455,6 +456,8 @@ struct DashboardView: View {
         dayProgressFraction: Double,
         dayProgressText: String
     ) -> some View {
+        let spentFraction = 1.0 - budget.percentRemaining
+
         ZStack {
             // Full-bleed navy gradient background
             LinearGradient(
@@ -462,90 +465,102 @@ struct DashboardView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            .ignoresSafeArea(edges: .top)
 
-            // VaultDialMark watermark — large, centered, very faint
-            VaultDialMark(size: 140)
-                .opacity(0.08)
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
+                // The Vault Dial Ring with Progress
+                ZStack {
+                    // Layer 1: VaultDialMark as decorative ring
+                    VaultDialMark(size: dialRingSize)
+                        .opacity(0.15)
 
-            // Hero content — pure data display, no buttons
-            VStack(spacing: BudgetVaultTheme.spacingSM) {
-                // Daily allowance — THE MASSIVE hero number
-                Text(CurrencyFormatter.format(cents: dailyAllowanceCents))
-                    .font(BudgetVaultTheme.heroAmount)
-                    .foregroundStyle(.white)
-                    .shadow(color: .white.opacity(0.08), radius: 40)
-                    .contentTransition(.numericText())
-                    .animation(.default, value: dailyAllowanceCents)
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
-                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+                    // Layer 2: Spending progress arc
+                    Circle()
+                        .trim(from: 0, to: min(spentFraction, 1.0))
+                        .stroke(
+                            spendingArcGradient(for: spentFraction),
+                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: dialRingSize * 0.82, height: dialRingSize * 0.82)
+                        .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
 
-                Text("per day")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.7))
+                    // Layer 3: Center content
+                    VStack(spacing: BudgetVaultTheme.spacingXS) {
+                        Text(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .contentTransition(.numericText())
+                            .animation(.snappy, value: dailyAllowanceCents)
+                            .minimumScaleFactor(0.6)
+                            .lineLimit(1)
 
-                // Spent today
-                let todaySpent = allTransactions.filter { Calendar.current.isDateInToday($0.date) && !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
-                if todaySpent > 0 {
-                    Text("\(CurrencyFormatter.format(cents: todaySpent, currencyCode: selectedCurrency)) spent today")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                }
+                        Text("per day")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
 
-                Spacer().frame(height: BudgetVaultTheme.spacingSM)
-
-                // Thin white progress bar (custom, not ProgressView)
-                VStack(spacing: 6) {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 1.5)
-                                .fill(.white.opacity(0.2))
-                                .frame(height: 3)
-                            RoundedRectangle(cornerRadius: 1.5)
-                                .fill(.white)
-                                .frame(width: geo.size.width * min(max(dayProgressFraction, 0), 1.0), height: 3)
+                        // Spent today
+                        let todaySpent = allTransactions.filter { Calendar.current.isDateInToday($0.date) && !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+                        if todaySpent > 0 {
+                            Text("\(CurrencyFormatter.format(cents: todaySpent, currencyCode: selectedCurrency)) spent today")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
                         }
                     }
-                    .frame(height: 3)
-
-                    Text(dayProgressText)
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.5))
+                    .frame(width: dialRingSize * 0.6) // constrain text to inner ring area
                 }
-                .frame(maxWidth: 240)
+                .frame(width: dialRingSize, height: dialRingSize)
 
-                Spacer().frame(height: BudgetVaultTheme.spacingXS)
+                // Below the ring: remaining + streak on one line
+                VStack(spacing: BudgetVaultTheme.spacingXS) {
+                    Text("\(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) of \(CurrencyFormatter.format(cents: budget.totalIncomeCents, currencyCode: selectedCurrency))")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
 
-                // Remaining / budget — two separate lines for clarity
-                Text("\(CurrencyFormatter.format(cents: budget.remainingCents)) remaining")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.6))
-                Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) budget")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.4))
+                    HStack(spacing: BudgetVaultTheme.spacingMD) {
+                        Text(dayProgressText)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.5))
 
-                // Streak badge — capsule with fire emoji
-                if currentStreak > 0 {
-                    HStack(spacing: 4) {
-                        Text("\u{1F525}")
-                        Text("\(currentStreak) day streak")
-                            .font(.caption.weight(.medium))
+                        if currentStreak > 0 {
+                            HStack(spacing: BudgetVaultTheme.spacingXS) {
+                                Text("\u{1F525}")
+                                    .font(.caption2)
+                                Text("\(currentStreak) day streak")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, BudgetVaultTheme.spacingMD)
+                            .padding(.vertical, BudgetVaultTheme.spacingXS)
+                            .background(.white.opacity(0.15), in: Capsule())
+                        }
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, BudgetVaultTheme.spacingMD)
-                    .padding(.vertical, BudgetVaultTheme.spacingXS)
-                    .background(.white.opacity(0.15), in: Capsule())
-                    .padding(.top, BudgetVaultTheme.spacingXS)
-                    .accessibilityLabel("Logging streak: \(currentStreak) days")
                 }
             }
-            .padding(.top, BudgetVaultTheme.spacingLG) // safe area handled by ignoresSafeArea
-            .padding(.bottom, BudgetVaultTheme.spacingXL + 30) // extra room for panel overlap
-            .frame(maxWidth: .infinity)
+            .padding(.top, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
         }
-        .frame(minHeight: 340)
         .accessibilityElement(children: .combine)
-        .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)). \(dayProgressText)")
+        .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents, currencyCode: selectedCurrency)). \(dayProgressText)")
+    }
+
+    // MARK: - Spending Arc Gradient
+
+    private func spendingArcGradient(for fraction: Double) -> AngularGradient {
+        let colors: [Color]
+        if fraction > 0.9 {
+            colors = [BudgetVaultTheme.negative, BudgetVaultTheme.negative]
+        } else if fraction > 0.75 {
+            colors = [BudgetVaultTheme.caution, BudgetVaultTheme.negative]
+        } else {
+            colors = [BudgetVaultTheme.positive, BudgetVaultTheme.caution]
+        }
+        return AngularGradient(
+            gradient: Gradient(colors: colors),
+            center: .center,
+            startAngle: .degrees(0),
+            endAngle: .degrees(360 * fraction)
+        )
     }
 
     // MARK: - 2. Envelope Cards

@@ -200,6 +200,109 @@ enum DebugSeedService {
         SafeSave.save(context)
     }
 
+    /// Seeds 15 days of realistic transactions into the user's existing budget
+    @MainActor
+    static func seed15DaysOfData(container: ModelContainer) {
+        let context = container.mainContext
+        let calendar = Calendar.current
+
+        // Find the current budget
+        let descriptor = FetchDescriptor<Budget>(
+            sortBy: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]
+        )
+        guard let budget = try? context.fetch(descriptor).first else { return }
+        let categories = (budget.categories ?? []).sorted { $0.sortOrder < $1.sortOrder }
+        guard categories.count >= 3 else { return }
+
+        // Check if we already seeded (avoid duplicates)
+        let txCheck = FetchDescriptor<Transaction>()
+        let existingCount = (try? context.fetchCount(txCheck)) ?? 0
+        guard existingCount < 10 else { return } // already has data
+
+        let today = Date()
+
+        func dayAgo(_ days: Int, hour: Int = 12) -> Date {
+            calendar.date(byAdding: .day, value: -days, to: calendar.startOfDay(for: today))!
+                .addingTimeInterval(TimeInterval(hour * 3600))
+        }
+
+        // Map categories by name for easy access
+        let catMap = Dictionary(uniqueKeysWithValues: categories.map { ($0.name.lowercased(), $0) })
+        let cat1 = categories[0] // e.g., Rent/Housing
+        let cat2 = categories[1] // e.g., Groceries
+        let cat3 = categories[2] // e.g., Transport
+        let cat4 = categories.count > 3 ? categories[3] : cat1
+        let cat5 = categories.count > 4 ? categories[4] : cat2
+        let cat6 = categories.count > 5 ? categories[5] : cat3
+
+        // Day 1 (15 days ago) — big rent/housing payment
+        addTx(context, cat: cat1, cents: 125000, note: "Monthly rent", date: dayAgo(15, hour: 9))
+        addTx(context, cat: cat2, cents: 6532, note: "Trader Joe's", date: dayAgo(15, hour: 18))
+
+        // Day 2
+        addTx(context, cat: cat3, cents: 2450, note: "Uber to work", date: dayAgo(14, hour: 8))
+        addTx(context, cat: cat4, cents: 1850, note: "Coffee & pastry", date: dayAgo(14, hour: 9))
+
+        // Day 3
+        addTx(context, cat: cat2, cents: 8740, note: "Whole Foods", date: dayAgo(13, hour: 14))
+        addTx(context, cat: cat5, cents: 1599, note: "Netflix", date: dayAgo(13, hour: 12))
+
+        // Day 4
+        addTx(context, cat: cat3, cents: 276, note: "Bus fare", date: dayAgo(12, hour: 8))
+        addTx(context, cat: cat4, cents: 4200, note: "Brunch with friends", date: dayAgo(12, hour: 13))
+        addTx(context, cat: cat2, cents: 3215, note: "Corner store", date: dayAgo(12, hour: 17))
+
+        // Day 5 — no-spend day! (skip)
+
+        // Day 6
+        addTx(context, cat: cat3, cents: 4500, note: "Gas fillup", date: dayAgo(10, hour: 17))
+        addTx(context, cat: cat4, cents: 850, note: "Coffee", date: dayAgo(10, hour: 9))
+
+        // Day 7 — weekend splurge
+        addTx(context, cat: cat4, cents: 6500, note: "Dinner date", date: dayAgo(9, hour: 19))
+        addTx(context, cat: cat5, cents: 3500, note: "Concert tickets", date: dayAgo(9, hour: 20))
+
+        // Day 8
+        addTx(context, cat: cat2, cents: 4520, note: "Weekly produce", date: dayAgo(8, hour: 11))
+        addTx(context, cat: cat6, cents: 8500, note: "Electric bill", date: dayAgo(8, hour: 12))
+
+        // Day 9
+        addTx(context, cat: cat3, cents: 276, note: "Bus fare", date: dayAgo(7, hour: 8))
+        addTx(context, cat: cat4, cents: 1250, note: "Lunch", date: dayAgo(7, hour: 12))
+
+        // Day 10
+        addTx(context, cat: cat2, cents: 15200, note: "Costco bulk run", date: dayAgo(6, hour: 10))
+
+        // Day 11
+        addTx(context, cat: cat4, cents: 3800, note: "Happy hour", date: dayAgo(5, hour: 18))
+        addTx(context, cat: cat3, cents: 276, note: "Bus fare", date: dayAgo(5, hour: 8))
+
+        // Day 12 — no-spend day! (skip)
+
+        // Day 13
+        addTx(context, cat: cat5, cents: 1800, note: "Movie night", date: dayAgo(3, hour: 21))
+        addTx(context, cat: cat2, cents: 2890, note: "Snacks", date: dayAgo(3, hour: 16))
+
+        // Day 14
+        addTx(context, cat: cat4, cents: 5200, note: "Birthday dinner", date: dayAgo(2, hour: 20))
+        addTx(context, cat: cat6, cents: 4500, note: "Internet bill", date: dayAgo(2, hour: 12))
+
+        // Day 15 (yesterday)
+        addTx(context, cat: cat2, cents: 5680, note: "Grocery run", date: dayAgo(1, hour: 17))
+        addTx(context, cat: cat3, cents: 1200, note: "Parking", date: dayAgo(1, hour: 10))
+        addTx(context, cat: cat4, cents: 950, note: "Coffee", date: dayAgo(1, hour: 9))
+
+        // Income — paycheck
+        let income = Transaction(amountCents: budget.totalIncomeCents, note: "Paycheck", date: dayAgo(14, hour: 9), isIncome: true)
+        context.insert(income)
+
+        // Set streak
+        UserDefaults.standard.set(12, forKey: AppStorageKeys.currentStreak)
+        UserDefaults.standard.set(DateHelpers.dateString(calendar.startOfDay(for: today)), forKey: AppStorageKeys.lastLogDate)
+
+        SafeSave.save(context)
+    }
+
     private static func addTx(_ context: ModelContext, cat: Category, cents: Int64, note: String, date: Date) {
         let tx = Transaction(amountCents: cents, note: note, date: date)
         tx.category = cat
