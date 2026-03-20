@@ -351,18 +351,36 @@ struct BudgetView: View {
                 }
             }
 
-            // Roll over toggle
+            // Roll over toggle (premium feature)
             if isCurrentPeriod {
-                Toggle("Roll over unspent", isOn: Binding(
-                    get: { category.rollOverUnspent },
-                    set: { newVal in
-                        category.rollOverUnspent = newVal
-                        SafeSave.save(modelContext)
+                if isPremium {
+                    Toggle("Roll over unspent", isOn: Binding(
+                        get: { category.rollOverUnspent },
+                        set: { newVal in
+                            category.rollOverUnspent = newVal
+                            SafeSave.save(modelContext)
+                        }
+                    ))
+                    .toggleStyle(.switch)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                } else {
+                    Button {
+                        showPaywall = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.forward.circle")
+                                .font(.caption)
+                            Text("Roll over unspent")
+                                .font(.caption)
+                            Spacer()
+                            Image(systemName: "lock.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .foregroundStyle(.secondary)
                     }
-                ))
-                .toggleStyle(.switch)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                }
             }
         }
         .swipeActions(edge: .trailing) {

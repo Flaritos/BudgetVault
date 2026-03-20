@@ -314,6 +314,19 @@ struct SettingsView: View {
                 Label("Budget Templates", systemImage: "doc.on.doc")
             }
 
+            // Multi-Budget placeholder (coming soon)
+            HStack {
+                Label("Multi-Budget Profiles", systemImage: "square.stack.fill")
+                Spacer()
+                Text("Coming Soon")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.secondary.opacity(0.12), in: Capsule())
+            }
+            .foregroundStyle(.secondary)
+
             Button {
                 showAchievements = true
             } label: {

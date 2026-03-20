@@ -63,6 +63,7 @@ struct PaywallView: View {
                                 .foregroundStyle(.secondary)
 
                             bonusRow(icon: "arrow.triangle.branch", text: "Debt payoff tracker (Snowball & Avalanche)")
+                            bonusRow(icon: "arrow.forward.circle", text: "Per-category rollover rules")
                             bonusRow(icon: "star.circle.fill", text: "Monthly Wrapped spending recap")
                             bonusRow(icon: "square.and.arrow.up", text: "Shareable insight cards")
                         }
