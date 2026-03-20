@@ -548,6 +548,13 @@ struct DashboardView: View {
                 Text("Envelopes")
                     .font(.headline)
                 Spacer()
+                NavigationLink {
+                    BudgetView()
+                } label: {
+                    Text("Manage")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
+                }
                 Text("\(visibleCategories.count) categories")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -767,30 +774,63 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var premiumTeaser: some View {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
+            premiumFeatureCard(
+                icon: "chart.xyaxis.line",
+                title: "Smart Insights",
+                subtitle: "AI-powered spending predictions and patterns",
+                gradient: [BudgetVaultTheme.electricBlue, BudgetVaultTheme.brightBlue]
+            )
+
+            premiumFeatureCard(
+                icon: "creditcard.fill",
+                title: "Finance Tools",
+                subtitle: "Track debts, net worth, and savings goals",
+                gradient: [Color.purple, Color.indigo]
+            )
+        }
+        .padding(.horizontal)
+    }
+
+    private func premiumFeatureCard(icon: String, title: String, subtitle: String, gradient: [Color]) -> some View {
         Button {
             showPaywall = true
         } label: {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(.yellow)
-                VStack(alignment: .leading) {
-                    Text("Unlock Premium Insights")
-                        .font(.subheadline.bold())
-                    Text("Track trends, compare months, and more")
+            HStack(spacing: BudgetVaultTheme.spacingMD) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(title)
+                            .font(.subheadline.weight(.semibold))
+                        Image(systemName: "star.fill")
+                            .font(.caption2)
+                            .foregroundStyle(BudgetVaultTheme.caution)
+                    }
+                    Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
                 Spacer()
+
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
             .padding(BudgetVaultTheme.spacingMD)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+            .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+            .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
         }
         .tint(.primary)
-        .padding(.horizontal)
-        .accessibilityLabel("Unlock Premium Insights. Track trends, compare months, and more.")
+        .accessibilityLabel("\(title). \(subtitle). Premium feature, tap to upgrade.")
     }
 
     // MARK: - Catch-Up Card

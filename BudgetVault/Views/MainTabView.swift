@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     var body: some View {
         TabView {
@@ -14,6 +15,13 @@ struct MainTabView: View {
                 .tabItem {
                     Label("History", systemImage: "clock.fill")
                 }
+
+            if isPremium {
+                FinanceTabView()
+                    .tabItem {
+                        Label("Finance", systemImage: "chart.bar.fill")
+                    }
+            }
 
             SettingsView()
                 .tabItem {
