@@ -4,6 +4,7 @@ import TipKit
 
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
@@ -20,6 +21,13 @@ struct HistoryView: View {
     @State private var sortMode: SortMode = .date
     @State private var transactionToDelete: Transaction?
     @State private var showDeleteConfirmation = false
+
+    // MARK: - Cached Filter State (#1)
+    @State private var cachedFilteredTransactions: [Transaction] = []
+    @State private var cachedGroupedByDay: [(date: Date, transactions: [Transaction])] = []
+
+    // MARK: - Scaled Metric (#6)
+    @ScaledMetric(relativeTo: .body) private var headerHeight: CGFloat = 100
 
     enum FilterMode: String, CaseIterable {
         case all = "All"
@@ -46,13 +54,46 @@ struct HistoryView: View {
         (currentBudget?.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
-    /// All matching transactions for the period (used for CSV export and counting)
-    private var allFilteredTransactions: [Transaction] {
-        guard let budget = currentBudget else { return [] }
+    // MARK: - Cached computed helpers
 
-        var transactions = Array(allTransactions
-            .lazy
-            .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart })
+    /// Paginated view of filtered transactions
+    private var filteredTransactions: [Transaction] {
+        Array(cachedFilteredTransactions.prefix(displayLimit))
+    }
+
+    private var hasMoreTransactions: Bool {
+        cachedFilteredTransactions.count > displayLimit
+    }
+
+    // MARK: - Period summary (#8)
+
+    private var totalSpent: Int64 {
+        cachedFilteredTransactions.filter { !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+    }
+
+    private var totalIncome: Int64 {
+        cachedFilteredTransactions.filter { $0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+    }
+
+    // MARK: - Static DateFormatter (#2)
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate("EEEMMMd")
+        return f
+    }()
+
+    // MARK: - Recompute (#1)
+
+    private func recomputeFilteredTransactions() {
+        guard let budget = currentBudget else {
+            cachedFilteredTransactions = []
+            cachedGroupedByDay = []
+            return
+        }
+
+        var transactions = allTransactions
+            .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
 
         switch filterMode {
         case .all: break
@@ -64,51 +105,59 @@ struct HistoryView: View {
             transactions = transactions.filter { $0.category?.id == catID }
         }
 
+        // (#10) Search matches notes AND category names
         if !searchText.isEmpty {
             transactions = transactions.filter {
-                $0.note.localizedCaseInsensitiveContains(searchText)
+                $0.note.localizedCaseInsensitiveContains(searchText) ||
+                ($0.category?.name.localizedCaseInsensitiveContains(searchText) ?? false)
             }
         }
 
         switch sortMode {
         case .date:
-            return transactions.sorted { $0.date > $1.date }
+            transactions.sort { $0.date > $1.date }
         case .amount:
-            return transactions.sorted { $0.amountCents > $1.amountCents }
+            transactions.sort { $0.amountCents > $1.amountCents }
         case .category:
-            return transactions.sorted {
+            transactions.sort {
                 ($0.category?.name ?? "") < ($1.category?.name ?? "")
             }
         }
-    }
 
-    /// Paginated view of filtered transactions
-    private var filteredTransactions: [Transaction] {
-        Array(allFilteredTransactions.prefix(displayLimit))
-    }
+        cachedFilteredTransactions = transactions
 
-    private var hasMoreTransactions: Bool {
-        allFilteredTransactions.count > displayLimit
-    }
-
-    private var groupedByDay: [(date: Date, transactions: [Transaction])] {
+        // Recompute grouped by day
         let calendar = Calendar.current
-        let grouped = Dictionary(grouping: filteredTransactions) { tx in
+        let paginated = Array(transactions.prefix(displayLimit))
+        let grouped = Dictionary(grouping: paginated) { tx in
             calendar.startOfDay(for: tx.date)
         }
-        return grouped.sorted { $0.key > $1.key }
+        cachedGroupedByDay = grouped.sorted { $0.key > $1.key }
             .map { (date: $0.key, transactions: $0.value.sorted { $0.date > $1.date }) }
     }
 
+    private func recomputeGroupedByDay() {
+        let calendar = Calendar.current
+        let paginated = Array(cachedFilteredTransactions.prefix(displayLimit))
+        let grouped = Dictionary(grouping: paginated) { tx in
+            calendar.startOfDay(for: tx.date)
+        }
+        cachedGroupedByDay = grouped.sorted { $0.key > $1.key }
+            .map { (date: $0.key, transactions: $0.value.sorted { $0.date > $1.date }) }
+    }
+
+    // MARK: - CSV (#3)
+
     private func generateCSV() -> String {
-        var lines = ["Date,Category,Note,Amount,Type"]
-        for tx in allFilteredTransactions.sorted(by: { $0.date < $1.date }) {
+        var lines = ["Date,Category,Note,Amount,Currency,Type"]
+        for tx in cachedFilteredTransactions.sorted(by: { $0.date < $1.date }) {
             let dateStr = tx.date.formatted(date: .numeric, time: .omitted)
             let cat = Self.csvEscape(tx.category?.name ?? "")
             let note = Self.csvEscape(tx.note)
-            let amount = String(format: "%.2f", Double(tx.amountCents) / 100.0)
+            let amount = String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), Double(tx.amountCents) / 100.0)
+            let currency = Locale.current.currency?.identifier ?? "USD"
             let type = tx.isIncome ? "Income" : "Expense"
-            lines.append("\(dateStr),\(cat),\(note),\(amount),\(type)")
+            lines.append("\(dateStr),\(cat),\(note),\(amount),\(currency),\(type)")
         }
         return lines.joined(separator: "\n")
     }
@@ -121,16 +170,22 @@ struct HistoryView: View {
                 // Navy gradient header
                 gradientHeader
 
-                // Content
+                // Content (#4) — proper empty state logic
                 Group {
-                    if filteredTransactions.isEmpty && searchText.isEmpty && filterMode == .all {
+                    if cachedFilteredTransactions.isEmpty && searchText.isEmpty && filterMode == .all && selectedCategoryID == nil {
                         EmptyStateView(
                             icon: "clock.fill",
                             title: "No Transactions",
                             message: "Start logging to see your history here."
                         )
-                    } else if filteredTransactions.isEmpty {
+                    } else if cachedFilteredTransactions.isEmpty && !searchText.isEmpty {
                         ContentUnavailableView.search(text: searchText)
+                    } else if cachedFilteredTransactions.isEmpty {
+                        EmptyStateView(
+                            icon: "line.3.horizontal.decrease",
+                            title: "No Matches",
+                            message: "No transactions match your current filters. Try changing your filters."
+                        )
                     } else {
                         transactionList
                     }
@@ -138,23 +193,50 @@ struct HistoryView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "Search notes")
+            .searchable(text: $searchText, prompt: "Search notes or categories")
             .onAppear {
                 if viewingMonth == 0 {
                     let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
                     viewingMonth = m
                     viewingYear = y
                 }
+                recomputeFilteredTransactions()
             }
             .sheet(item: $editingTransaction) { transaction in
                 if let budget = currentBudget {
                     TransactionEditView(transaction: transaction, budget: budget, categories: categories)
                 }
             }
+            // (#1, #11, #16, #17) onChange handlers with cache recompute
             .onChange(of: filterMode) { _, newMode in
                 if newMode == .income {
                     selectedCategoryID = nil
                 }
+                displayLimit = 50
+                HapticManager.selection()
+                recomputeFilteredTransactions()
+            }
+            .onChange(of: selectedCategoryID) { _, _ in
+                displayLimit = 50
+                recomputeFilteredTransactions()
+            }
+            .onChange(of: searchText) { _, _ in
+                recomputeFilteredTransactions()
+            }
+            .onChange(of: sortMode) { _, _ in
+                recomputeFilteredTransactions()
+            }
+            .onChange(of: viewingMonth) { _, _ in
+                recomputeFilteredTransactions()
+            }
+            .onChange(of: viewingYear) { _, _ in
+                recomputeFilteredTransactions()
+            }
+            .onChange(of: allTransactions.count) { _, _ in
+                recomputeFilteredTransactions()
+            }
+            .onChange(of: displayLimit) { _, _ in
+                recomputeGroupedByDay()
             }
             .tint(BudgetVaultTheme.electricBlue)
             .sheet(isPresented: Binding(
@@ -192,17 +274,20 @@ struct HistoryView: View {
         }
     }
 
-    // MARK: - Gradient Header
+    // MARK: - Gradient Header (#9, #12, #13, #14)
 
     @ViewBuilder
     private var gradientHeader: some View {
         ZStack {
-            LinearGradient(
-                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea(edges: .top)
+            // (#9) Use theme gradient token
+            BudgetVaultTheme.brandGradient
+                .ignoresSafeArea(edges: .top)
+
+            // (#14) VaultDialMark watermark
+            VaultDialMark(size: 60)
+                .opacity(0.06)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .padding(.trailing, BudgetVaultTheme.spacingLG)
 
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
@@ -222,24 +307,33 @@ struct HistoryView: View {
 
                     Spacer()
 
-                    // Month/year title with Today button
+                    // (#12) Month/year title — larger font
                     VStack(spacing: 2) {
                         Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear))
-                            .font(.headline.weight(.bold))
+                            .font(.title3.weight(.bold))
                             .foregroundStyle(.white)
 
+                        // (#13) Better "Back to Today" visibility
                         if !isCurrentPeriod {
                             Button {
-                                withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
+                                if reduceMotion {
                                     let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
                                     viewingMonth = m
                                     viewingYear = y
                                     displayLimit = 50
+                                } else {
+                                    withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
+                                        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+                                        viewingMonth = m
+                                        viewingYear = y
+                                        displayLimit = 50
+                                    }
                                 }
                             } label: {
                                 Text("Back to Today")
                                     .font(.caption.weight(.medium))
-                                    .foregroundStyle(.white.opacity(0.7))
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .underline()
                             }
                         }
                     }
@@ -299,10 +393,10 @@ struct HistoryView: View {
                 .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
         }
-        .frame(minHeight: 100)
+        .frame(minHeight: headerHeight) // (#6) ScaledMetric
     }
 
-    // MARK: - Day Label
+    // MARK: - Day Label (#2)
 
     private func dayLabel(for date: Date) -> String {
         let calendar = Calendar.current
@@ -311,10 +405,7 @@ struct HistoryView: View {
         } else if calendar.isDateInYesterday(date) {
             return "Yesterday"
         } else {
-            // "Mon, Mar 17"
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEE, MMM d"
-            return formatter.string(from: date)
+            return Self.dayFormatter.string(from: date)
         }
     }
 
@@ -379,8 +470,45 @@ struct HistoryView: View {
                 .padding(.horizontal)
             }
 
+            // (#8) Period summary bar
+            if !cachedFilteredTransactions.isEmpty {
+                Section {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Spent")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(CurrencyFormatter.format(cents: totalSpent))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(BudgetVaultTheme.negative)
+                        }
+                        Spacer()
+                        VStack(alignment: .center) {
+                            Text("Income")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(CurrencyFormatter.format(cents: totalIncome))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(BudgetVaultTheme.positive)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing) {
+                            Text("Transactions")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text("\(cachedFilteredTransactions.count)")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, BudgetVaultTheme.spacingSM)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+            }
+
             // Grouped transactions by day
-            ForEach(groupedByDay, id: \.date) { group in
+            ForEach(cachedGroupedByDay, id: \.date) { group in
                 Section {
                     ForEach(group.transactions, id: \.id) { transaction in
                         Button {
@@ -454,11 +582,18 @@ struct HistoryView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable { // (#18) Pull-to-refresh
+            recomputeFilteredTransactions()
+        }
     }
 
+    // (#7) Chips with .isSelected accessibility trait
     @ViewBuilder
     private func chipButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            action()
+            HapticManager.selection() // (#11)
+        } label: {
             Text(label)
                 .font(.subheadline)
                 .padding(.horizontal, BudgetVaultTheme.spacingMD)
@@ -466,15 +601,25 @@ struct HistoryView: View {
                 .background(isSelected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.08), in: Capsule())
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    // (#5) Reduce motion support + (#11) haptic
     private func navigateMonth(_ delta: Int) {
-        withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
+        if reduceMotion {
             let (m, y) = DateHelpers.navigateMonth(from: viewingMonth, year: viewingYear, delta: delta)
             viewingMonth = m
             viewingYear = y
             displayLimit = 50
+        } else {
+            withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
+                let (m, y) = DateHelpers.navigateMonth(from: viewingMonth, year: viewingYear, delta: delta)
+                viewingMonth = m
+                viewingYear = y
+                displayLimit = 50
+            }
         }
+        HapticManager.selection()
     }
 
     private static func csvEscape(_ field: String) -> String {

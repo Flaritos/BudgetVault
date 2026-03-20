@@ -14,7 +14,7 @@ struct TransactionRowView: View {
                 Text(transaction.note.isEmpty ? (transaction.isIncome ? "Income" : "Expense") : transaction.note)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
-                Text(transaction.date, style: .date)
+                Text(transaction.date, style: .time)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
