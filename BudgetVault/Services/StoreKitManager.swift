@@ -30,32 +30,6 @@ final class StoreKitManager {
         Date() < Self.launchPricingEndDate
     }
 
-    /// 7-day premium trial: store install date on first launch
-    var installDate: Date {
-        let stored = UserDefaults.standard.double(forKey: AppStorageKeys.installDate)
-        if stored == 0 {
-            let now = Date()
-            UserDefaults.standard.set(now.timeIntervalSince1970, forKey: AppStorageKeys.installDate)
-            return now
-        }
-        return Date(timeIntervalSince1970: stored)
-    }
-
-    var isTrialActive: Bool {
-        guard !isPremium else { return false }
-        let daysSinceInstall = Calendar.current.dateComponents([.day], from: installDate, to: Date()).day ?? 0
-        return daysSinceInstall < 7
-    }
-
-    var trialDaysRemaining: Int {
-        let daysSinceInstall = Calendar.current.dateComponents([.day], from: installDate, to: Date()).day ?? 0
-        return max(7 - daysSinceInstall, 0)
-    }
-
-    var isTrialOrPremium: Bool {
-        isPremium || isTrialActive
-    }
-
     var premiumProduct: Product? {
         products.first { $0.id == Self.premiumProductID }
     }
@@ -68,11 +42,6 @@ final class StoreKitManager {
     private nonisolated(unsafe) var updateTask: Task<Void, Never>?
 
     init() {
-        // Ensure install date is set on first launch
-        if UserDefaults.standard.double(forKey: AppStorageKeys.installDate) == 0 {
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.installDate)
-        }
-
         updateTask = Task { [weak self] in
             await self?.listenForTransactions()
         }

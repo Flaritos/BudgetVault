@@ -60,31 +60,6 @@ struct PaywallView: View {
                     .frame(maxWidth: .infinity)
                     .background(BudgetVaultTheme.brandGradient)
 
-                    // Trial status
-                    if storeKit.isTrialActive {
-                        HStack(spacing: 6) {
-                            Image(systemName: "clock.fill")
-                                .foregroundStyle(BudgetVaultTheme.caution)
-                            Text("\(storeKit.trialDaysRemaining) day\(storeKit.trialDaysRemaining == 1 ? "" : "s") left of free trial")
-                                .font(.caption.bold())
-                                .foregroundStyle(BudgetVaultTheme.caution)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(BudgetVaultTheme.caution.opacity(0.12), in: Capsule())
-                    } else if !storeKit.isPremium && storeKit.trialDaysRemaining == 0 {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(BudgetVaultTheme.negative)
-                            Text("Trial expired \u{2014} unlock Premium to keep all features")
-                                .font(.caption.bold())
-                                .foregroundStyle(BudgetVaultTheme.negative)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(BudgetVaultTheme.negative.opacity(0.12), in: Capsule())
-                    }
-
                     // Save vs subscriptions callout
                     HStack(spacing: 6) {
                         Image(systemName: "tag.fill")

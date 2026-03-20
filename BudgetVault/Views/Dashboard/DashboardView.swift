@@ -11,8 +11,8 @@ struct DashboardView: View {
 
     // MARK: - Scaled Metrics for Dynamic Type
     @ScaledMetric(relativeTo: .body) private var fabSize: CGFloat = 56
-    @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 140
-    @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 110
+    @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 150
+    @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 120
     @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
@@ -542,9 +542,15 @@ struct DashboardView: View {
     @ViewBuilder
     private func envelopeCardsSection(budget: Budget) -> some View {
         VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-            Text("Envelopes")
-                .font(.headline)
-                .padding(.horizontal)
+            HStack {
+                Text("Envelopes")
+                    .font(.headline)
+                Spacer()
+                Text("\(visibleCategories.count) categories")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: BudgetVaultTheme.spacingMD) {
@@ -559,6 +565,7 @@ struct DashboardView: View {
                     }
                 }
                 .padding(.horizontal)
+                .padding(.vertical, 2) // room for shadow
             }
         }
     }
@@ -568,57 +575,62 @@ struct DashboardView: View {
         let spent = cachedSpent(for: category, in: budget)
         let budgeted = category.budgetedAmountCents
         let remaining = budgeted - spent
-        let fraction: Double = budgeted > 0 ? min(Double(spent) / Double(budgeted), 1.0) : 0
-        let isOverBudget = remaining < 0
+        let pct: Double = budgeted > 0 ? min(Double(spent) / Double(budgeted), 1.0) : 0
         let categoryColor = Color(hex: category.color)
 
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+            // Top: emoji + name
+            HStack(spacing: BudgetVaultTheme.spacingSM) {
                 Text(category.emoji)
                     .font(.title3)
                 Text(category.name)
-                    .font(.caption.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                     .lineLimit(1)
             }
 
             Spacer()
 
-            Text(CurrencyFormatter.format(cents: remaining))
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(isOverBudget ? BudgetVaultTheme.negative : BudgetVaultTheme.positive)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            // Bottom: amount + progress
+            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingXS) {
+                Text(CurrencyFormatter.format(cents: remaining))
+                    .font(BudgetVaultTheme.cardAmount)
+                    .foregroundStyle(remaining >= 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
 
-            Text("remaining")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                Text("of \(CurrencyFormatter.format(cents: budgeted))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
 
-            // Mini progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(categoryColor.opacity(0.2))
-                        .frame(height: 4)
-
-                    Capsule()
-                        .fill(isOverBudget ? BudgetVaultTheme.negative : categoryColor)
-                        .frame(width: geo.size.width * min(fraction, 1.0), height: 4)
+                // Progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(categoryColor.opacity(0.15))
+                            .frame(height: 4)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(pct > 0.9 ? BudgetVaultTheme.negative : pct > 0.75 ? BudgetVaultTheme.caution : Color.accentColor)
+                            .frame(width: geo.size.width * min(pct, 1.0), height: 4)
+                    }
                 }
+                .frame(height: 4)
             }
-            .frame(height: 4)
         }
-        .padding(.leading, 4)
         .padding(BudgetVaultTheme.spacingMD)
         .frame(width: envelopeCardWidth, height: envelopeCardHeight)
-        .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
-        .overlay(alignment: .leading) {
-            // Left color strip
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                .fill(BudgetVaultTheme.cardBackground)
+        )
+        .overlay(alignment: .top) {
+            // Top accent bar
             RoundedRectangle(cornerRadius: 2)
                 .fill(categoryColor)
-                .frame(width: 4)
-                .padding(.vertical, 8)
+                .frame(height: 3)
+                .padding(.horizontal, BudgetVaultTheme.spacingSM)
+                .padding(.top, BudgetVaultTheme.spacingXS)
         }
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: remaining)) remaining of \(CurrencyFormatter.format(cents: budgeted))")
     }

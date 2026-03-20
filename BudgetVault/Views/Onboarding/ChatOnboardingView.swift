@@ -86,22 +86,25 @@ struct ChatOnboardingView: View {
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack {
-            Spacer()
-
-            VaultDialMark(size: 60, showGlow: dialUnlocked, tickRotation: dialRotation)
+        ZStack {
+            // Centered vault dial
+            VaultDialMark(size: 80, showGlow: dialUnlocked, tickRotation: dialRotation)
                 .opacity(dialUnlocked ? 1 : 0.6)
+                .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.3), radius: 20)
+                .frame(maxWidth: .infinity)
 
-            Spacer()
-
-            Button {
-                skipOnboarding()
-            } label: {
-                Text("Skip")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.5))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+            // Skip button pinned to top-right
+            HStack {
+                Spacer()
+                Button {
+                    skipOnboarding()
+                } label: {
+                    Text("Skip")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                }
             }
         }
         .padding(.horizontal, 16)

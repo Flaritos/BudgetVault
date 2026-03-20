@@ -8,22 +8,32 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var authService = BiometricAuthService()
+    @State private var showLaunchScreen = true
 
     var body: some View {
-        Group {
-            if !hasCompletedOnboarding {
-                ChatOnboardingView()
-            } else if biometricLockEnabled && !authService.isAuthenticated {
-                BiometricLockView(authService: authService)
-            } else {
-                MainTabView()
+        ZStack {
+            Group {
+                if !hasCompletedOnboarding {
+                    ChatOnboardingView()
+                } else if biometricLockEnabled && !authService.isAuthenticated {
+                    BiometricLockView(authService: authService)
+                } else {
+                    MainTabView()
+                }
+            }
+            .opacity(showLaunchScreen ? 0 : 1)
+
+            if showLaunchScreen {
+                LaunchScreenView(isFinished: $showLaunchScreen)
+                    .transition(.opacity)
             }
         }
         .animation(.smooth(duration: 0.5), value: hasCompletedOnboarding)
+        .animation(.easeOut(duration: 0.3), value: showLaunchScreen)
         .background {
             // Fill the entire screen including safe areas
-            // Uses navyDark during onboarding, system background otherwise
-            (hasCompletedOnboarding ? Color(.systemGroupedBackground) : BudgetVaultTheme.navyDark)
+            // Uses navyDark during onboarding/launch, system background otherwise
+            (hasCompletedOnboarding && !showLaunchScreen ? Color(.systemGroupedBackground) : BudgetVaultTheme.navyDark)
                 .ignoresSafeArea()
         }
         .onChange(of: hasCompletedOnboarding) { oldValue, newValue in
