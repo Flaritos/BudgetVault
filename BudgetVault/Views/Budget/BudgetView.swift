@@ -232,12 +232,20 @@ struct BudgetView: View {
             // Categories
             Section("Categories") {
                 ForEach(visibleCategories, id: \.id) { category in
-                    NavigationLink {
-                        CategoryDetailView(category: category, budget: budget)
-                    } label: {
-                        categoryRow(category: category, budget: budget)
+                    VStack(spacing: 0) {
+                        NavigationLink {
+                            CategoryDetailView(category: category, budget: budget)
+                        } label: {
+                            categoryRow(category: category, budget: budget)
+                        }
+                        .tint(.primary)
+
+                        // Rollover toggle — outside NavigationLink to prevent tap conflict
+                        if isCurrentPeriod {
+                            rolloverToggle(category: category)
+                                .padding(.top, BudgetVaultTheme.spacingSM)
+                        }
                     }
-                    .tint(.primary)
                 }
                 .onMove { from, to in
                     guard isCurrentPeriod else { return }
@@ -351,37 +359,6 @@ struct BudgetView: View {
                 }
             }
 
-            // Roll over toggle (premium feature)
-            if isCurrentPeriod {
-                if isPremium {
-                    Toggle("Roll over unspent", isOn: Binding(
-                        get: { category.rollOverUnspent },
-                        set: { newVal in
-                            category.rollOverUnspent = newVal
-                            SafeSave.save(modelContext)
-                        }
-                    ))
-                    .toggleStyle(.switch)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                } else {
-                    Button {
-                        showPaywall = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.forward.circle")
-                                .font(.caption)
-                            Text("Roll over unspent")
-                                .font(.caption)
-                            Spacer()
-                            Image(systemName: "lock.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                }
-            }
         }
         .swipeActions(edge: .trailing) {
             if isCurrentPeriod {
@@ -393,6 +370,40 @@ struct BudgetView: View {
             }
         }
         .accessibilityHint(isCurrentPeriod ? "Swipe left to archive" : "")
+    }
+
+    // MARK: - Rollover Toggle
+
+    @ViewBuilder
+    private func rolloverToggle(category: Category) -> some View {
+        if isPremium {
+            Toggle("Roll over unspent", isOn: Binding(
+                get: { category.rollOverUnspent },
+                set: { newVal in
+                    category.rollOverUnspent = newVal
+                    SafeSave.save(modelContext)
+                }
+            ))
+            .toggleStyle(.switch)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } else {
+            Button {
+                showPaywall = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.forward.circle")
+                        .font(.caption)
+                    Text("Roll over unspent")
+                        .font(.caption)
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - Income Editor Sheet

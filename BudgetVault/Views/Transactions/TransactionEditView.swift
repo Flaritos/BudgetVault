@@ -82,7 +82,7 @@ struct TransactionEditView: View {
                 }
 
                 HStack {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    DatePicker("Date", selection: $date, in: budget.periodStart...budget.nextPeriodStart.addingTimeInterval(-1), displayedComponents: .date)
                         .labelsHidden()
                     TextField("Add a note", text: $note)
                         .textFieldStyle(.roundedBorder)

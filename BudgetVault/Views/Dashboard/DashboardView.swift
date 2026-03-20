@@ -11,7 +11,7 @@ struct DashboardView: View {
 
     // MARK: - Scaled Metrics for Dynamic Type
     @ScaledMetric(relativeTo: .body) private var fabSize: CGFloat = 56
-    @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 150
+    @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 160
     @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 130
     @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
 
@@ -54,6 +54,7 @@ struct DashboardView: View {
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
     @State private var cachedSpentMap: [UUID: Int64] = [:]
+    @State private var cachedInsights: [Insight] = []
 
     private var currentBudget: Budget? {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -297,7 +298,6 @@ struct DashboardView: View {
                         try? await Task.sleep(for: .seconds(1.5))
                         hasSeenTransactionPaywall = true
                         showProactivePaywall = true
-                        return
                     }
 
                     if currentStreak >= 7 && !hasSeenStreakPaywall {
@@ -442,6 +442,7 @@ struct DashboardView: View {
                 }
             }
         }
+        .refreshable { refreshCachedValues() }
         .ignoresSafeArea(edges: .top)
     }
 
@@ -457,9 +458,9 @@ struct DashboardView: View {
         ZStack {
             // Full-bleed navy gradient background
             LinearGradient(
-                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
-                startPoint: .top,
-                endPoint: .bottom
+                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
 
             // VaultDialMark watermark — large, centered, very faint
@@ -482,6 +483,14 @@ struct DashboardView: View {
                 Text("per day")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.7))
+
+                // Spent today
+                let todaySpent = allTransactions.filter { Calendar.current.isDateInToday($0.date) && !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+                if todaySpent > 0 {
+                    Text("\(CurrencyFormatter.format(cents: todaySpent, currencyCode: selectedCurrency)) spent today")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
 
                 Spacer().frame(height: BudgetVaultTheme.spacingSM)
 
@@ -530,7 +539,7 @@ struct DashboardView: View {
                     .accessibilityLabel("Logging streak: \(currentStreak) days")
                 }
             }
-            .padding(.top, 70) // below status bar
+            .padding(.top, BudgetVaultTheme.spacingLG) // safe area handled by ignoresSafeArea
             .padding(.bottom, BudgetVaultTheme.spacingXL + 30) // extra room for panel overlap
             .frame(maxWidth: .infinity)
         }
@@ -636,7 +645,7 @@ struct DashboardView: View {
             }
             .frame(height: 4)
         }
-        .padding(BudgetVaultTheme.spacingMD)
+        .padding(BudgetVaultTheme.spacingLG)
         .frame(width: envelopeCardWidth, height: envelopeCardHeight)
         .background {
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
@@ -644,11 +653,10 @@ struct DashboardView: View {
                 .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
         }
         .overlay(alignment: .leading) {
-            // Category color accent strip (left edge)
+            // Category color accent strip (left edge, full height)
             RoundedRectangle(cornerRadius: 2)
                 .fill(categoryColor)
                 .frame(width: 4)
-                .padding(.vertical, BudgetVaultTheme.spacingSM)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: remaining)) remaining of \(CurrencyFormatter.format(cents: budgeted))\(remaining <= 0 ? ", fully spent" : "")")
@@ -658,14 +666,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func insightCard(budget: Budget) -> some View {
-        let insights = InsightsEngine.generateInsights(
-            budget: budget,
-            previousBudget: previousBudget,
-            allBudgets: allBudgets,
-            currentStreak: currentStreak
-        )
-
-        if let topInsight = insights.first {
+        if let topInsight = cachedInsights.first {
             Button {
                 showInsights = true
             } label: {
@@ -941,6 +942,7 @@ struct DashboardView: View {
         cachedBudget = budget
         guard let budget else {
             cachedSpentMap = [:]
+            cachedInsights = []
             return
         }
         var map: [UUID: Int64] = [:]
@@ -948,6 +950,12 @@ struct DashboardView: View {
             map[cat.id] = cat.spentCents(in: budget)
         }
         cachedSpentMap = map
+        cachedInsights = InsightsEngine.generateInsights(
+            budget: budget,
+            previousBudget: previousBudget,
+            allBudgets: allBudgets,
+            currentStreak: currentStreak
+        )
     }
 
     /// Look up cached spent value for a category, falling back to live computation

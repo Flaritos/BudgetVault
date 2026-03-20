@@ -183,6 +183,7 @@ struct PaywallView: View {
         .padding(.bottom, BudgetVaultTheme.spacingXL)
         .frame(maxWidth: .infinity)
         .background(BudgetVaultTheme.brandGradient)
+        .ignoresSafeArea(edges: .top)
     }
 
     // MARK: - Hero Feature Card

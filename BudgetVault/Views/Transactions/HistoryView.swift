@@ -138,7 +138,6 @@ struct HistoryView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar(.hidden, for: .navigationBar)
             .searchable(text: $searchText, prompt: "Search notes")
             .onAppear {
                 if viewingMonth == 0 {
@@ -300,7 +299,7 @@ struct HistoryView: View {
                 .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
         }
-        .frame(height: 100)
+        .frame(minHeight: 100)
     }
 
     // MARK: - Day Label

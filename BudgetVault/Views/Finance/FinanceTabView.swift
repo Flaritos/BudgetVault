@@ -164,10 +164,10 @@ struct FinanceTabView: View {
                     }
                 }
             }
-            .padding(.top, 70)
+            .padding(.top, BudgetVaultTheme.spacingLG)
             .padding(.bottom, BudgetVaultTheme.spacingXL)
         }
-        .frame(height: 200)
+        .frame(minHeight: 200)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Budget health: \(healthStatus). \(CurrencyFormatter.format(cents: remainingCents)) remaining. \(daysRemaining) days left. \(currentStreak) day streak.")
     }

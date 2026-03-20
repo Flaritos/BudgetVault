@@ -18,7 +18,7 @@ struct MainTabView: View {
 
             FinanceTabView()
                 .tabItem {
-                    Label("Vault", systemImage: "lock.open.fill")
+                    Label("Vault", systemImage: isPremium ? "lock.open.fill" : "lock.fill")
                 }
 
             NavigationStack {

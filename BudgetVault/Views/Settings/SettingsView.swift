@@ -349,9 +349,11 @@ struct SettingsView: View {
                     if enabled {
                         checkNotificationPermission()
                         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                            if granted {
-                                DispatchQueue.main.async {
+                            DispatchQueue.main.async {
+                                if granted {
                                     NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
+                                } else {
+                                    dailyReminderEnabled = false
                                 }
                             }
                         }
@@ -376,9 +378,11 @@ struct SettingsView: View {
                     if enabled {
                         checkNotificationPermission()
                         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                            if granted {
-                                DispatchQueue.main.async {
+                            DispatchQueue.main.async {
+                                if granted {
                                     NotificationService.scheduleWeeklySummary()
+                                } else {
+                                    weeklyDigestEnabled = false
                                 }
                             }
                         }
@@ -391,7 +395,13 @@ struct SettingsView: View {
                 .onChange(of: billDueReminders) { _, enabled in
                     if enabled {
                         checkNotificationPermission()
-                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                            if !granted {
+                                DispatchQueue.main.async {
+                                    billDueReminders = false
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -400,9 +410,12 @@ struct SettingsView: View {
                     if enabled {
                         checkNotificationPermission()
                         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                            if granted {
-                                // Will be scheduled with real data from dashboard .task
+                            if !granted {
+                                DispatchQueue.main.async {
+                                    morningBriefingEnabled = false
+                                }
                             }
+                            // Will be scheduled with real data from dashboard .task
                         }
                     } else {
                         NotificationService.cancelMorningBriefing()
