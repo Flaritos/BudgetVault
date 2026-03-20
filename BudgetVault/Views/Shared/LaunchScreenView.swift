@@ -5,7 +5,7 @@ struct LaunchScreenView: View {
     @State private var rotation: Double = 0
     @State private var opacity: Double = 1
     @State private var scale: Double = 1
-    @Binding var isFinished: Bool
+    @Binding var isShowing: Bool
 
     var body: some View {
         ZStack {
@@ -26,7 +26,7 @@ struct LaunchScreenView: View {
             if reduceMotion {
                 // Skip animation for accessibility
                 try? await Task.sleep(for: .seconds(0.5))
-                isFinished = true
+                isShowing = false
                 return
             }
 
@@ -44,7 +44,7 @@ struct LaunchScreenView: View {
             }
 
             try? await Task.sleep(for: .seconds(0.3))
-            isFinished = true
+            isShowing = false
         }
     }
 }

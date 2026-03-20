@@ -12,7 +12,8 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Group {
+            // Main content
+            if !showLaunchScreen {
                 if !hasCompletedOnboarding {
                     ChatOnboardingView()
                 } else if biometricLockEnabled && !authService.isAuthenticated {
@@ -21,21 +22,17 @@ struct ContentView: View {
                     MainTabView()
                 }
             }
-            .opacity(showLaunchScreen ? 0 : 1)
 
+            // Launch screen overlay
             if showLaunchScreen {
-                LaunchScreenView(isFinished: $showLaunchScreen)
-                    .transition(.opacity)
+                LaunchScreenView(isShowing: $showLaunchScreen)
             }
         }
-        .animation(.smooth(duration: 0.5), value: hasCompletedOnboarding)
-        .animation(.easeOut(duration: 0.3), value: showLaunchScreen)
         .background {
-            // Fill the entire screen including safe areas
-            // Uses navyDark during onboarding/launch, system background otherwise
             (hasCompletedOnboarding && !showLaunchScreen ? Color(.systemGroupedBackground) : BudgetVaultTheme.navyDark)
                 .ignoresSafeArea()
         }
+        .animation(.smooth(duration: 0.5), value: hasCompletedOnboarding)
         .onChange(of: hasCompletedOnboarding) { oldValue, newValue in
             if !oldValue && newValue && !hasLoggedFirstTransaction {
                 Task {
