@@ -377,6 +377,8 @@ struct DashboardView: View {
                 )
 
                 VStack(spacing: BudgetVaultTheme.spacingXL) {
+                    Spacer().frame(height: BudgetVaultTheme.spacingSM)
+
                     // Catch-up card for returning users
                     if showCatchUpCard {
                         catchUpCard(budget: budget)

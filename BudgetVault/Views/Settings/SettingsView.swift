@@ -36,6 +36,8 @@ struct SettingsView: View {
     @State private var showDebtTracking = false
     @State private var showNetWorth = false
     @State private var showAchievements = false
+    @State private var showInsights = false
+    @State private var showMonthlyWrapped = false
     @State private var templateAppliedAlert = false
     @Environment(StoreKitManager.self) private var storeKit
     @State private var showNotificationDeniedAlert = false
@@ -101,6 +103,12 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showAchievements) {
                 AchievementGridView()
+            }
+            .sheet(isPresented: $showInsights) {
+                NavigationStack {
+                    InsightsView()
+                }
+                .presentationDragIndicator(.visible)
             }
             .alert("Template Applied", isPresented: $templateAppliedAlert) {
                 Button("OK") {}
@@ -322,42 +330,59 @@ struct SettingsView: View {
                 Label("Budget Templates", systemImage: "doc.on.doc")
             }
 
-            // TODO: Re-enable Debt Tracking and Net Worth once fully tested
-            // Button {
-            //     if isPremium {
-            //         showDebtTracking = true
-            //     } else {
-            //         showPaywall = true
-            //     }
-            // } label: {
-            //     HStack {
-            //         Label("Debt Tracking", systemImage: "creditcard.fill")
-            //         if !isPremium {
-            //             Spacer()
-            //             Image(systemName: "star.fill")
-            //                 .font(.caption)
-            //                 .foregroundStyle(.secondary)
-            //         }
-            //     }
-            // }
+            Button {
+                if isPremium {
+                    showDebtTracking = true
+                } else {
+                    showPaywall = true
+                }
+            } label: {
+                HStack {
+                    Label("Debt Tracking", systemImage: "creditcard.fill")
+                    if !isPremium {
+                        Spacer()
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
 
-            // Button {
-            //     if isPremium {
-            //         showNetWorth = true
-            //     } else {
-            //         showPaywall = true
-            //     }
-            // } label: {
-            //     HStack {
-            //         Label("Net Worth", systemImage: "chart.line.uptrend.xyaxis")
-            //         if !isPremium {
-            //             Spacer()
-            //             Image(systemName: "star.fill")
-            //                 .font(.caption)
-            //                 .foregroundStyle(.secondary)
-            //         }
-            //     }
-            // }
+            Button {
+                if isPremium {
+                    showNetWorth = true
+                } else {
+                    showPaywall = true
+                }
+            } label: {
+                HStack {
+                    Label("Net Worth", systemImage: "chart.line.uptrend.xyaxis")
+                    if !isPremium {
+                        Spacer()
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Button {
+                if isPremium {
+                    showInsights = true
+                } else {
+                    showPaywall = true
+                }
+            } label: {
+                HStack {
+                    Label("Insights & Analytics", systemImage: "chart.xyaxis.line")
+                    if !isPremium {
+                        Spacer()
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
 
             Button {
                 showAchievements = true
