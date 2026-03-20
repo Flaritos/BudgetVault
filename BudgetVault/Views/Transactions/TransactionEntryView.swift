@@ -41,7 +41,7 @@ struct TransactionEntryView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
+            VStack(spacing: BudgetVaultTheme.spacingLG) {
                 // Expense / Income toggle
                 Picker("Type", selection: $isIncome) {
                     Text("Expense").tag(false)
@@ -66,7 +66,7 @@ struct TransactionEntryView: View {
                         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 }
                 .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
-                .padding(.top, 8)
+                .padding(.top, BudgetVaultTheme.spacingSM)
 
                 // Suggested amount tap target
                 if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
@@ -77,8 +77,8 @@ struct TransactionEntryView: View {
                         Text("Use suggested amount")
                             .font(.caption)
                             .foregroundStyle(Color.accentColor)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, BudgetVaultTheme.spacingMD)
+                            .padding(.vertical, BudgetVaultTheme.spacingXS)
                             .background(Color.accentColor.opacity(0.1), in: Capsule())
                     }
                 }
@@ -91,7 +91,7 @@ struct TransactionEntryView: View {
                 // Quick Add templates
                 if !frequentTemplates.isEmpty && !isIncome {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: BudgetVaultTheme.spacingSM) {
                             ForEach(Array(frequentTemplates.enumerated()), id: \.offset) { _, template in
                                 Button {
                                     note = template.note
@@ -99,7 +99,7 @@ struct TransactionEntryView: View {
                                     amountText = CurrencyFormatter.formatRaw(cents: template.amountCents)
                                     manualCategorySelection = true
                                 } label: {
-                                    HStack(spacing: 4) {
+                                    HStack(spacing: BudgetVaultTheme.spacingXS) {
                                         Text(template.category?.emoji ?? "")
                                         Text(template.note)
                                             .lineLimit(1)
@@ -125,7 +125,7 @@ struct TransactionEntryView: View {
                         .padding(.horizontal)
                 } else if !isIncome {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: BudgetVaultTheme.spacingMD) {
                             ForEach(categories, id: \.id) { category in
                                 Button {
                                     selectedCategory = category
@@ -160,7 +160,7 @@ struct TransactionEntryView: View {
                 }
 
                 // Date and note
-                VStack(spacing: 4) {
+                VStack(spacing: BudgetVaultTheme.spacingXS) {
                     HStack {
                         DatePicker("Date", selection: $date,
                                    in: budget.periodStart...budget.nextPeriodStart.addingTimeInterval(-1),
@@ -227,7 +227,7 @@ struct TransactionEntryView: View {
 
                 // Number pad
                 NumberPadView(text: $amountText)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 // Saved banner
                 if showSavedBanner {
@@ -263,7 +263,7 @@ struct TransactionEntryView: View {
                 .buttonStyle(SecondaryButtonStyle(isEnabled: canSave))
                 .disabled(!canSave)
                 .padding(.horizontal)
-                .padding(.bottom, 8)
+                .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
             .navigationTitle(isIncome ? "Add Income" : "Add Expense")
             .navigationBarTitleDisplayMode(.inline)
@@ -311,7 +311,7 @@ struct TransactionEntryView: View {
         let amounts: [Int64] = [500, 1000, 2000, 5000] // $5, $10, $20, $50 in cents
 
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: BudgetVaultTheme.spacingSM) {
                 ForEach(amounts, id: \.self) { cents in
                     let dollars = cents / 100
                     Button {
@@ -320,10 +320,10 @@ struct TransactionEntryView: View {
                     } label: {
                         Text("\(symbol)\(dollars)")
                             .font(.caption.bold())
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, BudgetVaultTheme.spacingMD)
+                            .padding(.vertical, BudgetVaultTheme.spacingSM)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
                                     .fill(Color.accentColor.opacity(amountText == "\(dollars)" ? 0.2 : 0.08))
                             )
                     }

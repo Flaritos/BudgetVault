@@ -4,7 +4,7 @@ struct TransactionRowView: View {
     let transaction: Transaction
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: BudgetVaultTheme.spacingMD) {
             Text(emoji)
                 .font(.title3)
                 .frame(width: 40, height: 40)

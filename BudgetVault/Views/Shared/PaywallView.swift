@@ -70,12 +70,12 @@ struct PaywallView: View {
                         .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                         // MARK: - Competitor Comparison
-                        VStack(spacing: 8) {
+                        VStack(spacing: BudgetVaultTheme.spacingSM) {
                             Text("Other apps charge yearly:")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
 
-                            VStack(spacing: 4) {
+                            VStack(spacing: BudgetVaultTheme.spacingXS) {
                                 competitorRow(name: "YNAB", price: "$109/year")
                                 competitorRow(name: "Monarch", price: "$99/year")
                                 competitorRow(name: "Copilot", price: "$70/year")
@@ -103,7 +103,7 @@ struct PaywallView: View {
                         purchaseArea
 
                         // MARK: - Footer
-                        VStack(spacing: 4) {
+                        VStack(spacing: BudgetVaultTheme.spacingXS) {
                             Text("Family Sharing included \u{2014} one purchase covers your whole family.")
                             Text("No subscription. No recurring charges. Ever.")
                             Text("All data stays on your device. Always.")
@@ -115,7 +115,7 @@ struct PaywallView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
-                        HStack(spacing: 16) {
+                        HStack(spacing: BudgetVaultTheme.spacingLG) {
                             Link("Privacy Policy", destination: URL(string: "https://budgetvault.io/privacy")!)
                             Link("Terms of Service", destination: URL(string: "https://budgetvault.io/terms")!)
                         }
@@ -251,7 +251,7 @@ struct PaywallView: View {
     private var purchaseArea: some View {
         // Product load error
         if let loadError = storeKit.productLoadError, storeKit.premiumProduct == nil {
-            VStack(spacing: 12) {
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
                 Text(loadError)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -297,7 +297,7 @@ struct PaywallView: View {
                     ProgressView()
                         .tint(.white)
                 case .success:
-                    VStack(spacing: 4) {
+                    VStack(spacing: BudgetVaultTheme.spacingXS) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 28))
                         Text("Vault Unlocked!")
@@ -316,7 +316,7 @@ struct PaywallView: View {
     @ViewBuilder
     private var postPurchaseWelcomeView: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
                 Spacer()
 
                 VaultDialMark(size: 80, showGlow: true)
@@ -328,7 +328,7 @@ struct PaywallView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
                     unlockRow(icon: "brain.head.profile", text: "Vault Intelligence & predictions")
                     unlockRow(icon: "square.grid.2x2", text: "Unlimited categories")
                     unlockRow(icon: "repeat", text: "Unlimited recurring expenses")
@@ -337,7 +337,7 @@ struct PaywallView: View {
                     unlockRow(icon: "creditcard.fill", text: "Debt payoff tracker")
                     unlockRow(icon: "star.circle.fill", text: "Monthly Wrapped recap")
                 }
-                .padding(.horizontal, 40)
+                .padding(.horizontal, BudgetVaultTheme.spacingPage)
 
                 Spacer()
 
@@ -348,18 +348,18 @@ struct PaywallView: View {
                     Text("Start Exploring")
                 }
                 .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal, 32)
-                .padding(.bottom, 40)
+                .padding(.horizontal, BudgetVaultTheme.spacing2XL)
+                .padding(.bottom, BudgetVaultTheme.spacingPage)
             }
         }
     }
 
     private func unlockRow(icon: String, text: String) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: BudgetVaultTheme.spacingMD) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(BudgetVaultTheme.positive)
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.caption)
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 24)
             Text(text)

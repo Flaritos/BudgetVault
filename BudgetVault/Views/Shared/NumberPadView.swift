@@ -7,7 +7,7 @@ struct NumberPadKeyStyle: ButtonStyle {
         configuration.label
             .background(
                 isSpecial ? AnyShapeStyle(BudgetVaultTheme.electricBlue.opacity(0.08)) : AnyShapeStyle(Color.secondary.opacity(0.08)),
-                in: RoundedRectangle(cornerRadius: 10)
+                in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusPad)
             )
             .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
@@ -27,7 +27,7 @@ struct NumberPadView: View {
     ]
 
     var body: some View {
-        Grid(horizontalSpacing: 16, verticalSpacing: 12) {
+        Grid(horizontalSpacing: BudgetVaultTheme.spacingLG, verticalSpacing: BudgetVaultTheme.spacingMD) {
             ForEach(buttons, id: \.self) { row in
                 GridRow {
                     ForEach(row, id: \.self) { key in

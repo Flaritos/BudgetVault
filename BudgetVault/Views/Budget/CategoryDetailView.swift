@@ -9,6 +9,7 @@ struct CategoryDetailView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @State private var editingTransaction: Transaction?
     @State private var showPaywall = false
+    @State private var showAddTransaction = false
 
     private var transactions: [Transaction] {
         (category.transactions ?? [])
@@ -20,9 +21,9 @@ struct CategoryDetailView: View {
         List {
             // Header
             Section {
-                VStack(spacing: 12) {
+                VStack(spacing: BudgetVaultTheme.spacingMD) {
                     Text(category.emoji)
-                        .font(.system(size: 48))
+                        .font(BudgetVaultTheme.iconLarge)
 
                     Text(category.name)
                         .font(.title2.bold())
@@ -98,6 +99,24 @@ struct CategoryDetailView: View {
         }
         .navigationTitle(category.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAddTransaction = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("Add expense to \(category.name)")
+            }
+        }
+        .sheet(isPresented: $showAddTransaction) {
+            TransactionEntryView(
+                budget: budget,
+                categories: (budget.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder },
+                prefillCategoryName: category.name
+            )
+            .presentationDragIndicator(.visible)
+        }
         .sheet(item: $editingTransaction) { transaction in
             TransactionEditView(transaction: transaction, budget: budget, categories: (budget.categories ?? []).filter { !$0.isHidden })
         }

@@ -12,7 +12,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .padding(10)
             .background(
                 isEnabled ? Color.accentColor.opacity(0.15) : Color.gray.opacity(0.1),
-                in: RoundedRectangle(cornerRadius: 12)
+                in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
             )
             .foregroundStyle(isEnabled ? Color.accentColor : .gray)
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)

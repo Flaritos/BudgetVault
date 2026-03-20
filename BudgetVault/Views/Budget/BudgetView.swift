@@ -70,7 +70,7 @@ struct BudgetView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: BudgetVaultTheme.spacingMD) {
                         Button {
                             navigateMonthBy(-1)
                         } label: {
@@ -92,7 +92,7 @@ struct BudgetView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: BudgetVaultTheme.spacingMD) {
                         if isCurrentPeriod && visibleCategories.count >= 2 {
                             Button {
                                 showMoveMoney = true
@@ -303,7 +303,7 @@ struct BudgetView: View {
 
     @ViewBuilder
     private func categoryRow(category: Category, budget: Budget) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: BudgetVaultTheme.spacingSM) {
             HStack {
                 Text("\(category.emoji) \(category.name)")
                     .font(.body)
@@ -399,16 +399,16 @@ struct BudgetView: View {
 
     private var incomeEditorSheet: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
                 Text(CurrencyFormatter.displayAmount(text: incomeText))
                     .font(BudgetVaultTheme.amountEntry)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
                     .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-                    .padding(.top, 32)
+                    .padding(.top, BudgetVaultTheme.spacing2XL)
 
                 NumberPadView(text: $incomeText)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 Spacer()
             }
@@ -437,10 +437,10 @@ struct BudgetView: View {
     private func categoryAmountSheet(category: Category) -> some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: BudgetVaultTheme.spacingXL) {
                     Text("\(category.emoji) \(category.name)")
                         .font(.headline)
-                        .padding(.top, 16)
+                        .padding(.top, BudgetVaultTheme.spacingLG)
 
                     Text(CurrencyFormatter.displayAmount(text: categoryAmountText))
                         .font(BudgetVaultTheme.amountEntry)
@@ -449,7 +449,7 @@ struct BudgetView: View {
                         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
 
                     NumberPadView(text: $categoryAmountText)
-                        .padding(.horizontal, 24)
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                     Divider()
                         .padding(.horizontal)

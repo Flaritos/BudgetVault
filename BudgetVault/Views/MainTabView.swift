@@ -16,17 +16,17 @@ struct MainTabView: View {
                     Label("History", systemImage: "clock.fill")
                 }
 
-            if isPremium {
-                FinanceTabView()
-                    .tabItem {
-                        Label("Vault", systemImage: "lock.open.fill")
-                    }
-            }
-
-            SettingsView()
+            FinanceTabView()
                 .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
+                    Label("Vault", systemImage: "lock.open.fill")
                 }
+
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem {
+                Label("Settings", systemImage: "gearshape.fill")
+            }
         }
         .tint(BudgetVaultTheme.userAccentColor)
     }

@@ -9,7 +9,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .font(.headline)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isEnabled ? AnyShapeStyle(useGradient ? AnyShapeStyle(BudgetVaultTheme.brandGradient) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(Color.gray), in: RoundedRectangle(cornerRadius: 12))
+            .background(isEnabled ? AnyShapeStyle(useGradient ? AnyShapeStyle(BudgetVaultTheme.brandGradient) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(Color.gray), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
             .foregroundStyle(.white)
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)

@@ -41,7 +41,6 @@ struct DashboardView: View {
     @State private var showMonthlyWrapped = false
     @State private var showAchievements = false
     @State private var newAchievementBanner: String?
-    @State private var showSettings = false
     @State private var showInsights = false
 
     @State private var showProactivePaywall = false
@@ -170,18 +169,8 @@ struct DashboardView: View {
                     .accessibilityHint("Opens the transaction entry form")
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-                    .accessibilityLabel("Settings")
-                }
-            }
             .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(isPresented: $showTransactionEntry, onDismiss: {
                 intentPrefillAmount = nil
                 intentPrefillCategory = nil
@@ -229,12 +218,6 @@ struct DashboardView: View {
                 AchievementGridView()
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showSettings) {
-                NavigationStack {
-                    SettingsView()
-                }
-                .presentationDragIndicator(.visible)
-            }
             .sheet(isPresented: $showInsights) {
                 NavigationStack {
                     InsightsView()
@@ -248,7 +231,7 @@ struct DashboardView: View {
             .sheet(isPresented: $showShareCard) {
                 if let image = shareCardImage {
                     ShareLink(item: Image(uiImage: image), preview: SharePreview("BudgetVault Milestone", image: Image(uiImage: image))) {
-                        VStack(spacing: 16) {
+                        VStack(spacing: BudgetVaultTheme.spacingLG) {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
@@ -330,7 +313,7 @@ struct DashboardView: View {
         }
         .overlay(alignment: .top) {
             if let badge = newAchievementBanner {
-                HStack(spacing: 8) {
+                HStack(spacing: BudgetVaultTheme.spacingSM) {
                     Image(systemName: "trophy.fill")
                         .foregroundStyle(.yellow)
                     Text("Achievement Unlocked: \(badge)")
@@ -524,8 +507,8 @@ struct DashboardView: View {
                             .font(.caption.weight(.medium))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, BudgetVaultTheme.spacingMD)
+                    .padding(.vertical, BudgetVaultTheme.spacingXS)
                     .background(.white.opacity(0.15), in: Capsule())
                     .accessibilityLabel("Logging streak: \(currentStreak) days")
                 }
@@ -639,7 +622,7 @@ struct DashboardView: View {
                 .padding(.horizontal, BudgetVaultTheme.spacingSM)
                 .padding(.top, BudgetVaultTheme.spacingXS)
         }
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: remaining)) remaining of \(CurrencyFormatter.format(cents: budgeted))")
     }
@@ -710,7 +693,7 @@ struct DashboardView: View {
                             to: Calendar.current.startOfDay(for: expense.nextDueDate)
                         ).day ?? 0
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: BudgetVaultTheme.spacingMD) {
                             Text(expense.category?.emoji ?? "\u{1F4E6}")
                                 .font(.title3)
                                 .frame(width: billIconWidth)
@@ -827,7 +810,7 @@ struct DashboardView: View {
             }
             .padding(BudgetVaultTheme.spacingMD)
             .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
-            .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+            .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
         }
         .tint(.primary)
         .accessibilityLabel("\(title). \(subtitle). Premium feature, tap to upgrade.")
@@ -837,7 +820,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func catchUpCard(budget: Budget) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
             HStack {
                 Image(systemName: "hand.wave.fill")
                     .foregroundStyle(Color.accentColor)
@@ -863,7 +846,7 @@ struct DashboardView: View {
             let recentRecurring = recentAutoPostedExpenses(budget: budget)
             if !recentRecurring.isEmpty {
                 ForEach(recentRecurring, id: \.id) { expense in
-                    HStack(spacing: 8) {
+                    HStack(spacing: BudgetVaultTheme.spacingSM) {
                         Text(expense.category?.emoji ?? "")
                         Text(expense.name)
                             .font(.caption)
@@ -900,8 +883,10 @@ struct DashboardView: View {
 
     private func recentAutoPostedExpenses(budget: Budget) -> [RecurringExpense] {
         guard lastActiveDate > 0 else { return [] }
+        let lastDate = Date(timeIntervalSince1970: lastActiveDate)
+        let now = Date()
         return recurringExpenses.filter { expense in
-            expense.isActive && expense.amountCents > 0
+            expense.isActive && expense.nextDueDate > lastDate && expense.nextDueDate <= now
         }.prefix(5).map { $0 }
     }
 

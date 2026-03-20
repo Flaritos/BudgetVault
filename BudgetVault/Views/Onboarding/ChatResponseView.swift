@@ -16,7 +16,7 @@ struct CurrencyChipPicker: View {
     ]
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(quickCurrencies, id: \.code) { currency in
@@ -47,7 +47,7 @@ struct CurrencyChipPicker: View {
                             .background(Color.white.opacity(0.06), in: Capsule())
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
             }
         }
         .sheet(isPresented: $showFullPicker) {
@@ -97,22 +97,22 @@ struct ChatNumberPadView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
             // Display
             Text(CurrencyFormatter.displayAmount(text: text))
                 .font(BudgetVaultTheme.amountEntry)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 8)
+                .padding(.bottom, BudgetVaultTheme.spacingSM)
 
             Text("Monthly take-home pay")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
 
             // Pad
-            VStack(spacing: 8) {
+            VStack(spacing: BudgetVaultTheme.spacingSM) {
                 ForEach(keys, id: \.self) { row in
-                    HStack(spacing: 8) {
+                    HStack(spacing: BudgetVaultTheme.spacingSM) {
                         ForEach(row, id: \.self) { key in
                             Button {
                                 handleKey(key)
@@ -123,7 +123,7 @@ struct ChatNumberPadView: View {
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 52)
                                     .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 .fill(Color.white.opacity(0.08))
         }
                             }
@@ -131,7 +131,7 @@ struct ChatNumberPadView: View {
                     }
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
         }
     }
 
@@ -164,12 +164,12 @@ struct ChatTemplatePicker: View {
     let onSelect: (BudgetTemplates.OnboardingTemplate) -> Void
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: BudgetVaultTheme.spacingMD) {
             ForEach(BudgetTemplates.OnboardingTemplate.allCases, id: \.rawValue) { template in
                 Button {
                     onSelect(template)
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: BudgetVaultTheme.spacingSM) {
                         Image(systemName: template.icon)
                             .font(.title2)
                             .foregroundStyle(.white)
@@ -189,7 +189,7 @@ struct ChatTemplatePicker: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, BudgetVaultTheme.spacingLG)
                     .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
                     .overlay(
                         RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
@@ -198,7 +198,7 @@ struct ChatTemplatePicker: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, BudgetVaultTheme.spacingLG)
     }
 }
 
@@ -210,8 +210,8 @@ struct ChatCategoryEditor: View {
     @State private var editingIndex: Int?
 
     var body: some View {
-        VStack(spacing: 8) {
-            ForEach(categories.indices, id: \.self) { index in
+        VStack(spacing: BudgetVaultTheme.spacingSM) {
+            ForEach(Array(categories.enumerated()), id: \.offset) { index, _ in
                 categoryRow(index: index)
             }
 
@@ -231,12 +231,12 @@ struct ChatCategoryEditor: View {
                     }
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.7))
-                    .padding(12)
-                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                    .padding(BudgetVaultTheme.spacingMD)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, BudgetVaultTheme.spacingLG)
     }
 
     @ViewBuilder
@@ -301,9 +301,9 @@ struct ChatCategoryEditor: View {
                     .foregroundStyle(.white.opacity(0.3))
             }
         }
-        .padding(12)
+        .padding(BudgetVaultTheme.spacingMD)
         .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 .fill(Color.white.opacity(0.08))
         }
     }
@@ -316,7 +316,7 @@ struct ChatYesNoButtons: View {
     let onNo: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: BudgetVaultTheme.spacingMD) {
             Button {
                 onYes()
             } label: {
@@ -325,7 +325,7 @@ struct ChatYesNoButtons: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: 12))
+                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
             }
 
             Button {
@@ -337,12 +337,12 @@ struct ChatYesNoButtons: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 .fill(Color.white.opacity(0.08))
         }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, BudgetVaultTheme.spacingLG)
     }
 }
 
@@ -362,9 +362,9 @@ struct ChatCompletionButton: View {
             .font(.headline)
             .foregroundStyle(BudgetVaultTheme.navyDark)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, BudgetVaultTheme.spacingLG)
             .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, BudgetVaultTheme.spacingXL)
     }
 }

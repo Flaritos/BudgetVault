@@ -152,6 +152,11 @@ struct HistoryView: View {
                     TransactionEditView(transaction: transaction, budget: budget, categories: categories)
                 }
             }
+            .onChange(of: filterMode) { _, newMode in
+                if newMode == .income {
+                    selectedCategoryID = nil
+                }
+            }
             .tint(BudgetVaultTheme.electricBlue)
             .sheet(isPresented: Binding(
                 get: { csvExportText != nil },
@@ -211,7 +216,7 @@ struct HistoryView: View {
                         Image(systemName: "chevron.left")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Previous month")
@@ -250,7 +255,7 @@ struct HistoryView: View {
                             Image(systemName: "chevron.right")
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(.white.opacity(isCurrentPeriod ? 0.3 : 1))
-                                .frame(width: 36, height: 36)
+                                .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
                         .disabled(isCurrentPeriod)
@@ -285,7 +290,7 @@ struct HistoryView: View {
                             Image(systemName: "ellipsis.circle")
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(.white)
-                                .frame(width: 36, height: 36)
+                                .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
                         .accessibilityLabel("More options")
@@ -346,7 +351,7 @@ struct HistoryView: View {
 
             // Filter chips
             Section {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
                     Picker("Filter", selection: $filterMode) {
                         ForEach(FilterMode.allCases, id: \.self) { mode in
                             Text(mode.rawValue).tag(mode)
@@ -356,7 +361,7 @@ struct HistoryView: View {
 
                     if filterMode != .income {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
+                            HStack(spacing: BudgetVaultTheme.spacingSM) {
                                 chipButton(label: "All", isSelected: selectedCategoryID == nil) {
                                     selectedCategoryID = nil
                                 }
@@ -457,9 +462,9 @@ struct HistoryView: View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, BudgetVaultTheme.spacingMD)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.1), in: Capsule())
+                .background(isSelected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.08), in: Capsule())
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         }
     }

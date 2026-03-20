@@ -10,7 +10,7 @@ struct CategoryChipView: View {
     var chipWidth: CGFloat = 56
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: BudgetVaultTheme.spacingXS) {
             Text(emoji)
                 .font(.title2)
                 .frame(width: chipSize, height: chipSize)

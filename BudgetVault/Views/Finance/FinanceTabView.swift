@@ -5,9 +5,12 @@ struct FinanceTabView: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+
+    @State private var showPaywall = false
 
     private var currentBudget: Budget? {
         let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: max(resetDay, 1))
@@ -61,27 +64,48 @@ struct FinanceTabView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // 1. Hero Snapshot Card
-                    snapshotCard
+            if isPremium {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // 1. Hero Snapshot Card
+                        snapshotCard
 
-                    VStack(spacing: BudgetVaultTheme.spacingXL) {
-                        // 2. Vault Intelligence Section
-                        if !insights.isEmpty {
-                            intelligenceSection
+                        VStack(spacing: BudgetVaultTheme.spacingXL) {
+                            // 2. Vault Intelligence Section
+                            if !insights.isEmpty {
+                                intelligenceSection
+                            }
+
+                            // 3. Tools Grid
+                            toolsSection
                         }
-
-                        // 3. Tools Grid
-                        toolsSection
+                        .padding(.top, BudgetVaultTheme.spacingXL)
+                        .padding(.bottom, BudgetVaultTheme.spacingXL)
                     }
-                    .padding(.top, BudgetVaultTheme.spacingXL)
-                    .padding(.bottom, BudgetVaultTheme.spacingXL)
                 }
+                .ignoresSafeArea(edges: .top)
+            } else {
+                VStack(spacing: BudgetVaultTheme.spacingXL) {
+                    VaultDialMark(size: 80)
+                    Text("Unlock the Vault")
+                        .font(.title2.weight(.bold))
+                    Text("Premium features including budget management, insights, and debt tracking.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button { showPaywall = true } label: {
+                        Text("See Premium Features")
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                }
+                .padding(BudgetVaultTheme.spacingXL)
             }
-            .ignoresSafeArea(edges: .top)
-            .navigationTitle("Vault")
-            .toolbarBackground(.hidden, for: .navigationBar)
+        }
+        .navigationTitle("Vault")
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -95,6 +119,12 @@ struct FinanceTabView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+
+            VaultDialMark(size: 20)
+                .opacity(0.15)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.top, 50)
+                .padding(.trailing, 16)
 
             VStack(spacing: BudgetVaultTheme.spacingSM) {
                 Text("Budget Health")
@@ -232,7 +262,7 @@ struct FinanceTabView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, BudgetVaultTheme.spacingXL)
             .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
-            .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+            .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
         }
         .tint(.primary)
         .accessibilityLabel(title)

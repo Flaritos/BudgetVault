@@ -43,103 +43,101 @@ struct SettingsView: View {
     @State private var showDeleteAllFinalConfirm = false
 
     var body: some View {
-        NavigationStack {
-            Form {
-                premiumBadge
-                securitySection
-                profileSection
-                dataSection
-                notificationsSection
-                premiumSection
-                iCloudSection
-                aboutSection
+        Form {
+            premiumBadge
+            securitySection
+            profileSection
+            dataSection
+            notificationsSection
+            premiumSection
+            iCloudSection
+            aboutSection
+        }
+        .navigationTitle("Settings")
+        .sheet(isPresented: $showRecurring) {
+            NavigationStack {
+                RecurringExpenseListView()
             }
-            .navigationTitle("Settings")
-            .sheet(isPresented: $showRecurring) {
-                NavigationStack {
-                    RecurringExpenseListView()
-                }
-            }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
-            }
-            .sheet(isPresented: $showCurrencyPicker) {
-                NavigationStack {
-                    CurrencyPickerView(selectedCurrency: $tempCurrency)
-                        .navigationTitle("Currency")
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") {
-                                    selectedCurrency = tempCurrency
-                                    showCurrencyPicker = false
-                                }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+        }
+        .sheet(isPresented: $showCurrencyPicker) {
+            NavigationStack {
+                CurrencyPickerView(selectedCurrency: $tempCurrency)
+                    .navigationTitle("Currency")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                selectedCurrency = tempCurrency
+                                showCurrencyPicker = false
                             }
                         }
-                }
-            }
-            .sheet(isPresented: $showCSVImport) {
-                CSVImportView()
-            }
-            .sheet(isPresented: $showExportShare) {
-                if let url = exportURL {
-                    ShareSheetView(url: url)
-                }
-            }
-            .sheet(isPresented: $showThemePicker) {
-                ThemePickerView()
-            }
-            .sheet(isPresented: $showBudgetTemplates) {
-                BudgetTemplateSheetView()
-            }
-            .sheet(isPresented: $showAchievements) {
-                AchievementGridView()
-            }
-            .alert("Template Applied", isPresented: $templateAppliedAlert) {
-                Button("OK") {}
-            } message: {
-                Text("Missing categories from the template have been added to your current budget.")
-            }
-            .alert("Export Failed", isPresented: $showExportError) {
-                Button("OK") {}
-            } message: {
-                Text(exportErrorMessage)
-            }
-            .onChange(of: selectedCurrency) { _, _ in
-                SettingsSyncService.pushAllSettings()
-            }
-            .onChange(of: resetDay) { _, _ in
-                SettingsSyncService.pushAllSettings()
-            }
-            .onChange(of: accentColorHex) { _, _ in
-                SettingsSyncService.pushAllSettings()
-            }
-            .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
-                Button("Export Data First") {
-                    // Trigger export, then show final confirm
-                    do {
-                        let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay)
-                        exportURL = url
-                        showExportShare = true
-                    } catch {
-                        // If export fails, go straight to final confirm
-                        showDeleteAllFinalConfirm = true
                     }
-                }
-                Button("Continue Without Exporting", role: .destructive) {
+            }
+        }
+        .sheet(isPresented: $showCSVImport) {
+            CSVImportView()
+        }
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportURL {
+                ShareSheetView(url: url)
+            }
+        }
+        .sheet(isPresented: $showThemePicker) {
+            ThemePickerView()
+        }
+        .sheet(isPresented: $showBudgetTemplates) {
+            BudgetTemplateSheetView()
+        }
+        .sheet(isPresented: $showAchievements) {
+            AchievementGridView()
+        }
+        .alert("Template Applied", isPresented: $templateAppliedAlert) {
+            Button("OK") {}
+        } message: {
+            Text("Missing categories from the template have been added to your current budget.")
+        }
+        .alert("Export Failed", isPresented: $showExportError) {
+            Button("OK") {}
+        } message: {
+            Text(exportErrorMessage)
+        }
+        .onChange(of: selectedCurrency) { _, _ in
+            SettingsSyncService.pushAllSettings()
+        }
+        .onChange(of: resetDay) { _, _ in
+            SettingsSyncService.pushAllSettings()
+        }
+        .onChange(of: accentColorHex) { _, _ in
+            SettingsSyncService.pushAllSettings()
+        }
+        .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
+            Button("Export Data First") {
+                // Trigger export, then show final confirm
+                do {
+                    let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay)
+                    exportURL = url
+                    showExportShare = true
+                } catch {
+                    // If export fails, go straight to final confirm
                     showDeleteAllFinalConfirm = true
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("We recommend exporting your data before deleting. This cannot be undone.")
             }
-            .alert("Are you sure?", isPresented: $showDeleteAllFinalConfirm) {
-                Button("Delete Everything", role: .destructive) {
-                    deleteAllData()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete all budgets, transactions, and settings. This action cannot be undone.")
+            Button("Continue Without Exporting", role: .destructive) {
+                showDeleteAllFinalConfirm = true
             }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("We recommend exporting your data before deleting. This cannot be undone.")
+        }
+        .alert("Are you sure?", isPresented: $showDeleteAllFinalConfirm) {
+            Button("Delete Everything", role: .destructive) {
+                deleteAllData()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete all budgets, transactions, and settings. This action cannot be undone.")
         }
     }
 

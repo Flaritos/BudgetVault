@@ -50,6 +50,7 @@ struct ChatOnboardingView: View {
     @State private var selectedTemplate: BudgetTemplates.OnboardingTemplate = .single
     @State private var editableCategories: [(name: String, emoji: String, color: String, pct: Double)] = []
     @State private var budgetCreated = false
+    @State private var showSaveError = false
 
     // Vault dial animation
     @State private var dialRotation: Double = 0
@@ -78,6 +79,11 @@ struct ChatOnboardingView: View {
                 inputArea
             }
         }
+        .alert("Save Failed", isPresented: $showSaveError) {
+            Button("OK") {}
+        } message: {
+            Text("Your budget could not be saved. Please try again.")
+        }
         .task {
             await startWelcomeSequence()
         }
@@ -102,13 +108,13 @@ struct ChatOnboardingView: View {
                     Text("Skip")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.5))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                        .padding(.vertical, BudgetVaultTheme.spacingSM)
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+        .padding(.top, BudgetVaultTheme.spacingSM)
     }
 
     // MARK: - Chat Content
@@ -116,7 +122,7 @@ struct ChatOnboardingView: View {
     private var chatContent: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: BudgetVaultTheme.spacingMD) {
                     ForEach(messages) { message in
                         ChatBubbleView(text: message.text, isBot: message.isBot)
                             .id(message.id)
@@ -127,8 +133,8 @@ struct ChatOnboardingView: View {
                             .id("typing")
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                .padding(.vertical, BudgetVaultTheme.spacingMD)
             }
             .onChange(of: messages.count) { _, _ in
                 withAnimation {
@@ -165,7 +171,7 @@ struct ChatOnboardingView: View {
             .transition(.move(edge: .bottom).combined(with: .opacity))
 
         case .income:
-            VStack(spacing: 12) {
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
                 ChatNumberPadView(text: $incomeText, currencySymbol: currencySymbol)
 
                 if let cents = MoneyHelpers.parseCurrencyString(incomeText), cents > 0 {
@@ -179,13 +185,13 @@ struct ChatOnboardingView: View {
                             .foregroundStyle(BudgetVaultTheme.navyDark)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                            .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
                     .transition(.scale.combined(with: .opacity))
                 }
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
             .transition(.move(edge: .bottom).combined(with: .opacity))
 
         case .template:
@@ -201,11 +207,11 @@ struct ChatOnboardingView: View {
                     advanceAfterDelay(to: .categories, botMessage: "Here are your categories. Edit names, adjust percentages with +/-, or remove any you don't need. Max \(categoryLimit) categories.")
                 }
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
             .transition(.move(edge: .bottom).combined(with: .opacity))
 
         case .categories:
-            VStack(spacing: 12) {
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
                 ChatCategoryEditor(categories: $editableCategories, categoryLimit: categoryLimit)
 
                 if !editableCategories.isEmpty {
@@ -225,12 +231,12 @@ struct ChatOnboardingView: View {
                             .foregroundStyle(BudgetVaultTheme.navyDark)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                            .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
                 }
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
             .transition(.move(edge: .bottom).combined(with: .opacity))
 
         case .notifications:
@@ -244,7 +250,7 @@ struct ChatOnboardingView: View {
                     advanceAfterDelay(to: .complete, botMessage: "No problem! You can always enable reminders in Settings.\n\nYour budget is set up! Explore your Home screen to see your daily allowance and envelope cards.")
                 }
             )
-            .padding(.bottom, 16)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
             .transition(.move(edge: .bottom).combined(with: .opacity))
 
         case .complete:
@@ -351,7 +357,10 @@ struct ChatOnboardingView: View {
             modelContext.insert(category)
         }
 
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            showSaveError = true
+            return
+        }
         budgetCreated = true
     }
 
@@ -376,6 +385,26 @@ struct ChatOnboardingView: View {
     // MARK: - Skip
 
     private func skipOnboarding() {
+        // Create a minimal default budget so the user has a working budget to edit
+        let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+        let budget = Budget(month: month, year: year, totalIncomeCents: 0, resetDay: resetDay)
+        modelContext.insert(budget)
+
+        let generalCategory = Category(
+            name: "General",
+            emoji: "\u{1F4E6}",
+            budgetedAmountCents: 0,
+            color: "#8E8E93",
+            sortOrder: 0
+        )
+        generalCategory.budget = budget
+        modelContext.insert(generalCategory)
+
+        guard SafeSave.save(modelContext) else {
+            // Save failed -- don't proceed with onboarding completion
+            return
+        }
+
         withAnimation(.smooth(duration: 0.5)) {
             hasCompletedOnboarding = true
         }

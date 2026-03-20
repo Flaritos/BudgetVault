@@ -35,7 +35,7 @@ struct TransactionEditView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
+            VStack(spacing: BudgetVaultTheme.spacingLG) {
                 Picker("Type", selection: $isIncome) {
                     Text("Expense").tag(false)
                     Text("Income").tag(true)
@@ -47,9 +47,9 @@ struct TransactionEditView: View {
                     .font(BudgetVaultTheme.amountEntry)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .foregroundStyle(amountText.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
                     .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-                    .padding(.top, 8)
+                    .padding(.top, BudgetVaultTheme.spacingSM)
                     .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
 
                 if !isIncome && categories.isEmpty {
@@ -59,7 +59,7 @@ struct TransactionEditView: View {
                         .padding(.horizontal)
                 } else if !isIncome {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: BudgetVaultTheme.spacingMD) {
                             ForEach(categories, id: \.id) { category in
                                 Button {
                                     selectedCategory = category
@@ -93,7 +93,7 @@ struct TransactionEditView: View {
                 Spacer()
 
                 NumberPadView(text: $amountText)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 Button {
                     saveChanges()
@@ -110,7 +110,7 @@ struct TransactionEditView: View {
                     Text("Delete Transaction")
                         .font(.subheadline)
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
             .navigationTitle("Edit Transaction")
             .navigationBarTitleDisplayMode(.inline)

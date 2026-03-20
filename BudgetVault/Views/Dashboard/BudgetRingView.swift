@@ -21,7 +21,7 @@ struct BudgetRingView: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 4)
             Circle()
                 .trim(from: 0, to: animatedProgress)
                 .stroke(ringColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
