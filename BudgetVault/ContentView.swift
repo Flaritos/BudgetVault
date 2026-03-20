@@ -12,13 +12,14 @@ struct ContentView: View {
     var body: some View {
         Group {
             if !hasCompletedOnboarding {
-                OnboardingView()
+                ChatOnboardingView()
             } else if biometricLockEnabled && !authService.isAuthenticated {
                 BiometricLockView(authService: authService)
             } else {
                 MainTabView()
             }
         }
+        .animation(.smooth(duration: 0.5), value: hasCompletedOnboarding)
         .background {
             // Fill the entire screen including safe areas
             // Uses navyDark during onboarding, system background otherwise

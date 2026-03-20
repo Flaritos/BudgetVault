@@ -69,7 +69,7 @@ struct BudgetVaultApp: App {
         SettingsSyncService.configure()
 
         let navAppearance = UINavigationBarAppearance()
-        navAppearance.configureWithDefaultBackground()
+        navAppearance.configureWithTransparentBackground()
         navAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor(BudgetVaultTheme.navyDark)]
         navAppearance.titleTextAttributes = [.foregroundColor: UIColor(BudgetVaultTheme.navyDark)]
         UINavigationBar.appearance().standardAppearance = navAppearance

@@ -5,15 +5,14 @@ import TipKit
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
 
     // MARK: - Scaled Metrics for Dynamic Type
     @ScaledMetric(relativeTo: .body) private var fabSize: CGFloat = 56
-    @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 150
-    @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 185
-    @ScaledMetric(relativeTo: .body) private var envelopeCardHeightTall: CGFloat = 200
-    @ScaledMetric(relativeTo: .body) private var ringSize: CGFloat = 56
+    @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 140
+    @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 110
     @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
@@ -42,6 +41,8 @@ struct DashboardView: View {
     @State private var showMonthlyWrapped = false
     @State private var showAchievements = false
     @State private var newAchievementBanner: String?
+    @State private var showSettings = false
+    @State private var showInsights = false
 
     @State private var showProactivePaywall = false
     @State private var showShareCard = false
@@ -80,7 +81,6 @@ struct DashboardView: View {
     }
 
     private var showWrappedCard: Bool {
-        // Show when month is >= 80% complete or when viewing a completed month
         guard let budget = currentBudget else { return false }
         let fraction = viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
         return fraction >= 0.8 || previousBudget != nil
@@ -104,7 +104,6 @@ struct DashboardView: View {
 
     private var showCatchUpCard: Bool {
         guard daysSinceLastActive >= 3 else { return false }
-        // Don't show if dismissed today
         if catchUpDismissedDate > 0 {
             let dismissedDate = Date(timeIntervalSince1970: catchUpDismissedDate)
             if Calendar.current.isDateInToday(dismissedDate) { return false }
@@ -112,7 +111,6 @@ struct DashboardView: View {
         return true
     }
 
-    /// Recurring expenses that were auto-posted while user was away.
     private var autoPostedWhileAway: [RecurringExpense] {
         guard lastActiveDate > 0 else { return [] }
         let lastDate = Date(timeIntervalSince1970: lastActiveDate)
@@ -120,6 +118,8 @@ struct DashboardView: View {
             expense.isActive && expense.nextDueDate > lastDate && expense.nextDueDate <= Date()
         }
     }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
@@ -152,7 +152,7 @@ struct DashboardView: View {
                     )
                 }
 
-                // Floating + button
+                // FAB — Floating action button
                 if currentBudget != nil {
                     Button {
                         showTransactionEntry = true
@@ -162,7 +162,7 @@ struct DashboardView: View {
                             .foregroundStyle(.white)
                             .frame(width: fabSize, height: fabSize)
                             .background(Color.accentColor, in: Circle())
-                            .shadow(radius: 4, y: 2)
+                            .shadow(color: Color.accentColor.opacity(0.3), radius: 12, y: 6)
                     }
                     .padding(.trailing, 24)
                     .padding(.bottom, 16)
@@ -170,9 +170,19 @@ struct DashboardView: View {
                     .accessibilityHint("Opens the transaction entry form")
                 }
             }
-            .navigationTitle(headerTitle)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .sheet(isPresented: $showTransactionEntry, onDismiss: {
-                // Clear prefill data when sheet is dismissed
                 intentPrefillAmount = nil
                 intentPrefillCategory = nil
                 intentPrefillNote = nil
@@ -219,7 +229,18 @@ struct DashboardView: View {
                 AchievementGridView()
                     .presentationDragIndicator(.visible)
             }
-
+            .sheet(isPresented: $showSettings) {
+                NavigationStack {
+                    SettingsView()
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showInsights) {
+                NavigationStack {
+                    InsightsView()
+                }
+                .presentationDragIndicator(.visible)
+            }
             .sheet(isPresented: $showProactivePaywall) {
                 PaywallView()
                     .presentationDragIndicator(.visible)
@@ -242,33 +263,26 @@ struct DashboardView: View {
                 }
             }
             .task {
-                // Cache budget and spent map once
                 refreshCachedValues()
-                // Update last active date
                 lastActiveDate = Date().timeIntervalSince1970
 
                 if let budget = currentBudget {
-                    // Check spending alerts
                     NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
 
-                    // Schedule personalized weekly summary
                     if weeklyDigestEnabled {
                         schedulePersonalizedWeeklySummary(budget: budget)
                     }
 
-                    // Schedule morning briefing if enabled
                     if morningBriefingEnabled {
                         scheduleMorningBriefingWithData(budget: budget)
                     }
 
-                    // Schedule end-of-period notifications
                     NotificationService.scheduleEndOfPeriodNotifications(
                         periodEnd: budget.nextPeriodStart,
                         remainingCents: budget.remainingCents,
                         currencyCode: selectedCurrency
                     )
 
-                    // Check achievements
                     let newBadges = AchievementService.checkAchievements(
                         budget: budget,
                         transactions: allTransactions
@@ -277,7 +291,6 @@ struct DashboardView: View {
                         HapticManager.notification(.success)
                         newAchievementBanner = first.title
 
-                        // Check if this is a share-worthy milestone
                         if first.id == "under_budget_1" || first.id == "streak_30" {
                             prepareShareCard(for: first, budget: budget)
                         }
@@ -286,7 +299,6 @@ struct DashboardView: View {
                         newAchievementBanner = nil
                     }
 
-                    // Review prompt triggers
                     ReviewPromptService.checkFirstMonthUnderBudget()
                     let periodTxCount = allTransactions.filter {
                         $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart
@@ -294,13 +306,10 @@ struct DashboardView: View {
                     ReviewPromptService.checkTransactionMilestone(transactionCount: periodTxCount)
                 }
 
-                // Proactive paywall triggers (only for non-premium users)
                 if !isPremium {
-                    // Update transaction count
                     let txCount = allTransactions.count
                     transactionCount = txCount
 
-                    // After 5th transaction
                     if txCount >= 5 && !hasSeenTransactionPaywall {
                         try? await Task.sleep(for: .seconds(1.5))
                         hasSeenTransactionPaywall = true
@@ -308,7 +317,6 @@ struct DashboardView: View {
                         return
                     }
 
-                    // After 7-day streak
                     if currentStreak >= 7 && !hasSeenStreakPaywall {
                         try? await Task.sleep(for: .seconds(1.5))
                         hasSeenStreakPaywall = true
@@ -340,134 +348,100 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Header
-
-    private var headerTitle: String {
-        guard let budget = currentBudget else { return "Dashboard" }
-        return DateHelpers.monthYearString(month: budget.month, year: budget.year)
-    }
-
     // MARK: - Dashboard Content
 
     @ViewBuilder
     private func dashboardContent(budget: Budget) -> some View {
+        let dailyAllowanceCents = viewModel.dailyAllowanceCents(
+            remainingCents: budget.remainingCents,
+            periodStart: budget.periodStart,
+            nextPeriodStart: budget.nextPeriodStart
+        )
+        let dayProgressFrac = viewModel.dayProgressFraction(
+            periodStart: budget.periodStart,
+            nextPeriodStart: budget.nextPeriodStart
+        )
+        let dayProgressText = viewModel.budgetDayProgress(
+            periodStart: budget.periodStart,
+            nextPeriodStart: budget.nextPeriodStart
+        )
+
         ScrollView {
-            VStack(spacing: 20) {
-                // Catch-up card for returning users (Phase 5.2 + 6.8)
-                if showCatchUpCard {
-                    catchUpCard(budget: budget)
-                }
+            VStack(spacing: 0) {
+                // 1. Navy Gradient Hero Section
+                heroSection(
+                    budget: budget,
+                    dailyAllowanceCents: dailyAllowanceCents,
+                    dayProgressFraction: dayProgressFrac,
+                    dayProgressText: dayProgressText
+                )
 
-                // Monthly summary banner
-                if showSummaryBanner, let prev = previousBudget {
-                    Button {
-                        showMonthlySummary = true
-                        lastSummaryViewed = "\(prev.year)-\(prev.month)"
-                    } label: {
-                        HStack {
-                            Image(systemName: "star.circle.fill")
-                                .foregroundStyle(.yellow)
-                            Text("Your \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) summary is ready!")
-                                .font(.subheadline)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                        }
-                        .padding(12)
-                        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                VStack(spacing: BudgetVaultTheme.spacingXL) {
+                    // Catch-up card for returning users
+                    if showCatchUpCard {
+                        catchUpCard(budget: budget)
+                            .padding(.top, BudgetVaultTheme.spacingMD)
                     }
-                    .tint(.primary)
-                    .padding(.horizontal)
-                    .accessibilityLabel("Monthly summary for \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) is ready. Tap to view.")
-                }
 
-                // Hero budget card
-                heroCard(budget: budget)
-                    .opacity(hasAppeared ? 1 : 0)
-                    .offset(y: hasAppeared ? 0 : 20)
-
-                // Buffer days metric (Phase 6.1)
-                bufferDaysCard(budget: budget)
-
-                // Spending velocity
-                spendingVelocity(budget: budget)
-                    .opacity(hasAppeared ? 1 : 0)
-                    .offset(y: hasAppeared ? 0 : 20)
-
-                // Envelope cards
-                if !visibleCategories.isEmpty {
-                    envelopeCards(budget: budget)
-                        .opacity(hasAppeared ? 1 : 0)
-                        .offset(y: hasAppeared ? 0 : 20)
-                }
-
-                // Savings goals (Phase 5.7 - show empty state when no goals)
-                if !goalCategories.isEmpty {
-                    savingsGoalsSection
-
-                        .opacity(hasAppeared ? 1 : 0)
-                        .offset(y: hasAppeared ? 0 : 20)
-                } else {
-                    savingsGoalEmptyState
-                }
-
-                // Monthly Wrapped card (premium)
-                if showWrappedCard {
-                    wrappedCard
-                        .opacity(hasAppeared ? 1 : 0)
-                        .offset(y: hasAppeared ? 0 : 20)
-                }
-
-                // Recent achievements
-                achievementsPreview
-                    .opacity(hasAppeared ? 1 : 0)
-                    .offset(y: hasAppeared ? 0 : 20)
-
-                // Upcoming bills
-                upcomingBills
-                    .opacity(hasAppeared ? 1 : 0)
-                    .offset(y: hasAppeared ? 0 : 20)
-
-                // Recent transactions
-                if !recentTransactions.isEmpty {
-                    recentTransactionsSection
-                        .opacity(hasAppeared ? 1 : 0)
-                        .offset(y: hasAppeared ? 0 : 20)
-                }
-
-                // Siri tip
-                TipView(SiriTip())
-                    .padding(.horizontal)
-
-                // Premium teaser
-                if !isPremium {
-                    Button {
-                        showPaywall = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "sparkles")
-                                .foregroundStyle(.yellow)
-                            VStack(alignment: .leading) {
-                                Text("Unlock Premium Insights")
-                                    .font(.subheadline.bold())
-                                Text("Track trends, compare months, and more")
+                    // Monthly summary banner
+                    if showSummaryBanner, let prev = previousBudget {
+                        Button {
+                            showMonthlySummary = true
+                            lastSummaryViewed = "\(prev.year)-\(prev.month)"
+                        } label: {
+                            HStack {
+                                Image(systemName: "star.circle.fill")
+                                    .foregroundStyle(.yellow)
+                                Text("Your \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) summary is ready!")
+                                    .font(.subheadline)
+                                Spacer()
+                                Image(systemName: "chevron.right")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            .padding(BudgetVaultTheme.spacingMD)
+                            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
                         }
-                        .padding(12)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        .tint(.primary)
+                        .padding(.horizontal)
+                        .accessibilityLabel("Monthly summary for \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) is ready. Tap to view.")
                     }
-                    .tint(.primary)
-                    .padding(.horizontal)
-                    .accessibilityLabel("Unlock Premium Insights. Track trends, compare months, and more.")
-                    .opacity(hasAppeared ? 1 : 0)
-                    .offset(y: hasAppeared ? 0 : 20)
+
+                    // 2. Envelope Cards (Horizontal Scroll)
+                    if !visibleCategories.isEmpty {
+                        envelopeCardsSection(budget: budget)
+                            .opacity(hasAppeared ? 1 : 0)
+                            .offset(y: hasAppeared ? 0 : 20)
+                    }
+
+                    // 3. Quick Insight Card
+                    insightCard(budget: budget)
+                        .opacity(hasAppeared ? 1 : 0)
+                        .offset(y: hasAppeared ? 0 : 20)
+
+                    // 4. Upcoming Bills
+                    upcomingBillsCard
+                        .opacity(hasAppeared ? 1 : 0)
+                        .offset(y: hasAppeared ? 0 : 20)
+
+                    // 5. Recent Transactions
+                    if !recentTransactions.isEmpty {
+                        recentTransactionsCard
+                            .opacity(hasAppeared ? 1 : 0)
+                            .offset(y: hasAppeared ? 0 : 20)
+                    }
+
+                    // Siri tip
+                    TipView(SiriTip())
+                        .padding(.horizontal)
+
+                    // Premium teaser
+                    if !isPremium {
+                        premiumTeaser
+                            .opacity(hasAppeared ? 1 : 0)
+                            .offset(y: hasAppeared ? 0 : 20)
+                    }
                 }
+                .padding(.top, -30) // overlap the gradient slightly
             }
             .padding(.bottom, 80) // space for FAB
             .onAppear {
@@ -481,9 +455,331 @@ struct DashboardView: View {
                 }
             }
         }
+        .ignoresSafeArea(edges: .top)
     }
 
-    // MARK: - Catch-Up Card (Phase 5.2 + 6.8)
+    // MARK: - 1. Hero Section
+
+    @ViewBuilder
+    private func heroSection(
+        budget: Budget,
+        dailyAllowanceCents: Int64,
+        dayProgressFraction: Double,
+        dayProgressText: String
+    ) -> some View {
+        ZStack(alignment: .topTrailing) {
+            // Gradient background
+            LinearGradient(
+                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // VaultDialMark watermark
+            VaultDialMark(size: 24)
+                .opacity(0.2)
+                .padding(.top, 60)
+                .padding(.trailing, 20)
+
+            // Hero content
+            VStack(spacing: BudgetVaultTheme.spacingSM) {
+                // Daily allowance — THE hero number
+                Text(CurrencyFormatter.format(cents: dailyAllowanceCents))
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText())
+                    .animation(.default, value: dailyAllowanceCents)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+
+                Text("per day")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.7))
+
+                // Remaining of total
+                Text("\(CurrencyFormatter.format(cents: budget.remainingCents)) of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+
+                // Day progress bar
+                VStack(spacing: 4) {
+                    ProgressView(value: dayProgressFraction)
+                        .tint(.white)
+                        .background(.white.opacity(0.2), in: Capsule())
+
+                    Text(dayProgressText)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .frame(maxWidth: 240)
+
+                // Streak badge
+                if currentStreak > 0 {
+                    HStack(spacing: 4) {
+                        Text("\u{1F525}")
+                        Text("\(currentStreak) day streak")
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(.white.opacity(0.15), in: Capsule())
+                    .accessibilityLabel("Logging streak: \(currentStreak) days")
+                }
+            }
+            .padding(.top, 70) // below status bar + toolbar
+            .padding(.bottom, BudgetVaultTheme.spacingXL + 30) // extra room for overlap
+            .frame(maxWidth: .infinity)
+        }
+        .frame(minHeight: 320)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)). \(dayProgressText)")
+    }
+
+    // MARK: - 2. Envelope Cards
+
+    @ViewBuilder
+    private func envelopeCardsSection(budget: Budget) -> some View {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+            Text("Envelopes")
+                .font(.headline)
+                .padding(.horizontal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: BudgetVaultTheme.spacingMD) {
+                    ForEach(visibleCategories, id: \.id) { category in
+                        NavigationLink {
+                            CategoryDetailView(category: category, budget: budget)
+                        } label: {
+                            envelopeCard(category: category, budget: budget)
+                        }
+                        .tint(.primary)
+                        .accessibilityHint("Double tap to view category details")
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func envelopeCard(category: Category, budget: Budget) -> some View {
+        let spent = cachedSpent(for: category, in: budget)
+        let budgeted = category.budgetedAmountCents
+        let remaining = budgeted - spent
+        let fraction: Double = budgeted > 0 ? min(Double(spent) / Double(budgeted), 1.0) : 0
+        let isOverBudget = remaining < 0
+        let categoryColor = Color(hex: category.color)
+
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(category.emoji)
+                    .font(.title3)
+                Text(category.name)
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Text(CurrencyFormatter.format(cents: remaining))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(isOverBudget ? BudgetVaultTheme.negative : BudgetVaultTheme.positive)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Text("remaining")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            // Mini progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(categoryColor.opacity(0.2))
+                        .frame(height: 4)
+
+                    Capsule()
+                        .fill(isOverBudget ? BudgetVaultTheme.negative : categoryColor)
+                        .frame(width: geo.size.width * min(fraction, 1.0), height: 4)
+                }
+            }
+            .frame(height: 4)
+        }
+        .padding(.leading, 4)
+        .padding(BudgetVaultTheme.spacingMD)
+        .frame(width: envelopeCardWidth, height: envelopeCardHeight)
+        .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+        .overlay(alignment: .leading) {
+            // Left color strip
+            RoundedRectangle(cornerRadius: 2)
+                .fill(categoryColor)
+                .frame(width: 4)
+                .padding(.vertical, 8)
+        }
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: remaining)) remaining of \(CurrencyFormatter.format(cents: budgeted))")
+    }
+
+    // MARK: - 3. Quick Insight Card
+
+    @ViewBuilder
+    private func insightCard(budget: Budget) -> some View {
+        let insights = InsightsEngine.generateInsights(
+            budget: budget,
+            previousBudget: previousBudget,
+            allBudgets: allBudgets,
+            currentStreak: currentStreak
+        )
+
+        if let topInsight = insights.first {
+            Button {
+                showInsights = true
+            } label: {
+                HStack(spacing: BudgetVaultTheme.spacingMD) {
+                    Image(systemName: topInsight.severity.iconName)
+                        .font(.title3)
+                        .foregroundStyle(Color.accentColor)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(topInsight.title)
+                            .font(.subheadline.weight(.medium))
+                        Text(topInsight.message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(BudgetVaultTheme.spacingLG)
+                .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+            }
+            .tint(.primary)
+            .padding(.horizontal)
+            .accessibilityLabel("Insight: \(topInsight.title). \(topInsight.message)")
+            .accessibilityHint("Double tap to view all insights")
+        }
+    }
+
+    // MARK: - 4. Upcoming Bills Card
+
+    @ViewBuilder
+    private var upcomingBillsCard: some View {
+        let upcoming = upcomingRecurringExpenses
+        if !upcoming.isEmpty {
+            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+                Text("Upcoming Bills")
+                    .font(.headline)
+                    .padding(.horizontal)
+
+                VStack(spacing: 0) {
+                    ForEach(upcoming, id: \.id) { expense in
+                        let daysUntil = Calendar.current.dateComponents(
+                            [.day],
+                            from: Calendar.current.startOfDay(for: Date()),
+                            to: Calendar.current.startOfDay(for: expense.nextDueDate)
+                        ).day ?? 0
+
+                        HStack(spacing: 12) {
+                            Text(expense.category?.emoji ?? "\u{1F4E6}")
+                                .font(.title3)
+                                .frame(width: billIconWidth)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(expense.name.isEmpty ? "Unnamed" : expense.name)
+                                    .font(.subheadline.weight(.medium))
+                                    .lineLimit(1)
+                                Text(daysUntil == 0 ? "Due today" : "in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")
+                                    .font(.caption)
+                                    .foregroundStyle(daysUntil == 0 ? BudgetVaultTheme.caution : .secondary)
+                            }
+
+                            Spacer()
+
+                            Text(CurrencyFormatter.format(cents: expense.amountCents))
+                                .font(BudgetVaultTheme.rowAmount)
+                        }
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                        .padding(.vertical, BudgetVaultTheme.spacingSM)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(expense.name.isEmpty ? "Unnamed" : expense.name), \(CurrencyFormatter.format(cents: expense.amountCents)), \(daysUntil == 0 ? "due today" : "due in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")")
+                    }
+                }
+                .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    // MARK: - 5. Recent Transactions Card
+
+    @ViewBuilder
+    private var recentTransactionsCard: some View {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+            Text("Recent")
+                .font(.headline)
+                .padding(.horizontal)
+
+            VStack(spacing: 0) {
+                ForEach(recentTransactions, id: \.id) { transaction in
+                    Button {
+                        editingTransaction = transaction
+                    } label: {
+                        TransactionRowView(transaction: transaction)
+                            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                            .padding(.vertical, BudgetVaultTheme.spacingSM)
+                    }
+                    .tint(.primary)
+                    .accessibilityHint("Double tap to edit transaction")
+                }
+            }
+            .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+            .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+            .padding(.horizontal)
+        }
+    }
+
+    // MARK: - Premium Teaser
+
+    @ViewBuilder
+    private var premiumTeaser: some View {
+        Button {
+            showPaywall = true
+        } label: {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.yellow)
+                VStack(alignment: .leading) {
+                    Text("Unlock Premium Insights")
+                        .font(.subheadline.bold())
+                    Text("Track trends, compare months, and more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(BudgetVaultTheme.spacingMD)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+        }
+        .tint(.primary)
+        .padding(.horizontal)
+        .accessibilityLabel("Unlock Premium Insights. Track trends, compare months, and more.")
+    }
+
+    // MARK: - Catch-Up Card
 
     @ViewBuilder
     private func catchUpCard(budget: Budget) -> some View {
@@ -510,7 +806,6 @@ struct DashboardView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            // Show auto-posted recurring expenses
             let recentRecurring = recentAutoPostedExpenses(budget: budget)
             if !recentRecurring.isEmpty {
                 ForEach(recentRecurring, id: \.id) { expense in
@@ -541,280 +836,19 @@ struct DashboardView: View {
             }
             .padding(.top, 4)
         }
-        .padding(12)
+        .padding(BudgetVaultTheme.spacingMD)
         .background(Color.accentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
         .padding(.horizontal)
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
-    /// Get recently auto-posted recurring expenses (active ones with amounts, shown during catch-up).
+    // MARK: - Helpers
+
     private func recentAutoPostedExpenses(budget: Budget) -> [RecurringExpense] {
         guard lastActiveDate > 0 else { return [] }
         return recurringExpenses.filter { expense in
             expense.isActive && expense.amountCents > 0
         }.prefix(5).map { $0 }
-    }
-
-    // MARK: - Hero Budget Card
-
-    @ViewBuilder
-    private func heroCard(budget: Budget) -> some View {
-        let pct = budget.percentRemaining
-        let status = viewModel.statusText(for: pct)
-        let dailyAllowanceCents = viewModel.dailyAllowanceCents(remainingCents: budget.remainingCents, periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
-
-        ZStack(alignment: .topTrailing) {
-            VaultDialMark(size: 24)
-                .opacity(0.3)
-                .padding(12)
-
-            VStack(spacing: 12) {
-            // Streak badge row
-            if currentStreak > 0 {
-                HStack {
-                    Spacer()
-                    HStack(spacing: 2) {
-                        Text("\u{1F525}")
-                        Text("\(currentStreak)")
-                            .font(.caption.bold())
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(.white.opacity(0.2), in: Capsule())
-                    .accessibilityLabel("Logging streak: \(currentStreak) days")
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-            }
-
-            Text(CurrencyFormatter.format(cents: budget.remainingCents))
-                .font(BudgetVaultTheme.heroAmount)
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-                .foregroundStyle(.white)
-                .contentTransition(.numericText())
-                .animation(.default, value: budget.remainingCents)
-                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-                .padding(.top, currentStreak > 0 ? 0 : 24)
-
-            Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.8))
-
-            Text("You can spend \(CurrencyFormatter.format(cents: dailyAllowanceCents))/day")
-                .font(.callout.weight(.medium))
-                .foregroundStyle(.white.opacity(0.9))
-
-            ProgressView(value: viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart))
-                .tint(.white)
-                .padding(.horizontal, 24)
-
-            Text(viewModel.budgetDayProgress(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart))
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.7))
-
-            // Status badge
-            Text(status)
-                .font(.caption.bold())
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(.white.opacity(0.2), in: Capsule())
-                .padding(.bottom, 24)
-        }
-        }
-        .frame(maxWidth: .infinity)
-        .background(BudgetVaultTheme.budgetGradient(for: pct))
-        .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL, style: .continuous))
-        .shadow(color: .black.opacity(0.15), radius: 16, y: 8)
-        .padding(.horizontal, BudgetVaultTheme.spacingLG)
-        .accessibilityElement(children: .combine)
-        .accessibilityValue("\(CurrencyFormatter.format(cents: budget.remainingCents)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)), \(status)")
-    }
-
-    // MARK: - Buffer Days (Phase 6.1)
-
-    @ViewBuilder
-    private func bufferDaysCard(budget: Budget) -> some View {
-        if let days = computeBufferDays(budget: budget), days >= 0 {
-            HStack(spacing: 10) {
-                Image(systemName: "shield.checkered")
-                    .font(.title3)
-                    .foregroundStyle(days > 7 ? BudgetVaultTheme.positive : (days > 3 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text("\(days)")
-                            .font(.title3.bold())
-                        Text("buffer day\(days == 1 ? "" : "s")")
-                            .font(.subheadline)
-                    }
-                    Text("Days your remaining budget could last at your current pace")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-            }
-            .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-            .padding(.horizontal, BudgetVaultTheme.spacingLG)
-        }
-    }
-
-    private func computeBufferDays(budget: Budget) -> Int? {
-        let remaining = budget.remainingCents
-        guard remaining > 0 else { return 0 }
-        let totalSpent = budget.totalSpentCents()
-        guard totalSpent > 0 else { return nil }
-        let daysSoFar = max(Calendar.current.dateComponents([.day], from: budget.periodStart, to: Date()).day ?? 1, 1)
-        let avgDaily = totalSpent / Int64(daysSoFar)
-        guard avgDaily > 0 else { return nil }
-        return Int(remaining / avgDaily)
-    }
-
-    // MARK: - Spending Velocity
-
-    @ViewBuilder
-    private func spendingVelocity(budget: Budget) -> some View {
-        let calendar = Calendar.current
-        let today = Date()
-        let start = budget.periodStart
-        let end = budget.nextPeriodStart
-        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
-        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 1)
-        let totalSpent = budget.totalSpentCents()
-
-        if totalSpent > 0 && elapsed > 0 {
-            let dailyRate = Double(totalSpent) / Double(elapsed)
-            let projectedCents = Int64(dailyRate * Double(totalDays))
-            let overBudget = projectedCents > budget.totalIncomeCents
-
-            HStack(spacing: 6) {
-                Image(systemName: overBudget ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(overBudget ? BudgetVaultTheme.negative : BudgetVaultTheme.positive)
-
-                Text("At this pace, you'll spend \(CurrencyFormatter.format(cents: projectedCents)) this month")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, BudgetVaultTheme.spacingMD)
-            .padding(.vertical, BudgetVaultTheme.spacingSM)
-            .frame(maxWidth: .infinity)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM))
-            .padding(.horizontal, BudgetVaultTheme.spacingLG)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Spending velocity: At this pace, you'll spend \(CurrencyFormatter.format(cents: projectedCents)) this month, \(overBudget ? "over budget" : "on track")")
-        }
-    }
-
-    // MARK: - Envelope Cards
-
-    @ViewBuilder
-    private func envelopeCards(budget: Budget) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(visibleCategories, id: \.id) { category in
-                    NavigationLink {
-                        CategoryDetailView(category: category, budget: budget)
-                    } label: {
-                        envelopeCard(category: category, budget: budget)
-                    }
-                    .tint(.primary)
-                    .accessibilityHint("Double tap to view category details")
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    @ViewBuilder
-    private func envelopeCard(category: Category, budget: Budget) -> some View {
-        let spent = cachedSpent(for: category, in: budget)
-        let budgeted = category.budgetedAmountCents
-
-        VStack(spacing: 8) {
-            Text(category.emoji)
-                .font(.title2)
-            Text(category.name)
-                .font(.caption.bold())
-                .lineLimit(1)
-
-            BudgetRingView(spent: spent, budgeted: budgeted)
-                .frame(width: ringSize, height: ringSize)
-
-            Text(CurrencyFormatter.format(cents: spent))
-                .font(.caption)
-            Text("of \(CurrencyFormatter.format(cents: budgeted))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if category.rollOverUnspent {
-                Text("Rolls over")
-                    .font(.caption2)
-                    .foregroundStyle(BudgetVaultTheme.info)
-            }
-        }
-        .frame(width: envelopeCardWidth, height: category.rollOverUnspent ? envelopeCardHeightTall : envelopeCardHeight)
-        .background(
-            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                .fill(Color(hex: category.color).opacity(colorScheme == .dark ? 0.15 : 0.08))
-        )
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
-        .overlay(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD).strokeBorder(.secondary.opacity(0.1)))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(category.emoji) \(category.name): spent \(CurrencyFormatter.format(cents: spent)) of \(CurrencyFormatter.format(cents: budgeted))")
-    }
-
-    // MARK: - Upcoming Bills
-
-    @ViewBuilder
-    private var upcomingBills: some View {
-        let upcoming = upcomingRecurringExpenses
-        if !upcoming.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Upcoming")
-                    .font(.headline)
-                    .padding(.horizontal)
-
-                ForEach(upcoming, id: \.id) { expense in
-                    let daysUntil = Calendar.current.dateComponents(
-                        [.day],
-                        from: Calendar.current.startOfDay(for: Date()),
-                        to: Calendar.current.startOfDay(for: expense.nextDueDate)
-                    ).day ?? 0
-
-                    HStack(spacing: 12) {
-                        Text(expense.category?.emoji ?? "\u{1F4E6}")
-                            .font(.title3)
-                            .frame(width: billIconWidth)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(expense.name.isEmpty ? "Unnamed" : expense.name)
-                                .font(.subheadline.weight(.medium))
-                                .lineLimit(1)
-                            Text(daysUntil == 0 ? "Due today" : "Due in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")
-                                .font(.caption)
-                                .foregroundStyle(daysUntil == 0 ? BudgetVaultTheme.caution : .secondary)
-                        }
-
-                        Spacer()
-
-                        Text(CurrencyFormatter.format(cents: expense.amountCents))
-                            .font(BudgetVaultTheme.rowAmount)
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 4)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(expense.name.isEmpty ? "Unnamed" : expense.name), \(CurrencyFormatter.format(cents: expense.amountCents)), \(daysUntil == 0 ? "due today" : "due in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")")
-                }
-            }
-        }
     }
 
     private var upcomingRecurringExpenses: [RecurringExpense] {
@@ -828,194 +862,12 @@ struct DashboardView: View {
             .map { $0 }
     }
 
-    // MARK: - Recent Transactions
-
-    @ViewBuilder
-    private var recentTransactionsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Recent")
-                .font(.headline)
-                .padding(.horizontal)
-
-            ForEach(recentTransactions, id: \.id) { transaction in
-                Button {
-                    editingTransaction = transaction
-                } label: {
-                    TransactionRowView(transaction: transaction)
-                        .padding(.horizontal)
-                        .padding(.vertical, 4)
-                }
-                .tint(.primary)
-                .accessibilityHint("Double tap to edit transaction")
-            }
-        }
-    }
-
-    // MARK: - Savings Goals (Phase 5.7)
-
-    private var goalCategories: [Category] {
-        visibleCategories.filter { $0.isSavingsGoal && $0.goalAmountCents != nil }
-    }
-
-    @ViewBuilder
-    private var savingsGoalsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Savings Goals")
-                .font(.headline)
-                .padding(.horizontal)
-
-            ForEach(goalCategories, id: \.id) { category in
-                HStack {
-                    Text(category.emoji)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.name)
-                            .font(.subheadline.bold())
-                        ProgressView(value: category.goalProgress)
-                            .tint(Color.accentColor)
-                    }
-                    VStack(alignment: .trailing) {
-                        Text(CurrencyFormatter.format(cents: category.budgetedAmountCents))
-                            .font(.caption.bold())
-                        Text("of \(CurrencyFormatter.format(cents: category.goalAmountCents ?? 0))")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: category.budgetedAmountCents)) saved of \(CurrencyFormatter.format(cents: category.goalAmountCents ?? 0)) goal, \(Int(category.goalProgress * 100)) percent")
-            }
-        }
-    }
-
-    /// Subtle prompt when no savings goals exist.
-    @ViewBuilder
-    private var savingsGoalEmptyState: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "target")
-                .foregroundStyle(.secondary)
-            Text("Set a savings goal for any category")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM))
-        .padding(.horizontal)
-        .accessibilityLabel("Set a savings goal for any category. Navigate to Budget tab.")
-    }
-
-    // MARK: - Monthly Wrapped Card
-
-    @ViewBuilder
-    private var wrappedCard: some View {
-        Button {
-            if isPremium {
-                showMonthlyWrapped = true
-            } else {
-                showPaywall = true
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "party.popper.fill")
-                    .font(.title3)
-                    .foregroundStyle(BudgetVaultTheme.electricBlue)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Monthly Wrapped")
-                        .font(.subheadline.bold())
-                    Text("See your spending highlights")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                if !isPremium {
-                    Image(systemName: "star.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-        }
-        .tint(.primary)
-        .padding(.horizontal)
-        .accessibilityLabel("Monthly Wrapped\(isPremium ? "" : ", premium required")")
-    }
-
-    // MARK: - Achievements Preview
-
-    @ViewBuilder
-    private var achievementsPreview: some View {
-        Button {
-            showAchievements = true
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "trophy.fill")
-                    .font(.title3)
-                    .foregroundStyle(.yellow)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Achievements")
-                        .font(.subheadline.bold())
-                    Text("View your badges")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-        }
-        .tint(.primary)
-        .padding(.horizontal)
-        .accessibilityLabel("Achievements. View your badges.")
-    }
-
-    // MARK: - Helpers
-
-    private func budgetDayProgress(budget: Budget) -> String {
-        let calendar = Calendar.current
-        let today = Date()
-        let start = budget.periodStart
-        let end = budget.nextPeriodStart
-        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
-        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 0)
-        let dayNumber = min(elapsed + 1, totalDays)
-        return "Day \(dayNumber) of \(totalDays)"
-    }
-
-    private func dayProgressFraction(budget: Budget) -> Double {
-        let calendar = Calendar.current
-        let today = Date()
-        let start = budget.periodStart
-        let end = budget.nextPeriodStart
-        let totalDays = max(calendar.dateComponents([.day], from: start, to: end).day ?? 30, 1)
-        let elapsed = max(calendar.dateComponents([.day], from: start, to: today).day ?? 0, 0)
-        return min(Double(elapsed) / Double(totalDays), 1.0)
-    }
-
     private func daysRemainingInPeriod(budget: Budget) -> Int {
         let calendar = Calendar.current
         let today = Date()
         let end = budget.nextPeriodStart
         return max(calendar.dateComponents([.day], from: today, to: end).day ?? 1, 1)
     }
-
 
     /// Pre-compute spent values once and cache them (0.1 performance fix)
     private func refreshCachedValues() {
@@ -1071,7 +923,7 @@ struct DashboardView: View {
         )
     }
 
-    // MARK: - Share Card (Phase 5.5)
+    // MARK: - Share Card
 
     private func prepareShareCard(for achievement: AchievementService.Achievement, budget: Budget) {
         let card = ShareCardView(
@@ -1081,7 +933,6 @@ struct DashboardView: View {
             metricLabel: achievement.title
         )
         shareCardImage = card.renderImage()
-        // Show share prompt after achievement banner dismisses
         Task {
             try? await Task.sleep(for: .seconds(4))
             await MainActor.run { showShareCard = true }

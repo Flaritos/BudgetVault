@@ -7,25 +7,19 @@ struct MainTabView: View {
         TabView {
             DashboardView()
                 .tabItem {
-                    Label("Dashboard", systemImage: "chart.pie.fill")
+                    Label("Home", systemImage: "house.fill")
                 }
-            BudgetView()
-                .tabItem {
-                    Label("Budget", systemImage: "list.bullet.rectangle.fill")
-                }
+
             HistoryView()
                 .tabItem {
                     Label("History", systemImage: "clock.fill")
                 }
-            InsightsView()
-                .tabItem {
-                    Label("Insights", systemImage: "lightbulb.fill")
-                }
+
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
         }
-        .tint(Color.accentColor)
+        .tint(BudgetVaultTheme.userAccentColor)
     }
 }
