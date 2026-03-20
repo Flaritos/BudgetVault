@@ -22,12 +22,9 @@ struct HistoryView: View {
     @State private var transactionToDelete: Transaction?
     @State private var showDeleteConfirmation = false
 
-    // MARK: - Cached Filter State (#1)
+    // MARK: - Cached Filter State
     @State private var cachedFilteredTransactions: [Transaction] = []
     @State private var cachedGroupedByDay: [(date: Date, transactions: [Transaction])] = []
-
-    // MARK: - Scaled Metric (#6)
-    @ScaledMetric(relativeTo: .body) private var headerHeight: CGFloat = 100
 
     enum FilterMode: String, CaseIterable {
         case all = "All"
@@ -56,7 +53,6 @@ struct HistoryView: View {
 
     // MARK: - Cached computed helpers
 
-    /// Paginated view of filtered transactions
     private var filteredTransactions: [Transaction] {
         Array(cachedFilteredTransactions.prefix(displayLimit))
     }
@@ -65,7 +61,7 @@ struct HistoryView: View {
         cachedFilteredTransactions.count > displayLimit
     }
 
-    // MARK: - Period summary (#8)
+    // MARK: - Period summary
 
     private var totalSpent: Int64 {
         cachedFilteredTransactions.filter { !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
@@ -75,7 +71,7 @@ struct HistoryView: View {
         cachedFilteredTransactions.filter { $0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
     }
 
-    // MARK: - Static DateFormatter (#2)
+    // MARK: - Static DateFormatter
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -83,7 +79,7 @@ struct HistoryView: View {
         return f
     }()
 
-    // MARK: - Recompute (#1)
+    // MARK: - Recompute
 
     private func recomputeFilteredTransactions() {
         guard let budget = currentBudget else {
@@ -105,7 +101,6 @@ struct HistoryView: View {
             transactions = transactions.filter { $0.category?.id == catID }
         }
 
-        // (#10) Search matches notes AND category names
         if !searchText.isEmpty {
             transactions = transactions.filter {
                 $0.note.localizedCaseInsensitiveContains(searchText) ||
@@ -125,15 +120,7 @@ struct HistoryView: View {
         }
 
         cachedFilteredTransactions = transactions
-
-        // Recompute grouped by day
-        let calendar = Calendar.current
-        let paginated = Array(transactions.prefix(displayLimit))
-        let grouped = Dictionary(grouping: paginated) { tx in
-            calendar.startOfDay(for: tx.date)
-        }
-        cachedGroupedByDay = grouped.sorted { $0.key > $1.key }
-            .map { (date: $0.key, transactions: $0.value.sorted { $0.date > $1.date }) }
+        recomputeGroupedByDay()
     }
 
     private func recomputeGroupedByDay() {
@@ -146,7 +133,7 @@ struct HistoryView: View {
             .map { (date: $0.key, transactions: $0.value.sorted { $0.date > $1.date }) }
     }
 
-    // MARK: - CSV (#3)
+    // MARK: - CSV
 
     private func generateCSV() -> String {
         var lines = ["Date,Category,Note,Amount,Currency,Type"]
@@ -167,17 +154,13 @@ struct HistoryView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Navy gradient header
+                // Compact gradient header
                 gradientHeader
 
-                // Content (#4) — proper empty state logic
+                // Content
                 Group {
                     if cachedFilteredTransactions.isEmpty && searchText.isEmpty && filterMode == .all && selectedCategoryID == nil {
-                        EmptyStateView(
-                            icon: "clock.fill",
-                            title: "No Transactions",
-                            message: "Start logging to see your history here."
-                        )
+                        vaultEmptyState
                     } else if cachedFilteredTransactions.isEmpty && !searchText.isEmpty {
                         ContentUnavailableView.search(text: searchText)
                     } else if cachedFilteredTransactions.isEmpty {
@@ -207,7 +190,6 @@ struct HistoryView: View {
                     TransactionEditView(transaction: transaction, budget: budget, categories: categories)
                 }
             }
-            // (#1, #11, #16, #17) onChange handlers with cache recompute
             .onChange(of: filterMode) { _, newMode in
                 if newMode == .income {
                     selectedCategoryID = nil
@@ -274,129 +256,138 @@ struct HistoryView: View {
         }
     }
 
-    // MARK: - Gradient Header (#9, #12, #13, #14)
+    // MARK: - Compact Gradient Header
 
     @ViewBuilder
     private var gradientHeader: some View {
-        ZStack {
-            // (#9) Use theme gradient token
-            BudgetVaultTheme.brandGradient
-                .ignoresSafeArea(edges: .top)
+        VStack(spacing: 0) {
+            HStack {
+                // Back month
+                Button {
+                    navigateMonth(-1)
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Previous month")
 
-            // (#14) VaultDialMark watermark
-            VaultDialMark(size: 60)
-                .opacity(0.06)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                .padding(.trailing, BudgetVaultTheme.spacingLG)
+                Spacer()
 
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
+                // Month/year title
+                VStack(spacing: 2) {
+                    Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear))
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.white)
 
-                HStack {
-                    // Back month
+                    if !isCurrentPeriod {
+                        Button {
+                            if reduceMotion {
+                                let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+                                viewingMonth = m
+                                viewingYear = y
+                                displayLimit = 50
+                            } else {
+                                withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
+                                    let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+                                    viewingMonth = m
+                                    viewingYear = y
+                                    displayLimit = 50
+                                }
+                            }
+                        } label: {
+                            Text("Back to Today")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .underline()
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Forward month + overflow menu
+                HStack(spacing: BudgetVaultTheme.spacingSM) {
                     Button {
-                        navigateMonth(-1)
+                        navigateMonth(1)
                     } label: {
-                        Image(systemName: "chevron.left")
+                        Image(systemName: "chevron.right")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white.opacity(isCurrentPeriod ? 0.3 : 1))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(isCurrentPeriod)
+                    .accessibilityLabel("Next month")
+
+                    // Overflow menu: sort + export
+                    Menu {
+                        Section("Sort By") {
+                            ForEach(SortMode.allCases, id: \.self) { mode in
+                                Button {
+                                    sortMode = mode
+                                } label: {
+                                    HStack {
+                                        Text(mode.rawValue)
+                                        if sortMode == mode {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Section {
+                            Button {
+                                csvExportText = generateCSV()
+                            } label: {
+                                Label("Export CSV", systemImage: "square.and.arrow.up")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }
-                    .accessibilityLabel("Previous month")
-
-                    Spacer()
-
-                    // (#12) Month/year title — larger font
-                    VStack(spacing: 2) {
-                        Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear))
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(.white)
-
-                        // (#13) Better "Back to Today" visibility
-                        if !isCurrentPeriod {
-                            Button {
-                                if reduceMotion {
-                                    let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
-                                    viewingMonth = m
-                                    viewingYear = y
-                                    displayLimit = 50
-                                } else {
-                                    withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
-                                        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
-                                        viewingMonth = m
-                                        viewingYear = y
-                                        displayLimit = 50
-                                    }
-                                }
-                            } label: {
-                                Text("Back to Today")
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(.white.opacity(0.85))
-                                    .underline()
-                            }
-                        }
-                    }
-
-                    Spacer()
-
-                    // Forward month + overflow menu
-                    HStack(spacing: BudgetVaultTheme.spacingMD) {
-                        Button {
-                            navigateMonth(1)
-                        } label: {
-                            Image(systemName: "chevron.right")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(.white.opacity(isCurrentPeriod ? 0.3 : 1))
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .disabled(isCurrentPeriod)
-                        .accessibilityLabel("Next month")
-
-                        // Overflow menu: sort + export
-                        Menu {
-                            // Sort section
-                            Section("Sort By") {
-                                ForEach(SortMode.allCases, id: \.self) { mode in
-                                    Button {
-                                        sortMode = mode
-                                    } label: {
-                                        HStack {
-                                            Text(mode.rawValue)
-                                            if sortMode == mode {
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            Section {
-                                Button {
-                                    csvExportText = generateCSV()
-                                } label: {
-                                    Label("Export CSV", systemImage: "square.and.arrow.up")
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .accessibilityLabel("More options")
-                    }
+                    .accessibilityLabel("More options")
                 }
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
+            .padding(.horizontal, BudgetVaultTheme.spacingMD)
         }
-        .frame(minHeight: headerHeight) // (#6) ScaledMetric
+        .padding(.top, BudgetVaultTheme.spacingSM)
+        .padding(.bottom, BudgetVaultTheme.spacingMD)
+        .background {
+            BudgetVaultTheme.brandGradient
+                .ignoresSafeArea(edges: .top)
+        }
     }
 
-    // MARK: - Day Label (#2)
+    // MARK: - Vault Empty State
+
+    @ViewBuilder
+    private var vaultEmptyState: some View {
+        VStack(spacing: BudgetVaultTheme.spacingXL) {
+            VaultDialMark(size: 60)
+                .opacity(0.3)
+
+            Text("No Transactions")
+                .font(.title3.weight(.bold))
+
+            Text("Your vault ledger is empty.\nTap + on the Home screen to log your first expense.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+        .offset(y: -40)
+    }
+
+    // MARK: - Day Label
 
     private func dayLabel(for date: Date) -> String {
         let calendar = Calendar.current
@@ -439,7 +430,7 @@ struct HistoryView: View {
                 .listRowInsets(EdgeInsets())
                 .padding(.horizontal)
 
-            // Filter chips
+            // Filter chips section
             Section {
                 VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
                     Picker("Filter", selection: $filterMode) {
@@ -451,13 +442,15 @@ struct HistoryView: View {
 
                     if filterMode != .income {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: BudgetVaultTheme.spacingSM) {
-                                chipButton(label: "All", isSelected: selectedCategoryID == nil) {
+                            HStack(spacing: BudgetVaultTheme.spacingMD) {
+                                // "All" chip
+                                categoryChip(emoji: nil, name: "All", color: nil, isSelected: selectedCategoryID == nil) {
                                     selectedCategoryID = nil
                                 }
+
                                 ForEach(categories, id: \.id) { cat in
-                                    chipButton(label: cat.emoji, isSelected: selectedCategoryID == cat.id) {
-                                        selectedCategoryID = cat.id
+                                    categoryChip(emoji: cat.emoji, name: cat.name, color: cat.color, isSelected: selectedCategoryID == cat.id) {
+                                        selectedCategoryID = (selectedCategoryID == cat.id) ? nil : cat.id
                                     }
                                     .accessibilityLabel(cat.name)
                                 }
@@ -470,39 +463,25 @@ struct HistoryView: View {
                 .padding(.horizontal)
             }
 
-            // (#8) Period summary bar
+            // Period summary card
             if !cachedFilteredTransactions.isEmpty {
                 Section {
                     HStack {
-                        VStack(alignment: .leading) {
-                            Text("Spent")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(CurrencyFormatter.format(cents: totalSpent))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(BudgetVaultTheme.negative)
-                        }
+                        summaryItem(label: "Spent", value: CurrencyFormatter.format(cents: totalSpent), color: BudgetVaultTheme.negative)
                         Spacer()
-                        VStack(alignment: .center) {
-                            Text("Income")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(CurrencyFormatter.format(cents: totalIncome))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(BudgetVaultTheme.positive)
-                        }
+                        Divider().frame(height: 30)
                         Spacer()
-                        VStack(alignment: .trailing) {
-                            Text("Transactions")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text("\(cachedFilteredTransactions.count)")
-                                .font(.subheadline.weight(.semibold))
-                        }
+                        summaryItem(label: "Income", value: CurrencyFormatter.format(cents: totalIncome), color: BudgetVaultTheme.positive)
+                        Spacer()
+                        Divider().frame(height: 30)
+                        Spacer()
+                        summaryItem(label: "Count", value: "\(cachedFilteredTransactions.count)", color: .primary)
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, BudgetVaultTheme.spacingSM)
-                    .listRowInsets(EdgeInsets())
+                    .padding(.vertical, BudgetVaultTheme.spacingMD)
+                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                    .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+                    .listRowInsets(EdgeInsets(top: BudgetVaultTheme.spacingSM, leading: BudgetVaultTheme.spacingLG, bottom: BudgetVaultTheme.spacingSM, trailing: BudgetVaultTheme.spacingLG))
                     .listRowBackground(Color.clear)
                 }
             }
@@ -557,11 +536,13 @@ struct HistoryView: View {
                     HStack {
                         Text(dayLabel(for: group.date))
                             .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Text(daySubtotal(group.transactions))
-                            .font(.subheadline.weight(.medium))
+                            .font(.subheadline.weight(.medium).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.top, BudgetVaultTheme.spacingSM)
                 }
             }
 
@@ -582,29 +563,79 @@ struct HistoryView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .refreshable { // (#18) Pull-to-refresh
+        .refreshable {
             recomputeFilteredTransactions()
         }
     }
 
-    // (#7) Chips with .isSelected accessibility trait
+    // MARK: - Summary Item
+
     @ViewBuilder
-    private func chipButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func summaryItem(label: String, value: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(color)
+        }
+    }
+
+    // MARK: - Category Chip (visual circles)
+
+    @ViewBuilder
+    private func categoryChip(emoji: String?, name: String, color: String?, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button {
             action()
-            HapticManager.selection() // (#11)
+            HapticManager.selection()
         } label: {
-            Text(label)
-                .font(.subheadline)
-                .padding(.horizontal, BudgetVaultTheme.spacingMD)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.08), in: Capsule())
-                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+            VStack(spacing: 2) {
+                if let emoji = emoji {
+                    Text(emoji)
+                        .font(.title3)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(isSelected ? chipColor(color).opacity(0.2) : Color.secondary.opacity(0.06))
+                        )
+                        .overlay(
+                            Circle()
+                                .strokeBorder(isSelected ? chipColor(color) : Color.clear, lineWidth: 2)
+                        )
+                } else {
+                    // "All" chip uses a grid icon
+                    Image(systemName: "square.grid.2x2")
+                        .font(.body)
+                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.06))
+                        )
+                        .overlay(
+                            Circle()
+                                .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+                        )
+                }
+                Text(name)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+            }
+            .frame(width: 50)
         }
+        .tint(.primary)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    // (#5) Reduce motion support + (#11) haptic
+    private func chipColor(_ hex: String?) -> Color {
+        guard let hex = hex else { return Color.accentColor }
+        return Color(hex: hex)
+    }
+
+    // MARK: - Navigation
+
     private func navigateMonth(_ delta: Int) {
         if reduceMotion {
             let (m, y) = DateHelpers.navigateMonth(from: viewingMonth, year: viewingYear, delta: delta)

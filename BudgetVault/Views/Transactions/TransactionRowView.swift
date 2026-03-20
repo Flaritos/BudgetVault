@@ -3,30 +3,55 @@ import SwiftUI
 struct TransactionRowView: View {
     let transaction: Transaction
 
+    @ScaledMetric(relativeTo: .body) private var emojiSize: CGFloat = 36
+
     var body: some View {
         HStack(spacing: BudgetVaultTheme.spacingMD) {
+            // Category color indicator (thin vertical bar)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(categoryColor)
+                .frame(width: 3, height: 36)
+
+            // Emoji circle
             Text(emoji)
                 .font(.title3)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(categoryColor.opacity(0.12)))
+                .frame(width: emojiSize, height: emojiSize)
+                .background(categoryColor.opacity(0.10), in: Circle())
 
+            // Content
             VStack(alignment: .leading, spacing: 2) {
-                Text(transaction.note.isEmpty ? (transaction.isIncome ? "Income" : "Expense") : transaction.note)
+                Text(displayTitle)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
-                Text(transaction.date, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+
+                HStack(spacing: BudgetVaultTheme.spacingXS) {
+                    Text(transaction.category?.name ?? "Income")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\u{00B7}")
+                        .foregroundStyle(.tertiary)
+                    Text(transaction.date, style: .time)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Spacer()
 
+            // Amount — expenses use .primary, income uses green
             Text(formattedAmount)
                 .font(BudgetVaultTheme.rowAmount)
-                .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
+                .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : .primary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(emoji) \(transaction.note.isEmpty ? (transaction.isIncome ? "Income" : "Expense") : transaction.note), \(formattedAmount), \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
+        .accessibilityLabel("\(emoji) \(displayTitle), \(formattedAmount), \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
+    }
+
+    private var displayTitle: String {
+        if !transaction.note.isEmpty {
+            return transaction.note
+        }
+        return transaction.isIncome ? "Income" : (transaction.category?.name ?? "Expense")
     }
 
     private var emoji: String {
