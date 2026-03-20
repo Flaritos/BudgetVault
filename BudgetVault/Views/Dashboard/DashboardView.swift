@@ -12,7 +12,7 @@ struct DashboardView: View {
     // MARK: - Scaled Metrics for Dynamic Type
     @ScaledMetric(relativeTo: .body) private var fabSize: CGFloat = 56
     @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 150
-    @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 120
+    @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 130
     @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
@@ -359,13 +359,13 @@ struct DashboardView: View {
                     dayProgressText: dayProgressText
                 )
 
+                // "The Vault Contents" — slides over the hero with rounded top corners
                 VStack(spacing: BudgetVaultTheme.spacingXL) {
-                    Spacer().frame(height: BudgetVaultTheme.spacingSM)
+                    Spacer().frame(height: BudgetVaultTheme.spacingLG)
 
                     // Catch-up card for returning users
                     if showCatchUpCard {
                         catchUpCard(budget: budget)
-                            .padding(.top, BudgetVaultTheme.spacingMD)
                     }
 
                     // Monthly summary banner
@@ -391,7 +391,7 @@ struct DashboardView: View {
                         .accessibilityLabel("Monthly summary for \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) is ready. Tap to view.")
                     }
 
-                    // 2. Envelope Cards (Horizontal Scroll)
+                    // 2. Envelope Cards — "Vault Compartments"
                     if !visibleCategories.isEmpty {
                         envelopeCardsSection(budget: budget)
                             .opacity(hasAppeared ? 1 : 0)
@@ -426,7 +426,9 @@ struct DashboardView: View {
                             .offset(y: hasAppeared ? 0 : 20)
                     }
                 }
-                .padding(.top, -30) // overlap the gradient slightly
+                .background(Color(.systemBackground))
+                .clipShape(RoundedCorner(radius: BudgetVaultTheme.radiusXL, corners: [.topLeft, .topRight]))
+                .padding(.top, -20) // overlap the hero gradient
             }
             .padding(.bottom, 80) // space for FAB
             .onAppear {
@@ -443,7 +445,7 @@ struct DashboardView: View {
         .ignoresSafeArea(edges: .top)
     }
 
-    // MARK: - 1. Hero Section
+    // MARK: - 1. Hero Section — "The Vault Display"
 
     @ViewBuilder
     private func heroSection(
@@ -452,26 +454,25 @@ struct DashboardView: View {
         dayProgressFraction: Double,
         dayProgressText: String
     ) -> some View {
-        ZStack(alignment: .topTrailing) {
-            // Gradient background
+        ZStack {
+            // Full-bleed navy gradient background
             LinearGradient(
-                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
+                startPoint: .top,
+                endPoint: .bottom
             )
 
-            // VaultDialMark watermark
-            VaultDialMark(size: 24)
-                .opacity(0.2)
-                .padding(.top, 60)
-                .padding(.trailing, 20)
+            // VaultDialMark watermark — large, centered, very faint
+            VaultDialMark(size: 140)
+                .opacity(0.08)
 
-            // Hero content
+            // Hero content — pure data display, no buttons
             VStack(spacing: BudgetVaultTheme.spacingSM) {
-                // Daily allowance — THE hero number
+                // Daily allowance — THE MASSIVE hero number
                 Text(CurrencyFormatter.format(cents: dailyAllowanceCents))
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(BudgetVaultTheme.heroAmount)
                     .foregroundStyle(.white)
+                    .shadow(color: .white.opacity(0.08), radius: 40)
                     .contentTransition(.numericText())
                     .animation(.default, value: dailyAllowanceCents)
                     .minimumScaleFactor(0.5)
@@ -482,16 +483,21 @@ struct DashboardView: View {
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.7))
 
-                // Remaining of total
-                Text("\(CurrencyFormatter.format(cents: budget.remainingCents)) of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) remaining")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.6))
+                Spacer().frame(height: BudgetVaultTheme.spacingSM)
 
-                // Day progress bar
-                VStack(spacing: 4) {
-                    ProgressView(value: dayProgressFraction)
-                        .tint(.white)
-                        .background(.white.opacity(0.2), in: Capsule())
+                // Thin white progress bar (custom, not ProgressView)
+                VStack(spacing: 6) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(.white.opacity(0.2))
+                                .frame(height: 3)
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(.white)
+                                .frame(width: geo.size.width * min(max(dayProgressFraction, 0), 1.0), height: 3)
+                        }
+                    }
+                    .frame(height: 3)
 
                     Text(dayProgressText)
                         .font(.caption2)
@@ -499,7 +505,17 @@ struct DashboardView: View {
                 }
                 .frame(maxWidth: 240)
 
-                // Streak badge
+                Spacer().frame(height: BudgetVaultTheme.spacingXS)
+
+                // Remaining / budget — two separate lines for clarity
+                Text("\(CurrencyFormatter.format(cents: budget.remainingCents)) remaining")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+                Text("of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) budget")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.4))
+
+                // Streak badge — capsule with fire emoji
                 if currentStreak > 0 {
                     HStack(spacing: 4) {
                         Text("\u{1F525}")
@@ -510,14 +526,15 @@ struct DashboardView: View {
                     .padding(.horizontal, BudgetVaultTheme.spacingMD)
                     .padding(.vertical, BudgetVaultTheme.spacingXS)
                     .background(.white.opacity(0.15), in: Capsule())
+                    .padding(.top, BudgetVaultTheme.spacingXS)
                     .accessibilityLabel("Logging streak: \(currentStreak) days")
                 }
             }
-            .padding(.top, 70) // below status bar + toolbar
-            .padding(.bottom, BudgetVaultTheme.spacingXL + 30) // extra room for overlap
+            .padding(.top, 70) // below status bar
+            .padding(.bottom, BudgetVaultTheme.spacingXL + 30) // extra room for panel overlap
             .frame(maxWidth: .infinity)
         }
-        .frame(minHeight: 320)
+        .frame(minHeight: 340)
         .accessibilityElement(children: .combine)
         .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents)) remaining of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)). \(dayProgressText)")
     }
@@ -534,13 +551,14 @@ struct DashboardView: View {
                 NavigationLink {
                     BudgetView()
                 } label: {
-                    Text("Manage")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.accentColor)
+                    HStack(spacing: 2) {
+                        Text("Manage")
+                            .font(.caption.weight(.medium))
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(Color.accentColor)
                 }
-                Text("\(visibleCategories.count) categories")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal)
 
@@ -562,6 +580,7 @@ struct DashboardView: View {
         }
     }
 
+    /// Vault compartment card — metallic feel with left color accent strip
     @ViewBuilder
     private func envelopeCard(category: Category, budget: Budget) -> some View {
         let spent = cachedSpent(for: category, in: budget)
@@ -582,49 +601,57 @@ struct DashboardView: View {
 
             Spacer()
 
-            // Bottom: amount + progress
-            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingXS) {
+            // Remaining amount + lock icon
+            HStack {
                 Text(CurrencyFormatter.format(cents: remaining))
                     .font(BudgetVaultTheme.cardAmount)
-                    .foregroundStyle(remaining >= 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
+                    .foregroundStyle(remaining > 0 ? .primary : BudgetVaultTheme.negative)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
 
-                Text("of \(CurrencyFormatter.format(cents: budgeted))")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                Spacer()
 
-                // Progress bar
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(categoryColor.opacity(0.15))
-                            .frame(height: 4)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(pct > 0.9 ? BudgetVaultTheme.negative : pct > 0.75 ? BudgetVaultTheme.caution : Color.accentColor)
-                            .frame(width: geo.size.width * min(pct, 1.0), height: 4)
-                    }
+                // Lock icon if fully spent
+                if remaining <= 0 {
+                    Image(systemName: "lock.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(height: 4)
             }
+
+            Text("left of \(CurrencyFormatter.format(cents: budgeted))")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.secondary.opacity(0.15))
+                        .frame(height: 4)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(categoryColor)
+                        .frame(width: geo.size.width * min(pct, 1.0), height: 4)
+                }
+            }
+            .frame(height: 4)
         }
         .padding(BudgetVaultTheme.spacingMD)
         .frame(width: envelopeCardWidth, height: envelopeCardHeight)
-        .background(
+        .background {
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
                 .fill(BudgetVaultTheme.cardBackground)
-        )
-        .overlay(alignment: .top) {
-            // Top accent bar
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        }
+        .overlay(alignment: .leading) {
+            // Category color accent strip (left edge)
             RoundedRectangle(cornerRadius: 2)
                 .fill(categoryColor)
-                .frame(height: 3)
-                .padding(.horizontal, BudgetVaultTheme.spacingSM)
-                .padding(.top, BudgetVaultTheme.spacingXS)
+                .frame(width: 4)
+                .padding(.vertical, BudgetVaultTheme.spacingSM)
         }
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: remaining)) remaining of \(CurrencyFormatter.format(cents: budgeted))")
+        .accessibilityLabel("\(category.emoji) \(category.name): \(CurrencyFormatter.format(cents: remaining)) remaining of \(CurrencyFormatter.format(cents: budgeted))\(remaining <= 0 ? ", fully spent" : "")")
     }
 
     // MARK: - 3. Quick Insight Card
@@ -978,4 +1005,22 @@ struct DashboardView: View {
         }
     }
 
+}
+
+// MARK: - RoundedCorner Shape
+
+/// Custom shape that rounds only specified corners, used for the
+/// "vault contents" panel that overlaps the hero gradient.
+private struct RoundedCorner: Shape {
+    var radius: CGFloat
+    var corners: UIRectCorner
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        return Path(path.cgPath)
+    }
 }
