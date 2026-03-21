@@ -362,7 +362,7 @@ struct DashboardView: View {
 
                 // "The Vault Contents" — slides over the hero with rounded top corners
                 VStack(spacing: BudgetVaultTheme.spacingXL) {
-                    Spacer().frame(height: BudgetVaultTheme.spacingLG)
+                    Spacer().frame(height: BudgetVaultTheme.spacingXL)
 
                     // Catch-up card for returning users
                     if showCatchUpCard {
@@ -683,7 +683,11 @@ struct DashboardView: View {
     private func insightCard(budget: Budget) -> some View {
         if let topInsight = cachedInsights.first {
             Button {
-                showInsights = true
+                if isPremium {
+                    showInsights = true
+                } else {
+                    showPaywall = true
+                }
             } label: {
                 HStack(spacing: BudgetVaultTheme.spacingMD) {
                     Image(systemName: topInsight.severity.iconName)
