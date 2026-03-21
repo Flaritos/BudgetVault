@@ -47,6 +47,8 @@ struct DashboardView: View {
     @State private var showProactivePaywall = false
     @State private var showShareCard = false
     @State private var shareCardImage: UIImage?
+    @State private var showMoveMoney = false
+    @State private var showRecurring = false
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
     @AppStorage(AppStorageKeys.hasSeenTransactionPaywall) private var hasSeenTransactionPaywall = false
@@ -92,7 +94,7 @@ struct DashboardView: View {
         return Array(allTransactions
             .lazy
             .filter { $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
-            .prefix(5))
+            .prefix(4))
     }
 
     // MARK: - Inactivity Detection
@@ -124,7 +126,7 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
+            ZStack {
                 if let budget = currentBudget {
                     if budget.totalIncomeCents == 0 {
                         EmptyStateView(
@@ -152,22 +154,28 @@ struct DashboardView: View {
                         action: { hasCompletedOnboarding = false }
                     )
                 }
-
-                // FAB — Floating action button
+            }
+            .overlay(alignment: .bottom) {
+                // FAB — Pill-shaped floating action button
                 if currentBudget != nil {
                     Button {
+                        HapticManager.impact(.medium)
                         showTransactionEntry = true
                     } label: {
-                        Image(systemName: "plus")
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
-                            .frame(width: fabSize, height: fabSize)
-                            .background(Color.accentColor, in: Circle())
-                            .shadow(color: Color.accentColor.opacity(0.3), radius: 12, y: 6)
+                        HStack(spacing: BudgetVaultTheme.spacingSM) {
+                            Image(systemName: "plus")
+                                .font(.body.weight(.bold))
+                            Text("Log Expense")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                        .padding(.vertical, BudgetVaultTheme.spacingMD)
+                        .background(Color.accentColor, in: Capsule())
+                        .shadow(color: Color.accentColor.opacity(0.3), radius: 12, y: 6)
                     }
-                    .padding(.trailing, 24)
-                    .padding(.bottom, 16)
-                    .accessibilityLabel("Add transaction")
+                    .padding(.bottom, BudgetVaultTheme.spacingLG)
+                    .accessibilityLabel("Log expense")
                     .accessibilityHint("Opens the transaction entry form")
                 }
             }
@@ -223,6 +231,20 @@ struct DashboardView: View {
             .sheet(isPresented: $showInsights) {
                 NavigationStack {
                     InsightsView()
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showMoveMoney) {
+                if let budget = currentBudget {
+                    NavigationStack {
+                        MoveMoneyView(categories: visibleCategories, budget: budget)
+                    }
+                    .presentationDragIndicator(.visible)
+                }
+            }
+            .sheet(isPresented: $showRecurring) {
+                NavigationStack {
+                    RecurringExpenseListView()
                 }
                 .presentationDragIndicator(.visible)
             }
@@ -364,6 +386,9 @@ struct DashboardView: View {
                 VStack(spacing: BudgetVaultTheme.spacingXL) {
                     Spacer().frame(height: BudgetVaultTheme.spacingXL)
 
+                    // Quick Actions Row
+                    quickActionsRow
+
                     // Catch-up card for returning users
                     if showCatchUpCard {
                         catchUpCard(budget: budget)
@@ -457,6 +482,8 @@ struct DashboardView: View {
         dayProgressText: String
     ) -> some View {
         let spentFraction = 1.0 - budget.percentRemaining
+        let arcRadius = dialRingSize * 0.82
+        let todaySpent = allTransactions.filter { Calendar.current.isDateInToday($0.date) && !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
 
         ZStack {
             // Full-bleed navy gradient background
@@ -472,47 +499,53 @@ struct DashboardView: View {
                 ZStack {
                     // Layer 1: VaultDialMark as decorative ring
                     VaultDialMark(size: dialRingSize)
-                        .opacity(0.15)
+                        .opacity(0.20)
 
-                    // Layer 2: Spending progress arc
+                    // Layer 2a: Track circle (faint background for the arc)
+                    Circle()
+                        .stroke(.white.opacity(0.1), lineWidth: 6)
+                        .frame(width: arcRadius, height: arcRadius)
+
+                    // Layer 2b: Spending progress arc with glow
                     Circle()
                         .trim(from: 0, to: min(spentFraction, 1.0))
                         .stroke(
                             spendingArcGradient(for: spentFraction),
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                            style: StrokeStyle(lineWidth: 6, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
-                        .frame(width: dialRingSize * 0.82, height: dialRingSize * 0.82)
+                        .frame(width: arcRadius, height: arcRadius)
+                        .shadow(color: spendingArcColor(for: spentFraction).opacity(0.4), radius: 8)
                         .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
 
                     // Layer 3: Center content
                     VStack(spacing: BudgetVaultTheme.spacingXS) {
                         Text(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .font(BudgetVaultTheme.priceDisplay)
                             .foregroundStyle(.white)
+                            .shadow(color: .white.opacity(0.1), radius: 20)
                             .contentTransition(.numericText())
                             .animation(.snappy, value: dailyAllowanceCents)
-                            .minimumScaleFactor(0.6)
+                            .minimumScaleFactor(0.5)
                             .lineLimit(1)
 
                         Text("per day")
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.7))
 
-                        // Spent today
-                        let todaySpent = allTransactions.filter { Calendar.current.isDateInToday($0.date) && !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+                        // Spent today as comparison
                         if todaySpent > 0 {
-                            Text("\(CurrencyFormatter.format(cents: todaySpent, currencyCode: selectedCurrency)) spent today")
+                            Text("\(CurrencyFormatter.format(cents: todaySpent, currencyCode: selectedCurrency)) of \(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))")
                                 .font(.caption)
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(.white.opacity(0.65))
                         }
                     }
-                    .frame(width: dialRingSize * 0.6) // constrain text to inner ring area
+                    .frame(width: dialRingSize * 0.6)
                 }
                 .frame(width: dialRingSize, height: dialRingSize)
 
-                // Below the ring: remaining + streak on one line
-                VStack(spacing: BudgetVaultTheme.spacingXS) {
+                // Below the ring: remaining + streak with breathing room
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
                     Text("\(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) of \(CurrencyFormatter.format(cents: budget.totalIncomeCents, currencyCode: selectedCurrency))")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.6))
@@ -525,7 +558,7 @@ struct DashboardView: View {
                         if currentStreak > 0 {
                             HStack(spacing: BudgetVaultTheme.spacingXS) {
                                 Text("\u{1F525}")
-                                    .font(.caption2)
+                                    .font(.caption)
                                 Text("\(currentStreak) day streak")
                                     .font(.caption.weight(.medium))
                             }
@@ -536,6 +569,7 @@ struct DashboardView: View {
                         }
                     }
                 }
+                .padding(.top, BudgetVaultTheme.spacingXS)
             }
             .padding(.top, BudgetVaultTheme.spacingXL)
             .padding(.bottom, BudgetVaultTheme.spacingLG)
@@ -563,28 +597,31 @@ struct DashboardView: View {
         )
     }
 
+    /// Returns a single color representing the arc for shadow use.
+    private func spendingArcColor(for fraction: Double) -> Color {
+        if fraction > 0.9 {
+            return BudgetVaultTheme.negative
+        } else if fraction > 0.75 {
+            return BudgetVaultTheme.caution
+        } else {
+            return BudgetVaultTheme.positive
+        }
+    }
+
     // MARK: - 2. Envelope Cards
 
     @ViewBuilder
     private func envelopeCardsSection(budget: Budget) -> some View {
         VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-            HStack {
-                Text("Envelopes")
-                    .font(.headline)
-                Spacer()
+            sectionHeader(title: "Envelopes") {
                 NavigationLink {
                     BudgetView()
                 } label: {
-                    HStack(spacing: 2) {
-                        Text("Manage")
-                            .font(.caption.weight(.medium))
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(Color.accentColor)
+                    Text("Manage")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
                 }
             }
-            .padding(.horizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: BudgetVaultTheme.spacingMD) {
@@ -650,21 +687,27 @@ struct DashboardView: View {
             // Progress bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2)
+                    RoundedRectangle(cornerRadius: 2.5)
                         .fill(Color.secondary.opacity(0.15))
-                        .frame(height: 4)
-                    RoundedRectangle(cornerRadius: 2)
+                        .frame(height: 5)
+                    RoundedRectangle(cornerRadius: 2.5)
                         .fill(categoryColor)
-                        .frame(width: geo.size.width * min(pct, 1.0), height: 4)
+                        .frame(width: geo.size.width * min(pct, 1.0), height: 5)
                 }
             }
-            .frame(height: 4)
+            .frame(height: 5)
         }
         .padding(BudgetVaultTheme.spacingLG)
         .frame(width: envelopeCardWidth, height: envelopeCardHeight)
         .background {
+            let spendingIntensity = min(pct, 1.0)
+            let tintOpacity = 0.03 + (spendingIntensity * 0.12)
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
                 .fill(BudgetVaultTheme.cardBackground)
+                .overlay {
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                        .fill(categoryColor.opacity(tintOpacity))
+                }
                 .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
         }
         .overlay(alignment: .leading) {
@@ -728,9 +771,7 @@ struct DashboardView: View {
         let upcoming = upcomingRecurringExpenses
         if !upcoming.isEmpty {
             VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-                Text("Upcoming Bills")
-                    .font(.headline)
-                    .padding(.horizontal)
+                sectionHeader(title: "Upcoming Bills") { EmptyView() }
 
                 VStack(spacing: 0) {
                     ForEach(upcoming, id: \.id) { expense in
@@ -777,23 +818,36 @@ struct DashboardView: View {
     @ViewBuilder
     private var recentTransactionsCard: some View {
         VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-            Text("Recent")
-                .font(.headline)
-                .padding(.horizontal)
+            sectionHeader(title: "Recent") {
+                Button {
+                    NotificationCenter.default.post(name: .switchToHistoryTab, object: nil)
+                } label: {
+                    Text("See All")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
 
-            VStack(spacing: 0) {
-                ForEach(recentTransactions, id: \.id) { transaction in
+            VStack(alignment: .leading, spacing: 0) {
+                let items = Array(recentTransactions.prefix(4))
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, transaction in
                     Button {
                         editingTransaction = transaction
                     } label: {
                         TransactionRowView(transaction: transaction)
-                            .padding(.horizontal, BudgetVaultTheme.spacingLG)
                             .padding(.vertical, BudgetVaultTheme.spacingSM)
                     }
                     .tint(.primary)
                     .accessibilityHint("Double tap to edit transaction")
+
+                    if index < items.count - 1 {
+                        Divider()
+                            .padding(.leading, 52)
+                    }
                 }
             }
+            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            .padding(.vertical, BudgetVaultTheme.spacingSM)
             .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
             .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
             .padding(.horizontal)
@@ -861,6 +915,65 @@ struct DashboardView: View {
         }
         .tint(.primary)
         .accessibilityLabel("\(title). \(subtitle). Premium feature, tap to upgrade.")
+    }
+
+    // MARK: - Section Header
+
+    private func sectionHeader<Action: View>(title: String, @ViewBuilder action: () -> Action) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+
+            Rectangle()
+                .fill(Color.accentColor.opacity(0.15))
+                .frame(height: 1)
+
+            action()
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Quick Actions Row
+
+    @ViewBuilder
+    private var quickActionsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: BudgetVaultTheme.spacingSM) {
+                quickActionChip(icon: "plus.circle.fill", label: "Log Expense") {
+                    showTransactionEntry = true
+                }
+
+                if isPremium {
+                    quickActionChip(icon: "arrow.left.arrow.right", label: "Move Money") {
+                        showMoveMoney = true
+                    }
+
+                    quickActionChip(icon: "chart.xyaxis.line", label: "Insights") {
+                        showInsights = true
+                    }
+                }
+
+                quickActionChip(icon: "repeat", label: "Recurring") {
+                    showRecurring = true
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    private func quickActionChip(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: BudgetVaultTheme.spacingXS) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(label)
+                    .font(.caption.weight(.medium))
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingMD)
+            .padding(.vertical, BudgetVaultTheme.spacingSM)
+            .background(Color.accentColor.opacity(0.1), in: Capsule())
+            .foregroundStyle(Color.accentColor)
+        }
     }
 
     // MARK: - Catch-Up Card

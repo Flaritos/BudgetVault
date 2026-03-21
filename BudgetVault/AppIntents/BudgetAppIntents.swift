@@ -74,4 +74,5 @@ struct BudgetVaultShortcuts: AppShortcutsProvider {
 
 extension Notification.Name {
     static let openTransactionEntry = Notification.Name("openTransactionEntry")
+    static let switchToHistoryTab = Notification.Name("switchToHistoryTab")
 }
