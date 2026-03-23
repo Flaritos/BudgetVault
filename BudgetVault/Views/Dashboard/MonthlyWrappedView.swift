@@ -5,6 +5,7 @@ struct MonthlyWrappedView: View {
     let allTransactions: [Transaction]
 
     @Environment(\.dismiss) private var dismiss
+    @State private var currentPage = 0
 
     private var calendar: Calendar { Calendar.current }
 
@@ -122,309 +123,642 @@ struct MonthlyWrappedView: View {
         DateHelpers.monthYearString(month: budget.month, year: budget.year)
     }
 
+    // MARK: - Additional Computed Data for Wrapped
+
+    private var savedCents: Int64 {
+        max(budget.totalIncomeCents - totalSpentCents, 0)
+    }
+
+    private var savedPercent: Double {
+        guard budget.totalIncomeCents > 0 else { return 0 }
+        return Double(savedCents) / Double(budget.totalIncomeCents) * 100
+    }
+
+    private var spentPercent: Double {
+        guard budget.totalIncomeCents > 0 else { return 0 }
+        return min(Double(totalSpentCents) / Double(budget.totalIncomeCents) * 100, 100)
+    }
+
+    private var sortedCategories: [Category] {
+        categories
+            .filter { $0.spentCents(in: budget) > 0 }
+            .sorted { $0.spentCents(in: budget) > $1.spentCents(in: budget) }
+    }
+
+    private var zeroSpendDays: Int {
+        var count = 0
+        for day in 1...daysInMonth {
+            if dailySpending[day] == nil || dailySpending[day] == 0 {
+                count += 1
+            }
+        }
+        return count
+    }
+
+    private var mostLoggedItem: (note: String, count: Int)? {
+        let notes = periodTransactions.map(\.note).filter { !$0.isEmpty }
+        guard !notes.isEmpty else { return nil }
+        var counts: [String: Int] = [:]
+        for n in notes { counts[n, default: 0] += 1 }
+        guard let top = counts.max(by: { $0.value < $1.value }) else { return nil }
+        return (top.key, top.value)
+    }
+
+    private var monthName: String {
+        let comps = DateComponents(year: budget.year, month: budget.month, day: 1)
+        guard let date = calendar.date(from: comps) else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM"
+        return formatter.string(from: date).uppercased()
+    }
+
+    private var personalityType: (name: String, emoji: String, description: String, traits: [(String, String)]) {
+        if savedPercent > 70 {
+            return (
+                "Vault Guardian",
+                "\u{1F6E1}\u{FE0F}",
+                "You treat your budget like a fortress. Every dollar has a mission, and most of them stayed right where they belong. Your discipline is rare.",
+                [("Disciplined", "\u{1F3AF}"), ("Strategic", "\u{1F9E0}"), ("Resilient", "\u{1F4AA}")]
+            )
+        } else if savedPercent > 50 {
+            return (
+                "Smart Saver",
+                "\u{1F48E}",
+                "You know when to spend and when to hold back. More than half your income stayed safe this month. That balance is your superpower.",
+                [("Balanced", "\u{2696}\u{FE0F}"), ("Intentional", "\u{1F4A1}"), ("Growing", "\u{1F331}")]
+            )
+        } else if savedPercent > 30 {
+            return (
+                "Balanced Spender",
+                "\u{2696}\u{FE0F}",
+                "Life costs money, and you're making it work. You saved a solid chunk while still living your life. Keep building that momentum.",
+                [("Practical", "\u{1F527}"), ("Steady", "\u{26F5}"), ("Aware", "\u{1F440}")]
+            )
+        } else {
+            return (
+                "Free Spirit",
+                "\u{1F30A}",
+                "You lived fully this month. Sometimes the best memories cost a little extra. Next month is a fresh start to find your balance.",
+                [("Adventurous", "\u{1F680}"), ("Present", "\u{2728}"), ("Optimistic", "\u{2600}\u{FE0F}")]
+            )
+        }
+    }
+
+    // MARK: - Colors
+
+    private let wrappedNavy = Color(hex: "#0B1426")
+    private let wrappedNavyMid = Color(hex: "#111D35")
+    private let wrappedPurple = Color(hex: "#6366F1")
+    private let wrappedGreen = Color(hex: "#34D399")
+    private let wrappedRed = Color(hex: "#EF4444")
+
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    slideHero
-                    slideTopCategory
-                    slideDailyPattern
-                    slideStreakDiscipline
-                    slideSummaryCard
-                }
+        ZStack(alignment: .bottom) {
+            TabView(selection: $currentPage) {
+                slide1StoryIntro.tag(0)
+                slide2WhereItWent.tag(1)
+                slide3Personality.tag(2)
+                slide4ByTheNumbers.tag(3)
+                slide5ShareCard.tag(4)
             }
-            .background(BudgetVaultTheme.navyDark)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(.white)
-                }
-            }
-            .toolbarBackground(.hidden, for: .navigationBar)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea()
+
+            pageDots
         }
-    }
-
-    // MARK: - Slide 1: Hero
-
-    private var slideHero: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            VaultDialMark(size: 60, color: .white, showGlow: true)
-
-            Text("Your \(monthYearString) Recap")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
-
-            Text(CurrencyFormatter.format(cents: totalSpentCents))
-                .font(BudgetVaultTheme.heroAmount)
-                .foregroundStyle(.white)
-                .contentTransition(.numericText())
-
-            Text("total spent")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.6))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
-        .background(
-            LinearGradient(
-                colors: BudgetVaultTheme.premiumGradient,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Your \(monthYearString) recap: \(CurrencyFormatter.format(cents: totalSpentCents)) total spent")
-    }
-
-    // MARK: - Slide 2: Top Category
-
-    private var slideTopCategory: some View {
-        VStack(spacing: BudgetVaultTheme.spacingLG) {
-            if let cat = topCategory {
-                Text(cat.emoji)
-                    .font(.system(size: 56))
-
-                Text("You spent \(CurrencyFormatter.format(cents: topCategorySpent)) on \(cat.name)")
-                    .font(.title3.weight(.semibold))
+        .overlay(alignment: .topTrailing) {
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-
-                Text(String(format: "%.0f%% of your total spending", topCategoryPercent))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.7))
-            } else {
-                Text("No spending recorded")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .frame(width: 32, height: 32)
+                    .background(.white.opacity(0.15), in: Circle())
             }
+            .padding(.top, 56)
+            .padding(.trailing, 20)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
-        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-        .background(BudgetVaultTheme.navyMid)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Top category: \(topCategory?.name ?? "none"), \(CurrencyFormatter.format(cents: topCategorySpent)) spent, \(String(format: "%.0f", topCategoryPercent)) percent of total")
+        .preferredColorScheme(.dark)
     }
 
-    // MARK: - Slide 3: Daily Pattern
+    // MARK: - Page Dots
 
-    private var slideDailyPattern: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            if let biggest = biggestSpendingDay {
-                HStack(spacing: BudgetVaultTheme.spacingMD) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(BudgetVaultTheme.negative)
-                    VStack(alignment: .leading) {
-                        Text("Biggest spending day")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.6))
-                        Text("\(dayString(biggest.day)) - \(CurrencyFormatter.format(cents: biggest.amount))")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                    }
-                    Spacer()
+    private var pageDots: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<5, id: \.self) { i in
+                if i == currentPage {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.white)
+                        .frame(width: 24, height: 8)
+                } else {
+                    Circle()
+                        .fill(.white.opacity(0.25))
+                        .frame(width: 8, height: 8)
                 }
-            }
-
-            if let lightest = lightestSpendingDay {
-                HStack(spacing: BudgetVaultTheme.spacingMD) {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(BudgetVaultTheme.positive)
-                    VStack(alignment: .leading) {
-                        Text("Lightest spending day")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.6))
-                        Text("\(dayString(lightest.day)) - \(CurrencyFormatter.format(cents: lightest.amount))")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                    }
-                    Spacer()
-                }
-            }
-
-            HStack(spacing: BudgetVaultTheme.spacingMD) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.title2)
-                    .foregroundStyle(BudgetVaultTheme.info)
-                VStack(alignment: .leading) {
-                    Text("Average daily spend")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                    Text(CurrencyFormatter.format(cents: averageDailySpendCents))
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                }
-                Spacer()
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
-        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-        .background(
+        .animation(.easeInOut(duration: 0.2), value: currentPage)
+        .padding(.bottom, 44)
+    }
+
+    // MARK: - Slide 1: Story Intro
+
+    private var slide1StoryIntro: some View {
+        ZStack {
             LinearGradient(
-                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue.opacity(0.3)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Daily spending pattern. Average daily spend: \(CurrencyFormatter.format(cents: averageDailySpendCents))")
-    }
-
-    // MARK: - Slide 4: Streak & Discipline
-
-    private var slideStreakDiscipline: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            // Streak
-            HStack(spacing: BudgetVaultTheme.spacingMD) {
-                Text("\(currentStreak)")
-                    .font(.system(size: 44, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                VStack(alignment: .leading) {
-                    Text("day streak")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                    Text("Keep it going!")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-            }
-
-            // Under/over breakdown
-            HStack(spacing: BudgetVaultTheme.spacing2XL) {
-                VStack {
-                    Text("\(daysUnderAllowance)")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundStyle(BudgetVaultTheme.positive)
-                    Text("days under")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-                VStack {
-                    Text("\(daysOverAllowance)")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundStyle(BudgetVaultTheme.negative)
-                    Text("days over")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-            }
-
-            // Verdict
-            HStack(spacing: BudgetVaultTheme.spacingSM) {
-                Image(systemName: verdictEmoji)
-                    .font(.title3)
-                Text(verdict)
-                    .font(.title3.weight(.bold))
-            }
-            .foregroundStyle(isUnderBudget ? BudgetVaultTheme.positive : BudgetVaultTheme.caution)
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.vertical, BudgetVaultTheme.spacingMD)
-            .background(
-                Capsule().fill((isUnderBudget ? BudgetVaultTheme.positive : BudgetVaultTheme.caution).opacity(0.15))
-            )
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
-        .background(BudgetVaultTheme.navyMid)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(currentStreak) day streak. \(daysUnderAllowance) days under allowance, \(daysOverAllowance) days over. Verdict: \(verdict)")
-    }
-
-    // MARK: - Slide 5: Summary Card (Shareable)
-
-    private var slideSummaryCard: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            Text("Share your recap")
-                .font(.headline)
-                .foregroundStyle(.white)
-
-            shareCardContent
-                .padding(BudgetVaultTheme.spacingXL)
-                .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL))
-                .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
-
-            ShareLink(item: shareCardImage, preview: SharePreview("My \(monthYearString) Recap", image: shareCardImage)) {
-                Label("Share Card", systemImage: "square.and.arrow.up")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, BudgetVaultTheme.spacingMD)
-                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-            }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 48)
-        .background(
-            LinearGradient(
-                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
+                colors: [wrappedNavy, wrappedNavy.opacity(0.8), wrappedNavyMid],
                 startPoint: .top,
                 endPoint: .bottom
             )
-        )
+            .ignoresSafeArea()
+
+            VStack(spacing: BudgetVaultTheme.spacing2XL) {
+                Spacer()
+
+                Text("YOUR \(monthName) STORY")
+                    .font(.caption.weight(.bold))
+                    .tracking(4)
+                    .foregroundStyle(.white.opacity(0.25))
+
+                // Donut ring
+                ZStack {
+                    // Track
+                    Circle()
+                        .stroke(.white.opacity(0.04), lineWidth: 18)
+                        .frame(width: 220, height: 220)
+
+                    // Spent arc (red, at the end)
+                    Circle()
+                        .trim(from: max(1.0 - spentPercent / 100.0, 0), to: 1.0)
+                        .stroke(
+                            wrappedRed.opacity(0.3),
+                            style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                        )
+                        .frame(width: 220, height: 220)
+                        .rotationEffect(.degrees(-90))
+
+                    // Saved arc (green, glowing)
+                    Circle()
+                        .trim(from: 0, to: min(savedPercent / 100.0, 1.0))
+                        .stroke(
+                            wrappedGreen,
+                            style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                        )
+                        .frame(width: 220, height: 220)
+                        .rotationEffect(.degrees(-90))
+                        .shadow(color: wrappedGreen.opacity(0.5), radius: 8)
+
+                    // Center text
+                    VStack(spacing: 4) {
+                        Text("SAVED")
+                            .font(.caption2.weight(.semibold))
+                            .tracking(2)
+                            .foregroundStyle(.white.opacity(0.5))
+
+                        Text(CurrencyFormatter.format(cents: savedCents))
+                            .font(.system(size: 42, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+
+                        Text(String(format: "%.0f%%", savedPercent))
+                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                            .foregroundStyle(wrappedGreen)
+                    }
+                }
+
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
+                    Text("Out of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) earned, you spent just \(CurrencyFormatter.format(cents: totalSpentCents)).")
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+
+                    Text("The vault held strong. Let's see where it went \u{2192}")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+                Spacer()
+                Spacer()
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Your \(monthName) story. Saved \(CurrencyFormatter.format(cents: savedCents)), \(String(format: "%.0f", savedPercent)) percent of income.")
+    }
+
+    // MARK: - Slide 2: Where It Went
+
+    private var slide2WhereItWent: some View {
+        ZStack {
+            LinearGradient(
+                colors: [wrappedNavy, wrappedPurple.opacity(0.15), wrappedNavyMid],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: BudgetVaultTheme.spacingXL) {
+                    Spacer(minLength: 80)
+
+                    Text("WHERE IT WENT")
+                        .font(.caption.weight(.bold))
+                        .tracking(4)
+                        .foregroundStyle(.white.opacity(0.25))
+
+                    if let cat = topCategory {
+                        VStack(spacing: BudgetVaultTheme.spacingMD) {
+                            Text("Your biggest expense was")
+                                .font(.body)
+                                .foregroundStyle(.white.opacity(0.6))
+
+                            HStack(spacing: BudgetVaultTheme.spacingMD) {
+                                Text(cat.emoji)
+                                    .font(.system(size: 48))
+                                Text(cat.name)
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
+                            }
+
+                            Text(CurrencyFormatter.format(cents: topCategorySpent))
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundStyle(wrappedPurple)
+
+                            Text(String(format: "That's %.0f%% of everything you spent.", topCategoryPercent))
+                                .font(.callout)
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                    }
+
+                    // Horizontal bar chart
+                    VStack(spacing: BudgetVaultTheme.spacingMD) {
+                        ForEach(sortedCategories, id: \.id) { cat in
+                            categoryBar(for: cat)
+                        }
+                    }
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                    .padding(.top, BudgetVaultTheme.spacingLG)
+
+                    Spacer(minLength: 80)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Where it went. Top category: \(topCategory?.name ?? "none"), \(CurrencyFormatter.format(cents: topCategorySpent))")
+    }
+
+    private func categoryBar(for cat: Category) -> some View {
+        let spent = cat.spentCents(in: budget)
+        let maxSpent = sortedCategories.first?.spentCents(in: budget) ?? 1
+        let ratio = maxSpent > 0 ? CGFloat(spent) / CGFloat(maxSpent) : 0
+
+        return HStack(spacing: BudgetVaultTheme.spacingSM) {
+            Text(cat.emoji)
+                .font(.system(size: 18))
+                .frame(width: 28)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.white.opacity(0.06))
+                        .frame(height: 28)
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(hex: cat.color).opacity(0.7))
+                        .frame(width: max(geo.size.width * ratio, 60), height: 28)
+
+                    HStack {
+                        Text(cat.name)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Text(CurrencyFormatter.format(cents: spent))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                    .padding(.horizontal, BudgetVaultTheme.spacingSM)
+                }
+            }
+            .frame(height: 28)
+        }
+    }
+
+    // MARK: - Slide 3: Spending Personality
+
+    private var slide3Personality: some View {
+        let personality = personalityType
+
+        return ZStack {
+            LinearGradient(
+                colors: [wrappedNavy, wrappedNavyMid.opacity(0.9), wrappedPurple.opacity(0.1)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: BudgetVaultTheme.spacing2XL) {
+                Spacer()
+
+                Text("YOUR SPENDING TYPE")
+                    .font(.caption.weight(.bold))
+                    .tracking(4)
+                    .foregroundStyle(.white.opacity(0.25))
+
+                // Giant emoji with glow
+                Text(personality.emoji)
+                    .font(.system(size: 80))
+                    .shadow(color: wrappedPurple.opacity(0.4), radius: 20)
+
+                // Personality name
+                Text(personality.name)
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [wrappedGreen, wrappedPurple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+
+                // Description
+                Text(personality.description)
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, BudgetVaultTheme.spacing2XL)
+
+                // Trait cards
+                HStack(spacing: BudgetVaultTheme.spacingMD) {
+                    ForEach(personality.traits, id: \.0) { trait in
+                        VStack(spacing: BudgetVaultTheme.spacingXS) {
+                            Text(trait.1)
+                                .font(.system(size: 24))
+                            Text(trait.0)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, BudgetVaultTheme.spacingMD)
+                        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+                    }
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+                Spacer()
+                Spacer()
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Your spending type: \(personality.name). \(personality.description)")
+    }
+
+    // MARK: - Slide 4: By The Numbers
+
+    private var slide4ByTheNumbers: some View {
+        ZStack {
+            LinearGradient(
+                colors: [wrappedNavy, BudgetVaultTheme.electricBlue.opacity(0.08), wrappedNavyMid],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+            .ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 80)
+
+                    Text("BY THE NUMBERS")
+                        .font(.caption.weight(.bold))
+                        .tracking(4)
+                        .foregroundStyle(.white.opacity(0.25))
+                        .padding(.bottom, BudgetVaultTheme.spacing2XL)
+
+                    // Transaction count
+                    statRow(
+                        number: "\(periodTransactions.count)",
+                        description: "transactions logged",
+                        detail: "an average of \(String(format: "%.1f", Double(periodTransactions.count) / Double(max(daysInMonth, 1)))) per day"
+                    )
+
+                    statDivider
+
+                    // Average daily spend
+                    statRow(
+                        number: CurrencyFormatter.format(cents: averageDailySpendCents),
+                        description: "average daily spend",
+                        detail: nil
+                    )
+
+                    statDivider
+
+                    // Biggest day
+                    if let biggest = biggestSpendingDay {
+                        statRow(
+                            number: dayString(biggest.day),
+                            description: "was your biggest day",
+                            detail: "\(CurrencyFormatter.format(cents: biggest.amount)) \u{2014} rent day hits different"
+                        )
+                        statDivider
+                    }
+
+                    // Most logged item
+                    if let item = mostLoggedItem {
+                        statRow(
+                            number: "\"\(item.note)\"",
+                            description: "most logged item",
+                            detail: "appeared \(item.count) time\(item.count == 1 ? "" : "s")"
+                        )
+                        statDivider
+                    }
+
+                    // Zero-spend days
+                    statRow(
+                        number: "\(zeroSpendDays)",
+                        description: "zero-spend days",
+                        detail: zeroSpendDays > 5 ? "your wallet thanks you" : "every day counts"
+                    )
+
+                    Spacer(minLength: 80)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("By the numbers. \(periodTransactions.count) transactions, \(CurrencyFormatter.format(cents: averageDailySpendCents)) average daily spend, \(zeroSpendDays) zero-spend days.")
+    }
+
+    private func statRow(number: String, description: String, detail: String?) -> some View {
+        HStack(alignment: .top, spacing: BudgetVaultTheme.spacingLG) {
+            Text(number)
+                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(minWidth: 80, alignment: .trailing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(description)
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.8))
+
+                if let detail {
+                    Text(detail)
+                        .font(.callout)
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+        .padding(.vertical, BudgetVaultTheme.spacingLG)
+    }
+
+    private var statDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.06))
+            .frame(height: 1)
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+    }
+
+    // MARK: - Slide 5: Share Card
+
+    private var slide5ShareCard: some View {
+        ZStack {
+            LinearGradient(
+                colors: [wrappedNavy, wrappedPurple.opacity(0.1), wrappedNavyMid],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
+                Spacer()
+
+                // The visual share card
+                shareCardContent
+                    .padding(BudgetVaultTheme.spacingXL)
+                    .background(
+                        RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
+                            .fill(
+                                LinearGradient(
+                                    colors: [wrappedNavyMid, wrappedPurple.opacity(0.3), wrappedNavy],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+                    )
+                    .shadow(color: wrappedPurple.opacity(0.2), radius: 30, y: 10)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+                // Share button
+                ShareLink(item: shareCardImage, preview: SharePreview("My \(monthYearString) Recap", image: shareCardImage)) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(wrappedNavy)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, BudgetVaultTheme.spacingMD)
+                        .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+                // Save Image button
+                Button {
+                    saveImage()
+                } label: {
+                    Label("Save Image", systemImage: "arrow.down.to.line")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, BudgetVaultTheme.spacingMD)
+                        .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
+                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                        )
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+                Spacer()
+                Spacer()
+            }
+        }
     }
 
     // MARK: - Share Card Content
 
     private var shareCardContent: some View {
-        VStack(spacing: BudgetVaultTheme.spacingMD) {
-            VaultDialMark(size: 36, color: BudgetVaultTheme.electricBlue)
+        VStack(spacing: BudgetVaultTheme.spacingLG) {
+            // Header
+            HStack(spacing: BudgetVaultTheme.spacingSM) {
+                VaultDialMark(size: 24, color: .white)
+                Text("BUDGETVAULT WRAPPED")
+                    .font(.caption.weight(.bold))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.6))
+            }
 
+            // Month/Year
             Text(monthYearString)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white.opacity(0.5))
 
-            HStack(spacing: BudgetVaultTheme.spacingXL) {
+            // Hero saved amount
+            VStack(spacing: 4) {
+                Text(CurrencyFormatter.format(cents: savedCents))
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("saved this month")
+                    .font(.callout)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+
+            // Stats row
+            HStack(spacing: BudgetVaultTheme.spacingLG) {
                 VStack(spacing: 2) {
-                    Text("Income")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(CurrencyFormatter.format(cents: budget.totalIncomeCents))
-                        .font(.subheadline.weight(.bold))
+                    Text(personalityType.emoji)
+                        .font(.title2)
+                    Text(personalityType.name)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
+
                 VStack(spacing: 2) {
-                    Text("Spent")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(CurrencyFormatter.format(cents: totalSpentCents))
-                        .font(.subheadline.weight(.bold))
+                    Text("\(currentStreak)")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text("day streak")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
+
                 VStack(spacing: 2) {
-                    Text(deltaCents >= 0 ? "Saved" : "Over")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(CurrencyFormatter.format(cents: abs(deltaCents)))
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(deltaCents >= 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
+                    Text(String(format: "%.0f%%", savedPercent))
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(wrappedGreen)
+                    Text("saved")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+
+                VStack(spacing: 2) {
+                    Text("\(periodTransactions.count)")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text("entries")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
                 }
             }
 
-            if !top3Categories.isEmpty {
-                Divider()
-                ForEach(top3Categories, id: \.id) { cat in
-                    HStack {
-                        Text(cat.emoji)
-                        Text(cat.name)
-                            .font(.caption)
-                        Spacer()
-                        Text(CurrencyFormatter.format(cents: cat.spentCents(in: budget)))
-                            .font(.caption.weight(.bold))
-                    }
-                }
-            }
-
-            Divider()
-
-            Text("Tracked with BudgetVault")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            // Footer
+            Text("budgetvault.io")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white.opacity(0.3))
         }
     }
 
@@ -434,9 +768,18 @@ struct MonthlyWrappedView: View {
     private var shareCardImage: Image {
         let cardView = shareCardContent
             .padding(BudgetVaultTheme.spacingXL)
-            .frame(width: 320)
-            .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL))
-            .environment(\.colorScheme, .light)
+            .frame(width: 360)
+            .background(
+                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
+                    .fill(
+                        LinearGradient(
+                            colors: [wrappedNavyMid, wrappedPurple.opacity(0.3), wrappedNavy],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .environment(\.colorScheme, .dark)
 
         let renderer = ImageRenderer(content: cardView)
         renderer.scale = 3
@@ -444,6 +787,30 @@ struct MonthlyWrappedView: View {
             return Image(uiImage: uiImage)
         }
         return Image(systemName: "square")
+    }
+
+    @MainActor
+    private func saveImage() {
+        let cardView = shareCardContent
+            .padding(BudgetVaultTheme.spacingXL)
+            .frame(width: 360)
+            .background(
+                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
+                    .fill(
+                        LinearGradient(
+                            colors: [wrappedNavyMid, wrappedPurple.opacity(0.3), wrappedNavy],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .environment(\.colorScheme, .dark)
+
+        let renderer = ImageRenderer(content: cardView)
+        renderer.scale = 3
+        if let uiImage = renderer.uiImage {
+            UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+        }
     }
 
     // MARK: - Helpers

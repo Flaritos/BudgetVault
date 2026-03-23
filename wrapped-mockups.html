@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BudgetVault — Monthly Wrapped Mockups</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: #111; padding: 30px 20px; display: flex; flex-wrap: wrap; gap: 40px; justify-content: center; }
+  .wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone { width: 375px; height: 812px; border-radius: 44px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); position: relative; }
+  .lbl { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+  .desc { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 16px; max-width: 375px; text-align: center; line-height: 1.4; }
+  .notch { width: 126px; height: 34px; background: black; border-radius: 0 0 22px 22px; position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 20; }
+  .sbar { display: flex; justify-content: space-between; padding: 14px 28px 0; color: white; font-size: 15px; font-weight: 600; position: relative; z-index: 10; }
+  .close-btn { position: absolute; top: 56px; right: 20px; z-index: 10; width: 32px; height: 32px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; font-weight: 600; }
+  .page-dots { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 10; }
+  .page-dots .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.3); }
+  .page-dots .dot.active { background: white; width: 20px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- W1: Slide 1 — Total Spent (Vault Door Reveal) -->
+<div class="wrap">
+  <div class="lbl">Slide 1: Total Spent</div>
+  <div class="desc">The vault door opens to reveal your month's total. Dramatic entrance.</div>
+  <div class="phone" style="background: linear-gradient(160deg, #060c18 0%, #0F1B33 40%, #1a3565 100%);">
+    <div class="notch"></div>
+    <div class="sbar"><span>8:25</span><span style="opacity:0.7">●●●● ▶ 🔋</span></div>
+    <div class="close-btn">✕</div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 0 32px; text-align: center;">
+      <!-- Vault ring as frame -->
+      <svg width="200" height="200" viewBox="0 0 200 200" style="margin-bottom: 24px;">
+        <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="12"/>
+        <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <g opacity="0.15">
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(0 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(30 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(60 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(90 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(120 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(150 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(180 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(210 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(240 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(270 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(300 100 100)"/>
+          <line x1="100" y1="12" x2="100" y2="24" stroke="white" stroke-width="1.5" transform="rotate(330 100 100)"/>
+          <polygon points="100,8 97,18 103,18" fill="white"/>
+        </g>
+        <text x="100" y="90" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="12" font-weight="700" letter-spacing="2">MARCH 2026</text>
+        <text x="100" y="118" text-anchor="middle" fill="white" font-size="36" font-weight="800">$2,672</text>
+        <text x="100" y="138" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="13" font-weight="500">total spent</text>
+      </svg>
+
+      <div style="color: rgba(255,255,255,0.5); font-size: 14px; margin-bottom: 8px;">That's</div>
+      <div style="color: #34D399; font-size: 28px; font-weight: 800;">$7,328 saved</div>
+      <div style="color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 4px;">73% of your income stayed in the vault</div>
+    </div>
+
+    <div class="page-dots">
+      <div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+  </div>
+</div>
+
+<!-- W2: Slide 2 — Top Category -->
+<div class="wrap">
+  <div class="lbl">Slide 2: Top Category</div>
+  <div class="desc">Where did the money go? Visual breakdown with the #1 category highlighted.</div>
+  <div class="phone" style="background: linear-gradient(160deg, #0F1B33 0%, #1a2e55 50%, #2a1a55 100%);">
+    <div class="notch"></div>
+    <div class="sbar"><span>8:25</span><span style="opacity:0.7">●●●● ▶ 🔋</span></div>
+    <div class="close-btn">✕</div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 0 32px; text-align: center;">
+      <div style="font-size: 60px; margin-bottom: 16px;">🏠</div>
+      <div style="color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 600; letter-spacing: 1px;">YOUR #1 CATEGORY</div>
+      <div style="color: white; font-size: 32px; font-weight: 800; margin-top: 8px;">Rent</div>
+      <div style="color: #A78BFA; font-size: 24px; font-weight: 700; margin-top: 4px;">$1,500.00</div>
+      <div style="color: rgba(255,255,255,0.4); font-size: 14px; margin-top: 4px;">56% of total spending</div>
+
+      <!-- Mini breakdown bars -->
+      <div style="width: 100%; margin-top: 32px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 18px; width: 28px;">🏠</span>
+          <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+            <div style="width: 56%; height: 100%; background: #7C6FF6; border-radius: 4px;"></div>
+          </div>
+          <span style="color: rgba(255,255,255,0.5); font-size: 12px; width: 36px; text-align: right;">56%</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 18px; width: 28px;">🛒</span>
+          <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+            <div style="width: 18%; height: 100%; background: #34D399; border-radius: 4px;"></div>
+          </div>
+          <span style="color: rgba(255,255,255,0.5); font-size: 12px; width: 36px; text-align: right;">18%</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 18px; width: 28px;">🚗</span>
+          <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+            <div style="width: 11%; height: 100%; background: #FB923C; border-radius: 4px;"></div>
+          </div>
+          <span style="color: rgba(255,255,255,0.5); font-size: 12px; width: 36px; text-align: right;">11%</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 18px; width: 28px;">🍽️</span>
+          <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+            <div style="width: 9%; height: 100%; background: #F472B6; border-radius: 4px;"></div>
+          </div>
+          <span style="color: rgba(255,255,255,0.5); font-size: 12px; width: 36px; text-align: right;">9%</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 18px; width: 28px;">🎬</span>
+          <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">
+            <div style="width: 6%; height: 100%; background: #60A5FA; border-radius: 4px;"></div>
+          </div>
+          <span style="color: rgba(255,255,255,0.5); font-size: 12px; width: 36px; text-align: right;">6%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-dots">
+      <div class="dot"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+  </div>
+</div>
+
+<!-- W3: Slide 3 — Daily Pattern -->
+<div class="wrap">
+  <div class="lbl">Slide 3: Daily Pattern</div>
+  <div class="desc">When do you spend? Bar chart showing spending by day with highlights.</div>
+  <div class="phone" style="background: linear-gradient(160deg, #0F1B33 0%, #1a3055 50%, #0F1B33 100%);">
+    <div class="notch"></div>
+    <div class="sbar"><span>8:25</span><span style="opacity:0.7">●●●● ▶ 🔋</span></div>
+    <div class="close-btn">✕</div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 0 24px; text-align: center;">
+      <div style="color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px;">YOUR SPENDING RHYTHM</div>
+      <div style="color: white; font-size: 22px; font-weight: 800; margin-bottom: 4px;">You spend most on Day 1</div>
+      <div style="color: rgba(255,255,255,0.4); font-size: 14px; margin-bottom: 32px;">Average daily spend: <span style="color: #60A5FA; font-weight: 700;">$86.17</span></div>
+
+      <!-- Daily bar chart -->
+      <div style="display: flex; align-items: flex-end; gap: 4px; height: 140px; width: 100%; padding: 0 8px;">
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 120px; background: #60A5FA; border-radius: 4px 4px 0 0; box-shadow: 0 0 12px rgba(96,165,250,0.3);"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">1</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 40px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">2</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 55px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">3</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 35px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">4</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 0px; border-radius: 4px 4px 0 0;"></div>
+          <span style="color: #34D399; font-size: 8px; font-weight: 700;">5</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 25px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">6</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 70px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">7</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 45px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">8</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 15px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">9</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 60px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">10</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 20px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">11</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 0px;"></div>
+          <span style="color: #34D399; font-size: 8px; font-weight: 700;">12</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 30px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">13</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 50px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">14</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+          <div style="width: 100%; height: 35px; background: rgba(255,255,255,0.1); border-radius: 4px 4px 0 0;"></div>
+          <span style="color: rgba(255,255,255,0.3); font-size: 8px;">15</span>
+        </div>
+      </div>
+
+      <!-- Highlights -->
+      <div style="display: flex; gap: 16px; margin-top: 32px;">
+        <div style="text-align: center;">
+          <div style="color: #60A5FA; font-size: 20px; font-weight: 800;">$1,582</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 11px;">Biggest day</div>
+          <div style="color: rgba(255,255,255,0.3); font-size: 10px;">March 1</div>
+        </div>
+        <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+        <div style="text-align: center;">
+          <div style="color: #34D399; font-size: 20px; font-weight: 800;">2 days</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 11px;">Zero-spend</div>
+          <div style="color: rgba(255,255,255,0.3); font-size: 10px;">🎉 Nice!</div>
+        </div>
+        <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+        <div style="text-align: center;">
+          <div style="color: white; font-size: 20px; font-weight: 800;">$19.40</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 11px;">Lightest day</div>
+          <div style="color: rgba(255,255,255,0.3); font-size: 10px;">March 9</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-dots">
+      <div class="dot"></div><div class="dot"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+  </div>
+</div>
+
+<!-- W4: Slide 4 — Streak & Discipline -->
+<div class="wrap">
+  <div class="lbl">Slide 4: Streak & Discipline</div>
+  <div class="desc">How disciplined were you? Streak stats, under/over days, verdict.</div>
+  <div class="phone" style="background: linear-gradient(160deg, #0F1B33 0%, #1a3a2a 50%, #0F1B33 100%);">
+    <div class="notch"></div>
+    <div class="sbar"><span>8:25</span><span style="opacity:0.7">●●●● ▶ 🔋</span></div>
+    <div class="close-btn">✕</div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 0 32px; text-align: center;">
+      <div style="font-size: 64px; margin-bottom: 16px;">🔥</div>
+      <div style="color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px;">YOUR DISCIPLINE</div>
+      <div style="color: white; font-size: 48px; font-weight: 800;">13</div>
+      <div style="color: rgba(255,255,255,0.5); font-size: 16px;">day streak</div>
+
+      <!-- Stats grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 40px;">
+        <div style="background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.15); border-radius: 16px; padding: 16px;">
+          <div style="color: #34D399; font-size: 28px; font-weight: 800;">19</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 12px;">days under allowance</div>
+        </div>
+        <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15); border-radius: 16px; padding: 16px;">
+          <div style="color: #EF4444; font-size: 28px; font-weight: 800;">2</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 12px;">days over allowance</div>
+        </div>
+      </div>
+
+      <!-- Verdict -->
+      <div style="margin-top: 32px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 16px 20px; width: 100%;">
+        <div style="color: #34D399; font-size: 18px; font-weight: 800;">Vault Guardian 🛡️</div>
+        <div style="color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 4px;">You're in the top tier of budget discipline. Keep it up!</div>
+      </div>
+    </div>
+
+    <div class="page-dots">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot active"></div><div class="dot"></div>
+    </div>
+  </div>
+</div>
+
+<!-- W5: Slide 5 — Share Card -->
+<div class="wrap">
+  <div class="lbl">Slide 5: Share Card</div>
+  <div class="desc">Shareable summary card with branded design. One tap to share.</div>
+  <div class="phone" style="background: linear-gradient(160deg, #060c18 0%, #0F1B33 40%, #1a3565 100%);">
+    <div class="notch"></div>
+    <div class="sbar"><span>8:25</span><span style="opacity:0.7">●●●● ▶ 🔋</span></div>
+    <div class="close-btn">✕</div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 0 24px; text-align: center;">
+      <!-- The share card -->
+      <div style="background: linear-gradient(145deg, #0F1B33 0%, #1a3565 50%, #2563EB 100%); border-radius: 24px; padding: 32px 24px; width: 100%; position: relative; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+        <!-- Vault watermark -->
+        <svg width="80" height="80" viewBox="0 0 80 80" style="position: absolute; top: 16px; right: 16px; opacity: 0.08;">
+          <circle cx="40" cy="40" r="35" fill="none" stroke="white" stroke-width="1"/>
+          <line x1="40" y1="8" x2="40" y2="16" stroke="white" stroke-width="1.5" transform="rotate(0 40 40)"/>
+          <line x1="40" y1="8" x2="40" y2="16" stroke="white" stroke-width="1.5" transform="rotate(60 40 40)"/>
+          <line x1="40" y1="8" x2="40" y2="16" stroke="white" stroke-width="1.5" transform="rotate(120 40 40)"/>
+          <line x1="40" y1="8" x2="40" y2="16" stroke="white" stroke-width="1.5" transform="rotate(180 40 40)"/>
+          <line x1="40" y1="8" x2="40" y2="16" stroke="white" stroke-width="1.5" transform="rotate(240 40 40)"/>
+          <line x1="40" y1="8" x2="40" y2="16" stroke="white" stroke-width="1.5" transform="rotate(300 40 40)"/>
+          <polygon points="40,5 38,12 42,12" fill="white"/>
+          <rect x="32" y="32" width="16" height="12" rx="2" fill="none" stroke="white" stroke-width="1"/>
+          <polyline points="32,32 40,38 48,32" fill="none" stroke="white" stroke-width="1"/>
+        </svg>
+
+        <div style="color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-align: left;">MARCH 2026</div>
+        <div style="color: white; font-size: 14px; font-weight: 500; text-align: left; margin-top: 2px; margin-bottom: 20px;">Monthly Wrapped</div>
+
+        <div style="color: white; font-size: 42px; font-weight: 800; text-align: center; margin-bottom: 4px;">$7,328</div>
+        <div style="color: rgba(255,255,255,0.6); font-size: 14px; text-align: center;">saved this month</div>
+
+        <div style="display: flex; justify-content: space-around; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+          <div>
+            <div style="color: white; font-size: 18px; font-weight: 800;">🔥 13</div>
+            <div style="color: rgba(255,255,255,0.4); font-size: 10px;">day streak</div>
+          </div>
+          <div>
+            <div style="color: white; font-size: 18px; font-weight: 800;">73%</div>
+            <div style="color: rgba(255,255,255,0.4); font-size: 10px;">saved</div>
+          </div>
+          <div>
+            <div style="color: white; font-size: 18px; font-weight: 800;">🛡️</div>
+            <div style="color: rgba(255,255,255,0.4); font-size: 10px;">guardian</div>
+          </div>
+        </div>
+
+        <div style="color: rgba(255,255,255,0.25); font-size: 10px; margin-top: 16px; text-align: center;">budgetvault.io</div>
+      </div>
+
+      <!-- Share button -->
+      <button style="margin-top: 24px; background: white; color: #0F1B33; border: none; border-radius: 14px; padding: 14px 48px; font-size: 16px; font-weight: 700; cursor: pointer;">
+        Share Your Wrapped
+      </button>
+      <div style="color: rgba(255,255,255,0.3); font-size: 12px; margin-top: 8px;">or swipe to dismiss</div>
+    </div>
+
+    <div class="page-dots">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot active"></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
