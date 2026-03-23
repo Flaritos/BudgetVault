@@ -2,37 +2,87 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
-// MARK: - Chat Step
+// MARK: - Onboarding Vault Dial
 
-private enum ChatStep: Int, CaseIterable {
-    case welcome = 0
-    case currency
-    case income
-    case template
-    case categories
-    case notifications
-    case complete
-}
+/// A vault dial with a progress arc that fills as the user advances through onboarding steps.
+private struct OnboardingVaultDial: View {
+    let size: CGFloat
+    let progress: Double // 0.0 to 1.0
+    let stepNumber: Int?
+    let stepLabel: String?
+    let rotation: Double
+    let showLock: Bool
+    let showUnlock: Bool
 
-// MARK: - Chat Message
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-private struct ChatMessage: Identifiable {
-    let id = UUID()
-    let text: String
-    let isBot: Bool
-    var responseType: ResponseType?
+    var body: some View {
+        ZStack {
+            VaultDialMark(size: size, showGlow: progress >= 1.0, tickRotation: rotation)
+                .opacity(0.2 + progress * 0.1)
 
-    enum ResponseType {
-        case currency
-        case numberPad
-        case templatePicker
-        case categoryEditor
-        case yesNo
-        case completion
+            // Track circle
+            Circle()
+                .stroke(.white.opacity(0.06), lineWidth: max(size * 0.04, 3))
+                .frame(width: size * 0.82, height: size * 0.82)
+
+            // Progress arc
+            if progress > 0 {
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        Color(hex: "#60A5FA"),
+                        style: StrokeStyle(lineWidth: max(size * 0.04, 3), lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: size * 0.82, height: size * 0.82)
+                    .shadow(color: Color(hex: "#60A5FA").opacity(0.5), radius: 8)
+
+                // Extra glow ring when fully unlocked
+                if progress >= 1.0 {
+                    Circle()
+                        .trim(from: 0, to: 1.0)
+                        .stroke(
+                            Color(hex: "#93C5FD"),
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: size * 0.82, height: size * 0.82)
+                        .blur(radius: 8)
+                }
+            }
+
+            // Center content
+            VStack(spacing: 2) {
+                if showLock {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: size * 0.12))
+                        .foregroundStyle(.white.opacity(0.3))
+                } else if showUnlock {
+                    Image(systemName: "lock.open.fill")
+                        .font(.system(size: size * 0.12))
+                        .foregroundStyle(.white.opacity(0.5))
+                } else if let stepNumber, let stepLabel {
+                    Text("STEP \(stepNumber) OF 4")
+                        .font(.system(size: max(size * 0.06, 8), weight: .bold))
+                        .foregroundStyle(.white.opacity(0.25))
+                        .tracking(1.5)
+                    Text(stepLabel)
+                        .font(.system(size: max(size * 0.09, 11), weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(width: size * 1.4, height: size * 1.4)
+        .animation(
+            reduceMotion ? .none : .spring(duration: 0.8, bounce: 0.15),
+            value: progress
+        )
+        .accessibilityHidden(true)
     }
 }
 
-// MARK: - Chat Onboarding View
+// MARK: - Vault Unlocking Ceremony (ChatOnboardingView)
 
 struct ChatOnboardingView: View {
     @Environment(\.modelContext) private var modelContext
@@ -43,293 +93,648 @@ struct ChatOnboardingView: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.dailyReminderEnabled) private var dailyReminderEnabled = false
 
-    @State private var messages: [ChatMessage] = []
-    @State private var currentStep: ChatStep = .welcome
-    @State private var showTyping = false
+    @State private var currentStep = 0 // 0=welcome, 1=currency, 2=income, 3=envelopes, 4=unlocked
+    @State private var dialRotation: Double = 0
+    @State private var tempCurrency = "USD"
     @State private var incomeText = ""
     @State private var selectedTemplate: BudgetTemplates.OnboardingTemplate = .single
     @State private var editableCategories: [(name: String, emoji: String, color: String, pct: Double)] = []
-    @State private var budgetCreated = false
     @State private var showSaveError = false
-
-    // Vault dial animation
-    @State private var dialRotation: Double = 0
-    @State private var dialUnlocked = false
+    @State private var showCurrencyPicker = false
+    @State private var budgetCreated = false
 
     private let categoryLimit = 6
 
-    private var currencySymbol: String {
-        CurrencyPickerView.currencies.first { $0.code == selectedCurrency }?.symbol ?? "$"
+    // Step progress: 0=0%, 1=25%, 2=50%, 3=75%, 4=100%
+    private var stepProgress: Double {
+        min(Double(currentStep) / 4.0, 1.0)
     }
 
     var body: some View {
         ZStack {
-            // Navy dark background
-            BudgetVaultTheme.navyDark
-                .ignoresSafeArea()
+            // Navy gradient background
+            LinearGradient(
+                colors: [
+                    BudgetVaultTheme.navyDark.opacity(0.95),
+                    BudgetVaultTheme.navyDark,
+                    BudgetVaultTheme.navyMid,
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar with vault dial + skip
-                topBar
+                // Skip button (top right, steps 1-3 only)
+                if currentStep > 0 && currentStep < 4 {
+                    HStack {
+                        Spacer()
+                        Button { skipOnboarding() } label: {
+                            Text("Skip")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.35))
+                        }
+                    }
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                    .padding(.top, BudgetVaultTheme.spacingSM)
+                }
 
-                // Chat messages
-                chatContent
-
-                // Input area based on current step
-                inputArea
+                // Step content
+                Group {
+                    switch currentStep {
+                    case 0: welcomeStep
+                    case 1: currencyStep
+                    case 2: incomeStep
+                    case 3: envelopeStep
+                    case 4: unlockedStep
+                    default: EmptyView()
+                    }
+                }
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .trailing)),
+                    removal: .opacity.combined(with: .move(edge: .leading))
+                ))
             }
         }
         .alert("Save Failed", isPresented: $showSaveError) {
             Button("OK") {}
         } message: {
-            Text("Your budget could not be saved. Please try again.")
+            Text("Could not save your budget. Please try again.")
         }
-        .task {
-            await startWelcomeSequence()
-        }
-    }
-
-    // MARK: - Top Bar
-
-    private var topBar: some View {
-        ZStack {
-            // Centered vault dial
-            VaultDialMark(size: 80, showGlow: dialUnlocked, tickRotation: dialRotation)
-                .opacity(dialUnlocked ? 1 : 0.6)
-                .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.3), radius: 20)
-                .frame(maxWidth: .infinity)
-
-            // Skip button pinned to top-right
-            HStack {
-                Spacer()
-                Button {
-                    skipOnboarding()
-                } label: {
-                    Text("Skip")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.5))
-                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                        .padding(.vertical, BudgetVaultTheme.spacingSM)
+        .sheet(isPresented: $showCurrencyPicker) {
+            NavigationStack {
+                FullCurrencyPickerSheet { code in
+                    tempCurrency = code
+                    showCurrencyPicker = false
                 }
             }
         }
-        .padding(.horizontal, BudgetVaultTheme.spacingLG)
-        .padding(.top, BudgetVaultTheme.spacingSM)
     }
 
-    // MARK: - Chat Content
+    // MARK: - Step 0: Welcome
 
-    private var chatContent: some View {
-        ScrollViewReader { proxy in
+    private var welcomeStep: some View {
+        VStack(spacing: BudgetVaultTheme.spacingXL) {
+            Spacer()
+
+            OnboardingVaultDial(
+                size: 200,
+                progress: 0,
+                stepNumber: nil,
+                stepLabel: nil,
+                rotation: dialRotation,
+                showLock: true,
+                showUnlock: false
+            )
+
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
+                Text("BudgetVault")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("Your budget. Your device. No one else.")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+
+                Text("4 steps to unlock your vault")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.35))
+                    .padding(.top, BudgetVaultTheme.spacingSM)
+            }
+
+            Spacer()
+
+            Button {
+                advanceStep()
+            } label: {
+                Text("Begin Setup")
+                    .font(.headline)
+                    .foregroundStyle(BudgetVaultTheme.navyDark)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingXL)
+        }
+    }
+
+    // MARK: - Step 1: Currency
+
+    private var currencyStep: some View {
+        VStack(spacing: BudgetVaultTheme.spacingXL) {
+            OnboardingVaultDial(
+                size: 150,
+                progress: 0.25,
+                stepNumber: 1,
+                stepLabel: "CURRENCY",
+                rotation: dialRotation,
+                showLock: false,
+                showUnlock: false
+            )
+            .padding(.top, BudgetVaultTheme.spacingLG)
+
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
+                Text("What currency do you use?")
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+            }
+
+            // Currency chips
+            currencyChips
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+            Button {
+                showCurrencyPicker = true
+            } label: {
+                HStack(spacing: 4) {
+                    Text("More currencies")
+                        .font(.subheadline)
+                    Image(systemName: "arrow.right")
+                        .font(.caption)
+                }
+                .foregroundStyle(Color(hex: "#60A5FA"))
+            }
+
+            Spacer()
+
+            Button {
+                selectedCurrency = tempCurrency
+                advanceStep()
+            } label: {
+                Text("Continue")
+                    .font(.headline)
+                    .foregroundStyle(BudgetVaultTheme.navyDark)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingXL)
+        }
+    }
+
+    private var currencyChips: some View {
+        let currencies: [(code: String, flag: String)] = [
+            ("USD", "\u{1F1FA}\u{1F1F8}"),
+            ("EUR", "\u{1F1EA}\u{1F1FA}"),
+            ("GBP", "\u{1F1EC}\u{1F1E7}"),
+            ("CAD", "\u{1F1E8}\u{1F1E6}"),
+            ("AUD", "\u{1F1E6}\u{1F1FA}"),
+            ("JPY", "\u{1F1EF}\u{1F1F5}"),
+        ]
+
+        return FlowLayout(spacing: 10) {
+            ForEach(currencies, id: \.code) { currency in
+                Button {
+                    tempCurrency = currency.code
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(currency.flag)
+                            .font(.title3)
+                        Text(currency.code)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        tempCurrency == currency.code
+                            ? AnyShapeStyle(Color(hex: "#60A5FA").opacity(0.35))
+                            : AnyShapeStyle(Color.white.opacity(0.12)),
+                        in: Capsule()
+                    )
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(
+                                tempCurrency == currency.code
+                                    ? Color(hex: "#60A5FA")
+                                    : Color.clear,
+                                lineWidth: 1.5
+                            )
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Step 2: Income
+
+    private var incomeStep: some View {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
+            OnboardingVaultDial(
+                size: 140,
+                progress: 0.5,
+                stepNumber: 2,
+                stepLabel: "INCOME",
+                rotation: dialRotation,
+                showLock: false,
+                showUnlock: false
+            )
+            .padding(.top, BudgetVaultTheme.spacingSM)
+
+            VStack(spacing: BudgetVaultTheme.spacingSM) {
+                Text("Monthly take-home pay")
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+
+                Text("After taxes \u{00B7} stays on your device")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+
+            // Large amount display
+            Text(CurrencyFormatter.displayAmount(text: incomeText))
+                .font(.system(size: 48, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, BudgetVaultTheme.spacingSM)
+                .contentTransition(.numericText())
+
+            // Number pad (reuse ChatNumberPadView keys inline for dark theme)
+            onboardingNumberPad
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+            Spacer(minLength: BudgetVaultTheme.spacingMD)
+
+            let hasIncome = (MoneyHelpers.parseCurrencyString(incomeText) ?? 0) > 0
+
+            Button {
+                advanceStep()
+            } label: {
+                Text("Continue")
+                    .font(.headline)
+                    .foregroundStyle(hasIncome ? BudgetVaultTheme.navyDark : .white.opacity(0.3))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        hasIncome
+                            ? AnyShapeStyle(Color.white)
+                            : AnyShapeStyle(Color.white.opacity(0.08)),
+                        in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
+                    )
+            }
+            .disabled(!hasIncome)
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
+        }
+    }
+
+    private var onboardingNumberPad: some View {
+        let keys: [[String]] = [
+            ["1", "2", "3"],
+            ["4", "5", "6"],
+            ["7", "8", "9"],
+            [".", "0", "\u{232B}"],
+        ]
+
+        return VStack(spacing: BudgetVaultTheme.spacingSM) {
+            ForEach(keys, id: \.self) { row in
+                HStack(spacing: BudgetVaultTheme.spacingSM) {
+                    ForEach(row, id: \.self) { key in
+                        Button {
+                            handleNumberKey(key)
+                        } label: {
+                            Text(key)
+                                .font(.title2.bold())
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(
+                                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                        .fill(Color.white.opacity(0.08))
+                                )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func handleNumberKey(_ key: String) {
+        HapticManager.impact(.light)
+
+        if key == "\u{232B}" {
+            if !incomeText.isEmpty { incomeText.removeLast() }
+            return
+        }
+        if key == "." {
+            if incomeText.contains(".") { return }
+            incomeText += incomeText.isEmpty ? "0." : "."
+            return
+        }
+        // Max 2 decimal places
+        if let dotIndex = incomeText.firstIndex(of: ".") {
+            let decimals = incomeText[incomeText.index(after: dotIndex)...]
+            if decimals.count >= 2 { return }
+        }
+        // Prevent leading zeros
+        if incomeText == "0" && key != "." {
+            incomeText = key
+            return
+        }
+        if incomeText.count < 10 {
+            incomeText += key
+        }
+    }
+
+    // MARK: - Step 3: Envelopes
+
+    private var envelopeStep: some View {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
+            OnboardingVaultDial(
+                size: 120,
+                progress: 0.75,
+                stepNumber: 3,
+                stepLabel: "ENVELOPES",
+                rotation: dialRotation,
+                showLock: false,
+                showUnlock: false
+            )
+            .padding(.top, BudgetVaultTheme.spacingSM)
+
+            Text("Choose a template")
+                .font(.title3.bold())
+                .foregroundStyle(.white)
+
+            // Horizontal template scroll
+            templateScroll
+                .padding(.bottom, BudgetVaultTheme.spacingXS)
+
+            // Editable category list
             ScrollView {
-                LazyVStack(spacing: BudgetVaultTheme.spacingMD) {
-                    ForEach(messages) { message in
-                        ChatBubbleView(text: message.text, isBot: message.isBot)
-                            .id(message.id)
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
+                    ForEach(Array(editableCategories.enumerated()), id: \.offset) { index, _ in
+                        if index < editableCategories.count {
+                            envelopeCategoryRow(index: index)
+                        }
                     }
 
-                    if showTyping {
-                        TypingIndicatorView()
-                            .id("typing")
+                    if editableCategories.count < categoryLimit {
+                        Button {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                editableCategories.append(("New Category", "\u{1F4E6}", "#8E8E93", 0.05))
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add Category")
+                                Spacer()
+                                Text("\(editableCategories.count)/\(categoryLimit)")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.5))
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(BudgetVaultTheme.spacingMD)
+                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+                        }
                     }
+
+                    // Unallocated percentage
+                    let totalPct = editableCategories.reduce(0.0) { $0 + $1.pct }
+                    let unallocated = max(0, 1.0 - totalPct)
+                    Text("Unallocated: \(Int(unallocated * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(unallocated > 0 ? Color(hex: "#60A5FA") : .white.opacity(0.35))
+                        .padding(.top, BudgetVaultTheme.spacingXS)
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                .padding(.vertical, BudgetVaultTheme.spacingMD)
             }
-            .onChange(of: messages.count) { _, _ in
-                withAnimation {
-                    if let last = messages.last {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
-                }
+
+            Button {
+                createBudget()
+            } label: {
+                Text("Looks Good")
+                    .font(.headline)
+                    .foregroundStyle(editableCategories.isEmpty ? .white.opacity(0.3) : BudgetVaultTheme.navyDark)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        editableCategories.isEmpty
+                            ? AnyShapeStyle(Color.white.opacity(0.08))
+                            : AnyShapeStyle(Color.white),
+                        in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
+                    )
             }
-            .onChange(of: showTyping) { _, isTyping in
-                if isTyping {
-                    withAnimation {
-                        proxy.scrollTo("typing", anchor: .bottom)
-                    }
-                }
+            .disabled(editableCategories.isEmpty)
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
+        }
+        .onAppear {
+            if editableCategories.isEmpty {
+                selectTemplate(.single)
             }
         }
     }
 
-    // MARK: - Input Area
+    private var templateScroll: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: BudgetVaultTheme.spacingMD) {
+                ForEach(BudgetTemplates.OnboardingTemplate.allCases, id: \.rawValue) { template in
+                    Button {
+                        selectTemplate(template)
+                    } label: {
+                        VStack(spacing: BudgetVaultTheme.spacingSM) {
+                            Image(systemName: template.icon)
+                                .font(.title2)
+                                .foregroundStyle(.white)
+                            Text(template.rawValue)
+                                .font(.caption.bold())
+                                .foregroundStyle(.white)
+                        }
+                        .frame(width: 80)
+                        .padding(.vertical, BudgetVaultTheme.spacingMD)
+                        .background(
+                            selectedTemplate == template
+                                ? AnyShapeStyle(Color(hex: "#60A5FA").opacity(0.25))
+                                : AnyShapeStyle(Color.white.opacity(0.08)),
+                            in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                                .strokeBorder(
+                                    selectedTemplate == template
+                                        ? Color(hex: "#60A5FA").opacity(0.6)
+                                        : Color.white.opacity(0.12),
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+        }
+    }
 
     @ViewBuilder
-    private var inputArea: some View {
-        switch currentStep {
-        case .welcome:
-            EmptyView()
+    private func envelopeCategoryRow(index: Int) -> some View {
+        let incomeCents = MoneyHelpers.parseCurrencyString(incomeText) ?? 0
+        let amountCents = Int64(Double(incomeCents) * editableCategories[index].pct)
 
-        case .currency:
-            CurrencyChipPicker { code in
-                selectedCurrency = code
-                addUserMessage("I use \(code)")
-                advanceAfterDelay(to: .income, botMessage: "Great choice! Now, what's your monthly take-home income? This helps us divide your money into envelopes.")
-            }
-            .padding(.bottom, 16)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+        HStack(spacing: 10) {
+            Circle()
+                .fill(Color(hex: editableCategories[index].color))
+                .frame(width: 10, height: 10)
 
-        case .income:
-            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                ChatNumberPadView(text: $incomeText, currencySymbol: currencySymbol)
+            Text(editableCategories[index].emoji)
+                .font(.title3)
 
-                if let cents = MoneyHelpers.parseCurrencyString(incomeText), cents > 0 {
-                    Button {
-                        let formatted = CurrencyFormatter.format(cents: cents)
-                        addUserMessage(formatted)
-                        advanceAfterDelay(to: .template, botMessage: "Perfect! Now pick a template to get started quickly. You can customize everything next.")
-                    } label: {
-                        Text("Confirm")
-                            .font(.headline)
-                            .foregroundStyle(BudgetVaultTheme.navyDark)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+            TextField("Name", text: Binding(
+                get: { editableCategories[index].name },
+                set: { editableCategories[index].name = $0 }
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.white)
+            .textFieldStyle(.plain)
+
+            Spacer()
+
+            // Percentage stepper
+            HStack(spacing: 4) {
+                Button {
+                    if editableCategories[index].pct > 0.05 {
+                        editableCategories[index].pct -= 0.05
                     }
-                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-
-        case .template:
-            ChatTemplatePicker { template in
-                selectedTemplate = template
-                editableCategories = Array(template.categories.prefix(categoryLimit))
-                addUserMessage(template.rawValue)
-                if template == .custom {
-                    // Start with one empty category for custom
-                    editableCategories = [("New Category", "\u{1F4E6}", "#8E8E93", 0.20)]
-                    advanceAfterDelay(to: .categories, botMessage: "Starting from scratch! Add up to \(categoryLimit) categories below. Adjust the percentages to divide your income.")
-                } else {
-                    advanceAfterDelay(to: .categories, botMessage: "Here are your categories. Edit names, adjust percentages with +/-, or remove any you don't need. Max \(categoryLimit) categories.")
-                }
-            }
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-
-        case .categories:
-            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                ChatCategoryEditor(categories: $editableCategories, categoryLimit: categoryLimit)
-
-                if !editableCategories.isEmpty {
-                    let totalPct = editableCategories.reduce(0.0) { $0 + $1.pct }
-                    Text("Total: \(Int(totalPct * 100))%")
-                        .font(.caption)
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.body)
                         .foregroundStyle(.white.opacity(0.5))
+                }
 
-                    Button {
-                        let catNames = editableCategories.map { $0.emoji + " " + $0.name }.joined(separator: ", ")
-                        addUserMessage("My categories: \(catNames)")
-                        createBudget()
-                        advanceAfterDelay(to: .notifications, botMessage: "Your budget is created! Would you like a daily reminder to log your expenses? Most users find 8pm works great.")
-                    } label: {
-                        Text("Looks good!")
-                            .font(.headline)
-                            .foregroundStyle(BudgetVaultTheme.navyDark)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+                Text("\(Int(editableCategories[index].pct * 100))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.8))
+                    .frame(width: 36)
+
+                Button {
+                    if editableCategories[index].pct < 0.95 {
+                        editableCategories[index].pct += 0.05
                     }
-                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.5))
                 }
             }
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
 
-        case .notifications:
-            ChatYesNoButtons(
-                onYes: {
-                    addUserMessage("Yes, remind me!")
-                    requestNotifications()
-                },
-                onNo: {
-                    addUserMessage("Not now")
-                    advanceAfterDelay(to: .complete, botMessage: "No problem! You can always enable reminders in Settings.\n\nYour budget is set up! Explore your Home screen to see your daily allowance and envelope cards.")
-                }
-            )
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-
-        case .complete:
-            ChatCompletionButton {
-                withAnimation(.smooth(duration: 0.5)) {
-                    hasCompletedOnboarding = true
-                }
+            // Dollar amount
+            if incomeCents > 0 {
+                Text(CurrencyFormatter.format(cents: amountCents))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.4))
+                    .frame(width: 60, alignment: .trailing)
             }
-            .padding(.bottom, 24)
-            .transition(.scale.combined(with: .opacity))
+
+            // Delete
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    if index < editableCategories.count {
+                        editableCategories.remove(at: index)
+                    }
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.3))
+            }
         }
+        .padding(BudgetVaultTheme.spacingMD)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                .fill(Color.white.opacity(0.08))
+        )
     }
 
-    // MARK: - Welcome Sequence
-
-    private func startWelcomeSequence() async {
-        // Animate vault dial
-        if reduceMotion {
-            dialRotation = 240
-            dialUnlocked = true
+    private func selectTemplate(_ template: BudgetTemplates.OnboardingTemplate) {
+        selectedTemplate = template
+        if template == .custom {
+            editableCategories = [("New Category", "\u{1F4E6}", "#8E8E93", 0.20)]
         } else {
-            try? await Task.sleep(for: .milliseconds(400))
-            withAnimation(.easeInOut(duration: 1.0)) {
-                dialRotation = 270
-            }
-            try? await Task.sleep(for: .milliseconds(1000))
-            withAnimation(.easeOut(duration: 0.25)) {
-                dialRotation = 240
-            }
-            try? await Task.sleep(for: .milliseconds(300))
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                dialUnlocked = true
-            }
-        }
-
-        try? await Task.sleep(for: .milliseconds(400))
-
-        // Bot welcome messages
-        await showBotMessage("Welcome to BudgetVault!")
-        try? await Task.sleep(for: .milliseconds(800))
-        await showBotMessage("I'll help you set up your first budget in under a minute. Your data stays on your device -- always.")
-        try? await Task.sleep(for: .milliseconds(800))
-        await showBotMessage("First, what currency do you use?")
-
-        await MainActor.run {
-            withAnimation(.easeOut(duration: 0.3)) {
-                currentStep = .currency
-            }
+            editableCategories = Array(template.categories.prefix(categoryLimit))
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Step 4: Vault Unlocked
 
-    @MainActor
-    private func showBotMessage(_ text: String) async {
-        showTyping = true
-        let delay = reduceMotion ? 300 : 600
-        try? await Task.sleep(for: .milliseconds(delay))
-        showTyping = false
-        withAnimation(.easeOut(duration: 0.25)) {
-            messages.append(ChatMessage(text: text, isBot: true))
-        }
-    }
+    private var unlockedStep: some View {
+        VStack(spacing: BudgetVaultTheme.spacingXL) {
+            Spacer()
 
-    private func addUserMessage(_ text: String) {
-        withAnimation(.easeOut(duration: 0.2)) {
-            messages.append(ChatMessage(text: text, isBot: false))
-        }
-    }
+            OnboardingVaultDial(
+                size: 220,
+                progress: 1.0,
+                stepNumber: nil,
+                stepLabel: nil,
+                rotation: dialRotation,
+                showLock: false,
+                showUnlock: true
+            )
 
-    private func advanceAfterDelay(to step: ChatStep, botMessage: String) {
-        Task {
-            await showBotMessage(botMessage)
-            try? await Task.sleep(for: .milliseconds(300))
-            await MainActor.run {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    currentStep = step
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
+                Text("Vault Unlocked")
+                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: "#60A5FA"), Color(hex: "#A78BFA")],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+
+                Text("Your budget is set. Your data is safe.")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
+                Button {
+                    withAnimation(.smooth(duration: 0.5)) {
+                        hasCompletedOnboarding = true
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "lock.open.fill")
+                        Text("Open My Vault")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(BudgetVaultTheme.navyDark)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                }
+
+                Button {
+                    requestDailyReminders()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Enable daily reminders")
+                            .font(.subheadline)
+                        Image(systemName: "arrow.right")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.white.opacity(0.45))
                 }
             }
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingXL)
+        }
+    }
+
+    // MARK: - Step Advancement
+
+    private func advanceStep() {
+        let animation: Animation = reduceMotion
+            ? .easeOut(duration: 0.2)
+            : .spring(duration: 0.6)
+
+        withAnimation(animation) {
+            dialRotation += reduceMotion ? 0 : 90
+            currentStep += 1
         }
     }
 
@@ -337,8 +742,15 @@ struct ChatOnboardingView: View {
 
     private func createBudget() {
         guard !budgetCreated else { return }
-        guard let incomeCents = MoneyHelpers.parseCurrencyString(incomeText), incomeCents > 0 else { return }
+        guard let incomeCents = MoneyHelpers.parseCurrencyString(incomeText), incomeCents > 0 else {
+            // Allow zero-income budgets if user skipped income step or entered 0
+            createBudgetWithIncome(0)
+            return
+        }
+        createBudgetWithIncome(incomeCents)
+    }
 
+    private func createBudgetWithIncome(_ incomeCents: Int64) {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
         let budget = Budget(month: month, year: year, totalIncomeCents: incomeCents, resetDay: resetDay)
         modelContext.insert(budget)
@@ -358,34 +770,26 @@ struct ChatOnboardingView: View {
         }
 
         guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
             showSaveError = true
             return
         }
+
         budgetCreated = true
-    }
 
-    // MARK: - Notifications
+        let animation: Animation = reduceMotion
+            ? .easeOut(duration: 0.2)
+            : .spring(duration: 0.6)
 
-    private func requestNotifications() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            DispatchQueue.main.async {
-                if granted {
-                    NotificationService.scheduleDailyReminder(hour: 20)
-                    dailyReminderEnabled = true
-                    addUserMessage("Reminders enabled!")
-                }
-                advanceAfterDelay(to: .complete, botMessage: granted
-                    ? "You'll get a gentle nudge at 8pm each day.\n\nYour budget is set up! Explore your Home screen to see your daily allowance and envelope cards."
-                    : "No worries! You can enable reminders later in Settings.\n\nYour budget is set up! Explore your Home screen to see your daily allowance and envelope cards."
-                )
-            }
+        withAnimation(animation) {
+            dialRotation += reduceMotion ? 0 : 90
+            currentStep = 4
         }
     }
 
-    // MARK: - Skip
+    // MARK: - Skip Onboarding
 
     private func skipOnboarding() {
-        // Create a minimal default budget so the user has a working budget to edit
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
         let budget = Budget(month: month, year: year, totalIncomeCents: 0, resetDay: resetDay)
         modelContext.insert(budget)
@@ -400,13 +804,93 @@ struct ChatOnboardingView: View {
         generalCategory.budget = budget
         modelContext.insert(generalCategory)
 
-        guard SafeSave.save(modelContext) else {
-            // Save failed -- don't proceed with onboarding completion
-            return
-        }
+        guard SafeSave.save(modelContext) else { return }
 
         withAnimation(.smooth(duration: 0.5)) {
             hasCompletedOnboarding = true
         }
     }
+
+    // MARK: - Daily Reminders
+
+    private func requestDailyReminders() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            DispatchQueue.main.async {
+                if granted {
+                    NotificationService.scheduleDailyReminder(hour: 20)
+                    dailyReminderEnabled = true
+                }
+            }
+        }
+    }
 }
+
+// MARK: - Flow Layout (for currency chips)
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var currentX: CGFloat = 0
+        var currentY: CGFloat = 0
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX + size.width > maxWidth && currentX > 0 {
+                currentY += lineHeight + spacing
+                currentX = 0
+                lineHeight = 0
+            }
+            currentX += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+
+        return CGSize(width: maxWidth, height: currentY + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var currentX: CGFloat = bounds.minX
+        var currentY: CGFloat = bounds.minY
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX + size.width > bounds.maxX && currentX > bounds.minX {
+                currentY += lineHeight + spacing
+                currentX = bounds.minX
+                lineHeight = 0
+            }
+            subview.place(at: CGPoint(x: currentX, y: currentY), proposal: .unspecified)
+            currentX += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
+// MARK: - Full Currency Picker Sheet (reused from old code)
+
+private struct FullCurrencyPickerSheet: View {
+    let onSelect: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var tempSelection = "USD"
+
+    var body: some View {
+        CurrencyPickerView(selectedCurrency: $tempSelection)
+            .navigationTitle("Select Currency")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        onSelect(tempSelection)
+                        dismiss()
+                    }
+                }
+            }
+    }
+}
+
