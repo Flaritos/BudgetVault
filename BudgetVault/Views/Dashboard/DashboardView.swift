@@ -616,7 +616,7 @@ struct DashboardView: View {
                 .padding(.horizontal, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
             }
             .padding(.top, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
+            .padding(.bottom, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
         }
         .accessibilityElement(children: .combine)
         .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) remaining. \(dayProgressText)")
