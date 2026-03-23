@@ -482,85 +482,158 @@ struct DashboardView: View {
         dayProgressText: String
     ) -> some View {
         let spentFraction = 1.0 - budget.percentRemaining
-        let arcRadius = dialRingSize * 0.82
+        let spentPercent = Int(min(spentFraction, 1.0) * 100)
+        let ringSize: CGFloat = 110
 
         ZStack {
             // Full-bleed navy gradient background
             LinearGradient(
-                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [BudgetVaultTheme.navyDark.opacity(0.95), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea(edges: .top)
 
             VStack(spacing: BudgetVaultTheme.spacingLG) {
-                // The Vault Dial Ring with Progress
-                ZStack {
-                    // Layer 1: VaultDialMark — BOLD decorative ring
-                    VaultDialMark(size: dialRingSize)
-                        .opacity(0.30)
+                // Glass card with ring + amount
+                HStack(alignment: .center, spacing: BudgetVaultTheme.spacingXL - 4) {
+                    // Neon ring with percentage
+                    ZStack {
+                        // Track
+                        Circle()
+                            .stroke(.white.opacity(0.06), lineWidth: 7)
+                            .frame(width: ringSize, height: ringSize)
 
-                    // Layer 2a: Track circle (visible background for the arc)
-                    Circle()
-                        .stroke(.white.opacity(0.15), lineWidth: 8)
-                        .frame(width: arcRadius, height: arcRadius)
+                        // Neon arc
+                        Circle()
+                            .trim(from: 0, to: min(spentFraction, 1.0))
+                            .stroke(
+                                Color(red: 0.376, green: 0.647, blue: 0.98), // #60A5FA
+                                style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: ringSize, height: ringSize)
+                            .shadow(color: Color(red: 0.376, green: 0.647, blue: 0.98).opacity(0.5), radius: 8)
+                            .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
 
-                    // Layer 2b: Spending progress arc — BRIGHT and bold
-                    Circle()
-                        .trim(from: 0, to: min(spentFraction, 1.0))
-                        .stroke(
-                            .white,
-                            style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: arcRadius, height: arcRadius)
-                        .shadow(color: .white.opacity(0.5), radius: 12)
-                        .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
+                        // Outer glow layer
+                        Circle()
+                            .trim(from: 0, to: min(spentFraction, 1.0))
+                            .stroke(
+                                Color(red: 0.576, green: 0.773, blue: 0.988), // #93C5FD
+                                style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: ringSize, height: ringSize)
+                            .blur(radius: 6)
+                            .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
 
-                    // Layer 3: Center content — JUST the number and label
-                    VStack(spacing: BudgetVaultTheme.spacingXS) {
+                        // Vault tick marks
+                        VaultDialMark(size: ringSize + 10)
+                            .opacity(0.15)
+
+                        // Percentage text
+                        VStack(spacing: 0) {
+                            Text("\(spentPercent)%")
+                                .font(.system(size: 20, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("spent")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                    }
+
+                    // Amount + info
+                    VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingXS) {
+                        Text("DAILY ALLOWANCE")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .tracking(1.5)
+
                         Text(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))
-                            .font(BudgetVaultTheme.priceDisplay)
+                            .font(.system(size: 42, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
-                            .shadow(color: .white.opacity(0.15), radius: 24)
+                            .shadow(color: Color(red: 0.376, green: 0.647, blue: 0.98).opacity(0.3), radius: 16)
                             .contentTransition(.numericText())
                             .animation(.snappy, value: dailyAllowanceCents)
                             .minimumScaleFactor(0.5)
                             .lineLimit(1)
 
                         Text("per day")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-                    .frame(width: dialRingSize * 0.55)
-                }
-                .frame(width: dialRingSize, height: dialRingSize)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.55))
 
-                // Below the ring: ONE info line + streak
-                VStack(spacing: BudgetVaultTheme.spacingSM) {
-                    Text("\(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) remaining · \(dayProgressText)")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                        // Status + streak row
+                        HStack(spacing: BudgetVaultTheme.spacingSM) {
+                            HStack(spacing: BudgetVaultTheme.spacingXS) {
+                                Circle()
+                                    .fill(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
+                                    .frame(width: 6, height: 6)
+                                Text(spentFraction < 0.75 ? "On Track" : spentFraction < 0.9 ? "Watch It" : "Over Budget")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
+                            }
 
-                    if currentStreak > 0 {
-                        HStack(spacing: BudgetVaultTheme.spacingXS) {
-                            Text("\u{1F525}")
-                                .font(.subheadline)
-                            Text("\(currentStreak) day streak")
-                                .font(.caption.weight(.semibold))
+                            if currentStreak > 0 {
+                                HStack(spacing: BudgetVaultTheme.spacingXS) {
+                                    Text("\u{1F525}")
+                                        .font(.caption2)
+                                    Text("\(currentStreak)")
+                                        .font(.caption.weight(.bold))
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, BudgetVaultTheme.spacingSM)
+                                .padding(.vertical, 3)
+                                .background(.white.opacity(0.15), in: Capsule())
+                            }
                         }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, BudgetVaultTheme.spacingMD)
-                        .padding(.vertical, BudgetVaultTheme.spacingXS + 2)
-                        .background(.white.opacity(0.15), in: Capsule())
+                        .padding(.top, BudgetVaultTheme.spacingXS)
                     }
                 }
+                .padding(BudgetVaultTheme.spacingXL)
+                .background {
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
+                        .fill(.white.opacity(0.07))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
+                                .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                        }
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                // Stats row below the card
+                HStack {
+                    statItem(label: "REMAINING", value: CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency))
+                    Spacer()
+                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 28)
+                    Spacer()
+                    statItem(label: "SPENT", value: CurrencyFormatter.format(cents: budget.totalSpentCents(), currencyCode: selectedCurrency))
+                    Spacer()
+                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 28)
+                    Spacer()
+                    statItem(label: "DAY", value: dayProgressText.replacingOccurrences(of: "Day ", with: ""))
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
             }
-            .padding(.top, BudgetVaultTheme.spacingXL)
+            .padding(.top, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
             .padding(.bottom, BudgetVaultTheme.spacingLG)
         }
         .accessibilityElement(children: .combine)
         .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) remaining. \(dayProgressText)")
+    }
+
+    private func statItem(label: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.35))
+                .tracking(0.5)
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+        }
     }
 
     // MARK: - Spending Arc Gradient
