@@ -203,7 +203,9 @@ struct DashboardView: View {
                 intentPrefillNote = notification.userInfo?["note"] as? String
                 showTransactionEntry = true
             }
-            .sheet(item: $editingTransaction) { transaction in
+            .sheet(item: $editingTransaction, onDismiss: {
+                refreshCachedValues()
+            }) { transaction in
                 if let budget = currentBudget {
                     TransactionEditView(transaction: transaction, budget: budget, categories: visibleCategories)
                         .presentationDragIndicator(.visible)

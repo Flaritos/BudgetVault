@@ -185,7 +185,9 @@ struct HistoryView: View {
                 }
                 recomputeFilteredTransactions()
             }
-            .sheet(item: $editingTransaction) { transaction in
+            .sheet(item: $editingTransaction, onDismiss: {
+                recomputeFilteredTransactions()
+            }) { transaction in
                 if let budget = currentBudget {
                     TransactionEditView(transaction: transaction, budget: budget, categories: categories)
                 }
@@ -243,7 +245,11 @@ struct HistoryView: View {
                 Button("Delete", role: .destructive) {
                     if let tx = transactionToDelete {
                         modelContext.delete(tx)
-                        SafeSave.save(modelContext)
+                        guard SafeSave.save(modelContext) else {
+                            modelContext.rollback()
+                            transactionToDelete = nil
+                            return
+                        }
                         HapticManager.notification(.warning)
                         transactionToDelete = nil
                     }

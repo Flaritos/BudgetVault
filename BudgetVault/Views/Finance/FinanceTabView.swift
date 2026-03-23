@@ -336,10 +336,11 @@ struct FinanceTabView: View {
                     BudgetView()
                 } miniViz: {
                     HStack(spacing: 3) {
+                        let heights: [CGFloat] = [14, 10, 12, 6, 8, 4]
                         ForEach(0..<min(categoryCount, 6), id: \.self) { i in
                             RoundedRectangle(cornerRadius: 2)
                                 .fill(categoryColors[i % categoryColors.count])
-                                .frame(width: 4, height: CGFloat(Int.random(in: 6...16)))
+                                .frame(width: 4, height: heights[i % heights.count])
                         }
                     }
                 }

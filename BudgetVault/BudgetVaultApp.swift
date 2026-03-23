@@ -310,14 +310,19 @@ struct BudgetVaultApp: App {
         for budget in allBudgets {
             let key = "\(budget.year)-\(budget.month)"
             if let existing = seen[key] {
-                // Merge: move any categories from the duplicate to the keeper
+                // Merge: reassign all transactions from duplicate categories to keeper categories
                 for cat in budget.categories ?? [] {
-                    let existingNames = Set((existing.categories ?? []).map { $0.name.lowercased() })
-                    if !existingNames.contains(cat.name.lowercased()) {
+                    let keeperCat = (existing.categories ?? []).first { $0.name.lowercased() == cat.name.lowercased() }
+                    if let keeperCat {
+                        // Move transactions to the keeper's matching category
+                        for tx in cat.transactions ?? [] {
+                            tx.category = keeperCat
+                        }
+                    } else {
+                        // No matching category in keeper — move the whole category
                         cat.budget = existing
                     }
                 }
-                // Move any transactions that reference categories in the duplicate
                 context.delete(budget)
             } else {
                 seen[key] = budget

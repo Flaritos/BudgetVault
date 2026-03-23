@@ -293,9 +293,8 @@ enum NotificationService {
     /// when spending reaches 80% or exceeds 100% of the budgeted amount.
     /// Should be called when the app enters the foreground (e.g., from Dashboard .task).
     static func checkAndScheduleCategoryAlerts(budget: Budget) {
-        // Don't fire system notifications while the app is in foreground
-        guard UIApplication.shared.applicationState != .active else { return }
-
+        // Alerts are scheduled regardless of app state. The UNUserNotificationCenterDelegate
+        // willPresent method handles foreground delivery with [.banner, .sound].
         let center = UNUserNotificationCenter.current()
         let categories = (budget.categories ?? []).filter { !$0.isHidden && $0.budgetedAmountCents > 0 }
 

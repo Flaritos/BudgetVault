@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 
 struct MonthlyWrappedView: View {
     let budget: Budget
@@ -6,6 +7,8 @@ struct MonthlyWrappedView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentPage = 0
+    @State private var showSaveSuccess = false
+    @State private var showPhotoPermissionDenied = false
 
     private var calendar: Calendar { Calendar.current }
 
@@ -240,6 +243,21 @@ struct MonthlyWrappedView: View {
             .padding(.trailing, 20)
         }
         .preferredColorScheme(.dark)
+        .alert("Image Saved", isPresented: $showSaveSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Your wrapped card has been saved to your photo library.")
+        }
+        .alert("Photo Access Required", isPresented: $showPhotoPermissionDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("BudgetVault needs photo library access to save images. Please enable it in Settings.")
+        }
     }
 
     // MARK: - Page Dots
@@ -791,25 +809,34 @@ struct MonthlyWrappedView: View {
 
     @MainActor
     private func saveImage() {
-        let cardView = shareCardContent
-            .padding(BudgetVaultTheme.spacingXL)
-            .frame(width: 360)
-            .background(
-                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
-                    .fill(
-                        LinearGradient(
-                            colors: [wrappedNavyMid, wrappedPurple.opacity(0.3), wrappedNavy],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            DispatchQueue.main.async {
+                if status == .authorized || status == .limited {
+                    let cardView = shareCardContent
+                        .padding(BudgetVaultTheme.spacingXL)
+                        .frame(width: 360)
+                        .background(
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [wrappedNavyMid, wrappedPurple.opacity(0.3), wrappedNavy],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
                         )
-                    )
-            )
-            .environment(\.colorScheme, .dark)
+                        .environment(\.colorScheme, .dark)
 
-        let renderer = ImageRenderer(content: cardView)
-        renderer.scale = 3
-        if let uiImage = renderer.uiImage {
-            UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+                    let renderer = ImageRenderer(content: cardView)
+                    renderer.scale = 3
+                    if let uiImage = renderer.uiImage {
+                        UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+                        showSaveSuccess = true
+                    }
+                } else {
+                    showPhotoPermissionDenied = true
+                }
+            }
         }
     }
 

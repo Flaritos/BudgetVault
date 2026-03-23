@@ -56,6 +56,7 @@ targets:
           - UIInterfaceOrientationPortrait
         UIRequiresFullScreen: true
         NSFaceIDUsageDescription: "BudgetVault uses Face ID to protect your financial data."
+        NSPhotoLibraryAddUsageDescription: "BudgetVault needs access to save your monthly wrapped card to your photo library."
         BGTaskSchedulerPermittedIdentifiers:
           - io.budgetvault.app.refresh
 
