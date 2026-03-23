@@ -483,7 +483,7 @@ struct DashboardView: View {
     ) -> some View {
         let spentFraction = 1.0 - budget.percentRemaining
         let spentPercent = Int(min(spentFraction, 1.0) * 100)
-        let ringSize: CGFloat = 110
+        let ringSize: CGFloat = 100
 
         ZStack {
             // Full-bleed navy gradient background
@@ -551,7 +551,7 @@ struct DashboardView: View {
                             .tracking(1.5)
 
                         Text(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))
-                            .font(.system(size: 42, weight: .heavy, design: .rounded))
+                            .font(.system(size: 36, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
                             .shadow(color: Color(red: 0.376, green: 0.647, blue: 0.98).opacity(0.3), radius: 16)
                             .contentTransition(.numericText())
@@ -563,34 +563,28 @@ struct DashboardView: View {
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.55))
 
-                        // Status + streak row
-                        HStack(spacing: BudgetVaultTheme.spacingSM) {
-                            HStack(spacing: BudgetVaultTheme.spacingXS) {
-                                Circle()
-                                    .fill(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
-                                    .frame(width: 6, height: 6)
-                                Text(spentFraction < 0.75 ? "On Track" : spentFraction < 0.9 ? "Watch It" : "Over Budget")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
-                            }
+                        // Status line
+                        HStack(spacing: BudgetVaultTheme.spacingXS) {
+                            Circle()
+                                .fill(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
+                                .frame(width: 6, height: 6)
+                            Text(spentFraction < 0.75 ? "On Track" : spentFraction < 0.9 ? "Watch It" : "Over")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
 
                             if currentStreak > 0 {
-                                HStack(spacing: BudgetVaultTheme.spacingXS) {
-                                    Text("\u{1F525}")
-                                        .font(.caption2)
-                                    Text("\(currentStreak)")
-                                        .font(.caption.weight(.bold))
-                                }
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, BudgetVaultTheme.spacingSM)
-                                .padding(.vertical, 3)
-                                .background(.white.opacity(0.15), in: Capsule())
+                                Text("·")
+                                    .foregroundStyle(.white.opacity(0.3))
+                                Text("\u{1F525} \(currentStreak)")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.7))
                             }
                         }
                         .padding(.top, BudgetVaultTheme.spacingXS)
                     }
                 }
-                .padding(BudgetVaultTheme.spacingXL)
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                .padding(.vertical, BudgetVaultTheme.spacingXL)
                 .background {
                     RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
                         .fill(.white.opacity(0.07))
