@@ -86,90 +86,147 @@ struct InsightsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: BudgetVaultTheme.spacingLG) {
+                    // Title header
+                    VStack(spacing: BudgetVaultTheme.spacingXS) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Insights")
+                                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(.white)
+                                Text("Powered by on-device AI")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.5))
+                            }
+                            Spacer()
+                            if currentBudget != nil {
+                                Button {
+                                    renderAndShare()
+                                } label: {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(.white.opacity(0.7))
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .accessibilityLabel("Share insights")
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Date range picker — dark segmented
                     Picker("Range", selection: $selectedRange) {
                         ForEach(DateRange.allCases, id: \.self) { range in
                             Text(range.rawValue).tag(range)
                         }
                     }
                     .pickerStyle(.segmented)
+                    .colorMultiply(BudgetVaultTheme.brightBlue)
                     .padding(.horizontal)
 
                     if let budget = currentBudget {
                         // FREE: Trend chart (only shown for single-month ranges)
                         if selectedRange == .thisMonth || selectedRange == .lastMonth {
                             let trendBudget = selectedRange == .lastMonth ? (previousBudget ?? budget) : budget
-                            TrendChartView(budget: trendBudget, transactions: periodTransactions)
+                            insightsDarkCard {
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(BudgetVaultTheme.brightBlue)
+                                        .frame(width: 8, height: 8)
+                                        .shadow(color: BudgetVaultTheme.brightBlue.opacity(0.6), radius: 4)
+                                    Text("SPENDING TREND")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.5))
+                                        .tracking(1)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                                TrendChartView(budget: trendBudget, transactions: periodTransactions)
+                                    .environment(\.colorScheme, .dark)
+                            }
                         }
 
                         // FREE: Category breakdown
-                        CategoryBreakdownChart(budget: budget)
+                        insightsDarkCard {
+                            CategoryBreakdownChart(budget: budget)
+                                .environment(\.colorScheme, .dark)
+                        }
 
                         // FREE: Monthly Totals bar chart
                         if monthlyTotals.count > 1 {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Monthly Spending")
-                                    .font(.headline)
+                            insightsDarkCard {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Monthly Spending")
+                                        .font(.headline)
+                                        .foregroundStyle(.white)
 
-                                Chart(Array(monthlyTotals.enumerated()), id: \.offset) { _, item in
-                                    BarMark(
-                                        x: .value("Month", item.month),
-                                        y: .value("Spent", Double(truncating: MoneyHelpers.centsToDollars(item.spent) as NSDecimalNumber))
-                                    )
-                                    .foregroundStyle(Color.accentColor.gradient)
-                                    .cornerRadius(4)
-                                }
-                                .frame(height: 200)
-                                .chartXAxis {
-                                    AxisMarks(values: .automatic) { value in
-                                        AxisValueLabel {
-                                            if let str = value.as(String.self) {
-                                                Text(str)
-                                                    .font(.caption2)
-                                                    .rotationEffect(.degrees(-45))
+                                    Chart(Array(monthlyTotals.enumerated()), id: \.offset) { _, item in
+                                        BarMark(
+                                            x: .value("Month", item.month),
+                                            y: .value("Spent", Double(truncating: MoneyHelpers.centsToDollars(item.spent) as NSDecimalNumber))
+                                        )
+                                        .foregroundStyle(BudgetVaultTheme.brightBlue.gradient)
+                                        .cornerRadius(4)
+                                    }
+                                    .frame(height: 200)
+                                    .chartXAxis {
+                                        AxisMarks(values: .automatic) { value in
+                                            AxisValueLabel {
+                                                if let str = value.as(String.self) {
+                                                    Text(str)
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.white.opacity(0.5))
+                                                        .rotationEffect(.degrees(-45))
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .chartYAxis {
+                                        AxisMarks { value in
+                                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                                .foregroundStyle(.white.opacity(0.08))
+                                            AxisValueLabel {
+                                                if let val = value.as(Double.self) {
+                                                    Text(CurrencyFormatter.format(amount: Decimal(val)))
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.white.opacity(0.5))
+                                                }
                                             }
                                         }
                                     }
                                 }
-                                .chartYAxis {
-                                    AxisMarks { value in
-                                        AxisGridLine()
-                                        AxisValueLabel {
-                                            if let val = value.as(Double.self) {
-                                                Text(CurrencyFormatter.format(amount: Decimal(val)))
-                                                    .font(.caption2)
-                                            }
-                                        }
-                                    }
-                                }
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel("Monthly spending bar chart showing \(monthlyTotals.count) months of spending data")
                             }
-                            .padding()
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("Monthly spending bar chart showing \(monthlyTotals.count) months of spending data")
                         }
 
                         // PREMIUM: Smart Forecasts (consolidated teaser 1)
-                        premiumSection("Smart Forecasts") {
+                        premiumSection("AI PREDICTION", dotColor: BudgetVaultTheme.brightBlue) {
                             VStack(spacing: 12) {
                                 if let prediction = cachedPrediction {
                                     SpendingPredictionCard(prediction: prediction)
+                                        .environment(\.colorScheme, .dark)
                                 }
                                 if let pattern = cachedPattern {
                                     SpendingPatternCard(pattern: pattern)
+                                        .environment(\.colorScheme, .dark)
                                 }
                                 if !cachedForecasts.isEmpty {
                                     CategoryForecastCard(forecasts: cachedForecasts)
+                                        .environment(\.colorScheme, .dark)
                                 }
                             }
                         }
 
                         // PREMIUM: Deep Analysis (consolidated teaser 2)
-                        premiumSection("Deep Analysis") {
+                        premiumSection("SPENDING PATTERN", dotColor: Color(hex: "#8B5CF6")) {
                             VStack(spacing: 12) {
                                 AnomalyListCard(anomalies: cachedAnomalies)
+                                    .environment(\.colorScheme, .dark)
 
                                 SpendingHeatmapView(budget: budget, allTransactions: periodTransactions)
+                                    .environment(\.colorScheme, .dark)
 
                                 comparisonCards(budget: budget)
 
@@ -184,23 +241,16 @@ struct InsightsView: View {
                             title: "No Data",
                             message: "Start logging expenses to see insights."
                         )
+                        .environment(\.colorScheme, .dark)
                     }
                 }
-                .padding()
+                .padding(.vertical)
             }
-            .navigationTitle("Insights")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if currentBudget != nil {
-                        Button {
-                            renderAndShare()
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                        .accessibilityLabel("Share insights")
-                    }
-                }
-            }
+            .background(BudgetVaultTheme.navyDark.ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .sheet(isPresented: $showShareSheet) {
                 if let img = shareUIImage {
                     ActivityView(items: [img])
@@ -218,22 +268,63 @@ struct InsightsView: View {
         }
     }
 
+    // MARK: - Dark Card Wrapper
+
+    @ViewBuilder
+    private func insightsDarkCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+            content()
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                .fill(.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                        .stroke(.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal)
+    }
+
+    // MARK: - Section Label with Glow Dot
+
+    @ViewBuilder
+    private func sectionLabel(_ text: String, dotColor: Color) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 8, height: 8)
+                .shadow(color: dotColor.opacity(0.6), radius: 4)
+            Text(text)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.5))
+                .tracking(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // MARK: - Premium Section Wrapper
 
     @ViewBuilder
-    private func premiumSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func premiumSection<Content: View>(_ title: String, dotColor: Color, @ViewBuilder content: () -> Content) -> some View {
         if isPremium {
-            content()
+            insightsDarkCard {
+                sectionLabel(title, dotColor: dotColor)
+                content()
+            }
         } else {
             ZStack {
-                // Show placeholder skeleton instead of computing real content and blurring
-                premiumPlaceholderSkeleton(title: title)
+                // Show placeholder skeleton on dark background
+                premiumPlaceholderSkeleton(title: title, dotColor: dotColor)
 
                 VStack(spacing: 8) {
                     Image(systemName: "lock.fill")
                         .font(.title2)
+                        .foregroundStyle(.white)
                     Text("Unlock Premium Insights")
                         .font(.subheadline.bold())
+                        .foregroundStyle(.white)
                     Button("Upgrade") {
                         showPaywall = true
                     }
@@ -241,6 +332,7 @@ struct InsightsView: View {
                     .controlSize(.small)
                 }
             }
+            .padding(.horizontal)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Premium feature. Tap to learn about upgrading.")
             .accessibilityAddTraits(.isButton)
@@ -251,34 +343,40 @@ struct InsightsView: View {
     // MARK: - Premium Placeholder Skeleton
 
     @ViewBuilder
-    private func premiumPlaceholderSkeleton(title: String) -> some View {
+    private func premiumPlaceholderSkeleton(title: String, dotColor: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
+            sectionLabel(title, dotColor: dotColor)
 
             ForEach(0..<3, id: \.self) { _ in
                 HStack {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(.quaternary)
+                        .fill(.white.opacity(0.06))
                         .frame(width: 24, height: 24)
                     VStack(alignment: .leading, spacing: 4) {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(.quaternary)
+                            .fill(.white.opacity(0.06))
                             .frame(width: 120, height: 12)
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(.quaternary)
+                            .fill(.white.opacity(0.04))
                             .frame(width: 80, height: 10)
                     }
                     Spacer()
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(.quaternary)
+                        .fill(.white.opacity(0.06))
                         .frame(width: 50, height: 12)
                 }
                 .padding(8)
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                .fill(.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                        .stroke(.white.opacity(0.06), lineWidth: 1)
+                )
+        )
     }
 
     // MARK: - Comparison Cards
@@ -288,6 +386,7 @@ struct InsightsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("vs. Last Month")
                 .font(.headline)
+                .foregroundStyle(.white)
 
             if let prev = previousBudget {
                 let categories = (budget.categories ?? []).filter { !$0.isHidden }
@@ -303,31 +402,38 @@ struct InsightsView: View {
                                 .font(.title3)
                             Text(cat.name)
                                 .font(.caption.bold())
+                                .foregroundStyle(.white)
                                 .lineLimit(1)
                             Text(CurrencyFormatter.format(cents: current))
                                 .font(.caption)
+                                .foregroundStyle(.white.opacity(0.7))
                             HStack(spacing: 2) {
                                 Image(systemName: delta > 0 ? "arrow.up" : delta < 0 ? "arrow.down" : "minus")
                                     .font(.caption2)
                                 Text(CurrencyFormatter.format(cents: abs(delta)))
                                     .font(.caption2)
                             }
-                            .foregroundStyle(delta > 0 ? BudgetVaultTheme.negative : delta < 0 ? BudgetVaultTheme.positive : .secondary)
+                            .foregroundStyle(delta > 0 ? BudgetVaultTheme.negative : delta < 0 ? BudgetVaultTheme.positive : .white.opacity(0.4))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(8)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        .background(
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
+                                .fill(.white.opacity(0.04))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
+                                        .stroke(.white.opacity(0.06), lineWidth: 1)
+                                )
+                        )
                         .accessibilityLabel("\(cat.name): \(CurrencyFormatter.format(cents: current)) this month, \(delta > 0 ? "up" : "down") \(CurrencyFormatter.format(cents: abs(delta))) from last month")
                     }
                 }
             } else {
                 Text("No previous month data available.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.4))
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Insight Cards
@@ -337,11 +443,12 @@ struct InsightsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Insights")
                 .font(.headline)
+                .foregroundStyle(.white)
 
             if cachedInsights.isEmpty {
-                Text("Keep logging — insights appear as patterns emerge.")
+                Text("Keep logging -- insights appear as patterns emerge.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.4))
             } else {
                 ForEach(cachedInsights) { insight in
                     HStack(alignment: .top, spacing: 12) {
@@ -352,21 +459,27 @@ struct InsightsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(insight.title)
                                 .font(.subheadline.bold())
+                                .foregroundStyle(.white)
                             Text(insight.message)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.white.opacity(0.5))
                         }
                     }
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .background(
+                        RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
+                            .fill(.white.opacity(0.04))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
+                                    .stroke(.white.opacity(0.06), lineWidth: 1)
+                            )
+                    )
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(insight.severity.rawValue): \(insight.title). \(insight.message)")
                 }
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Top Spending Days
@@ -383,32 +496,44 @@ struct InsightsView: View {
             .prefix(3)
 
         VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(BudgetVaultTheme.caution)
+                    .frame(width: 8, height: 8)
+                    .shadow(color: BudgetVaultTheme.caution.opacity(0.6), radius: 4)
+                Text("ANOMALIES")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .tracking(1)
+            }
+
             Text("Top Spending Days")
                 .font(.headline)
+                .foregroundStyle(.white)
 
             if topDays.isEmpty {
                 Text("No spending data yet.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.4))
             } else {
                 ForEach(Array(topDays.enumerated()), id: \.offset) { index, day in
                     HStack {
                         Text("\(index + 1).")
                             .font(.headline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.4))
                             .frame(width: 24)
                         Text(day.date, style: .date)
                             .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.8))
                         Spacer()
                         Text(CurrencyFormatter.format(cents: day.total))
                             .font(.subheadline.bold())
+                            .foregroundStyle(.white)
                     }
                     .accessibilityLabel("Number \(index + 1): \(day.date.formatted(date: .abbreviated, time: .omitted)), \(CurrencyFormatter.format(cents: day.total))")
                 }
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - ML Computation (off main actor path, run once in .task)
