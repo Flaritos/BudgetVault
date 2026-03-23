@@ -113,7 +113,9 @@ struct BudgetVaultApp: App {
                     .modelContainer(container)
                     .environment(storeKit)
                     .task {
-                        // Debug seeding disabled for production
+                        #if DEBUG
+                        DebugSeedService.seed15DaysOfData(container: container)
+                        #endif
                     }
                     .onChange(of: scenePhase) { _, newPhase in
                         if newPhase == .active {

@@ -268,7 +268,7 @@ struct HistoryView: View {
     private var gradientHeader: some View {
         VStack(spacing: 0) {
             HStack {
-                // Left side — fixed width to balance right side
+                // Left: back chevron with 44pt tap target
                 Button {
                     navigateMonth(-1)
                 } label: {
@@ -279,11 +279,11 @@ struct HistoryView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Previous month")
-                .frame(width: 88, alignment: .leading)
+                .frame(width: 44, alignment: .leading)
 
                 Spacer()
 
-                // Center — Month/year title
+                // Center: month title + optional "Back to Today"
                 VStack(spacing: 2) {
                     Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear))
                         .font(.title3.weight(.bold))
@@ -315,8 +315,8 @@ struct HistoryView: View {
 
                 Spacer()
 
-                // Right side — fixed width to balance left side
-                HStack(spacing: BudgetVaultTheme.spacingSM) {
+                // Right: forward chevron + overflow menu
+                HStack(spacing: 0) {
                     Button {
                         navigateMonth(1)
                     } label: {
@@ -329,7 +329,6 @@ struct HistoryView: View {
                     .disabled(isCurrentPeriod)
                     .accessibilityLabel("Next month")
 
-                    // Overflow menu: sort + export
                     Menu {
                         Section("Sort By") {
                             ForEach(SortMode.allCases, id: \.self) { mode in
@@ -356,7 +355,7 @@ struct HistoryView: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .font(.body.weight(.semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.white.opacity(0.7))
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }
@@ -365,13 +364,137 @@ struct HistoryView: View {
                 .frame(width: 88, alignment: .trailing)
             }
             .padding(.horizontal, BudgetVaultTheme.spacingMD)
+            .padding(.bottom, BudgetVaultTheme.spacingSM)
         }
         .padding(.top, BudgetVaultTheme.spacingSM)
-        .padding(.bottom, BudgetVaultTheme.spacingMD)
         .background {
             BudgetVaultTheme.brandGradient
                 .ignoresSafeArea(edges: .top)
         }
+    }
+
+    // MARK: - Summary Card
+
+    @ViewBuilder
+    private var summaryCard: some View {
+        HStack {
+            VStack(spacing: 2) {
+                Text("SPENT")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(CurrencyFormatter.format(cents: totalSpent))
+                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .foregroundStyle(BudgetVaultTheme.negative)
+            }
+            .frame(maxWidth: .infinity)
+
+            Divider().frame(height: 28)
+
+            VStack(spacing: 2) {
+                Text("INCOME")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(CurrencyFormatter.format(cents: totalIncome))
+                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .foregroundStyle(BudgetVaultTheme.positive)
+            }
+            .frame(maxWidth: .infinity)
+
+            Divider().frame(height: 28)
+
+            VStack(spacing: 2) {
+                Text("COUNT")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("\(cachedFilteredTransactions.count)")
+                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(BudgetVaultTheme.spacingMD)
+        .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+        .padding(.horizontal)
+        .padding(.top, BudgetVaultTheme.spacingSM)
+    }
+
+    // MARK: - Segmented Filter
+
+    @ViewBuilder
+    private var segmentedFilter: some View {
+        Picker("Filter", selection: $filterMode) {
+            Text("All").tag(FilterMode.all)
+            Text("Expenses").tag(FilterMode.expenses)
+            Text("Income").tag(FilterMode.income)
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal)
+        .padding(.top, BudgetVaultTheme.spacingSM)
+    }
+
+    // MARK: - Category Chips (Circular)
+
+    @ViewBuilder
+    private var categoryChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: BudgetVaultTheme.spacingSM + 2) {
+                // "All" chip
+                Button {
+                    selectedCategoryID = nil
+                    HapticManager.selection()
+                } label: {
+                    VStack(spacing: 3) {
+                        ZStack {
+                            Circle()
+                                .fill(selectedCategoryID == nil ? Color.accentColor : Color.secondary.opacity(0.06))
+                                .frame(width: 36, height: 36)
+                            Text("All")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(selectedCategoryID == nil ? .white : .secondary)
+                        }
+                        Text("All")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(selectedCategoryID == nil ? Color.accentColor : .secondary)
+                    }
+                    .frame(width: 48)
+                }
+                .accessibilityLabel("All categories")
+                .accessibilityAddTraits(selectedCategoryID == nil ? .isSelected : [])
+
+                // Category chips
+                ForEach(categories, id: \.id) { cat in
+                    let isSelected = selectedCategoryID == cat.id
+                    let catColor = Color(hex: cat.color)
+
+                    Button {
+                        selectedCategoryID = isSelected ? nil : cat.id
+                        HapticManager.selection()
+                    } label: {
+                        VStack(spacing: 3) {
+                            ZStack {
+                                Circle()
+                                    .fill(isSelected ? catColor.opacity(0.15) : Color.secondary.opacity(0.06))
+                                    .frame(width: 36, height: 36)
+                                Circle()
+                                    .strokeBorder(isSelected ? catColor : Color.clear, lineWidth: 2)
+                                    .frame(width: 36, height: 36)
+                                Text(cat.emoji)
+                                    .font(.system(size: 16))
+                            }
+                            Text(cat.name)
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(isSelected ? .primary : .secondary)
+                                .lineLimit(1)
+                        }
+                        .frame(width: 48)
+                    }
+                    .accessibilityLabel(cat.name)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal)
+        }
+        .padding(.top, BudgetVaultTheme.spacingSM)
     }
 
     // MARK: - Vault Empty State
@@ -436,118 +559,91 @@ struct HistoryView: View {
             TipView(swipeToDeleteTip)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
                 .padding(.horizontal)
 
-            // Filter chips section
-            Section {
-                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-                    Picker("Filter", selection: $filterMode) {
-                        ForEach(FilterMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    if filterMode != .income {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: BudgetVaultTheme.spacingMD) {
-                                // "All" chip
-                                categoryChip(emoji: nil, name: "All", color: nil, isSelected: selectedCategoryID == nil) {
-                                    selectedCategoryID = nil
-                                }
-
-                                ForEach(categories, id: \.id) { cat in
-                                    categoryChip(emoji: cat.emoji, name: cat.name, color: cat.color, isSelected: selectedCategoryID == cat.id) {
-                                        selectedCategoryID = (selectedCategoryID == cat.id) ? nil : cat.id
-                                    }
-                                    .accessibilityLabel(cat.name)
-                                }
-                            }
-                        }
-                    }
-                }
+            // Summary card
+            summaryCard
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
-                .padding(.horizontal)
-            }
+                .listRowSeparator(.hidden)
 
-            // Period summary card
-            if !cachedFilteredTransactions.isEmpty {
-                Section {
-                    HStack {
-                        summaryItem(label: "Spent", value: CurrencyFormatter.format(cents: totalSpent), color: BudgetVaultTheme.negative)
-                        Spacer()
-                        Divider().frame(height: 30)
-                        Spacer()
-                        summaryItem(label: "Income", value: CurrencyFormatter.format(cents: totalIncome), color: BudgetVaultTheme.positive)
-                        Spacer()
-                        Divider().frame(height: 30)
-                        Spacer()
-                        summaryItem(label: "Count", value: "\(cachedFilteredTransactions.count)", color: .primary)
-                    }
-                    .padding(.vertical, BudgetVaultTheme.spacingMD)
-                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                    .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
-                    .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
-                    .listRowInsets(EdgeInsets(top: BudgetVaultTheme.spacingSM, leading: BudgetVaultTheme.spacingLG, bottom: BudgetVaultTheme.spacingSM, trailing: BudgetVaultTheme.spacingLG))
+            // Segmented picker
+            segmentedFilter
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
+            // Category chips (only when not income filter)
+            if filterMode != .income {
+                categoryChips
+                    .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-                }
+                    .listRowSeparator(.hidden)
             }
 
             // Grouped transactions by day
             ForEach(cachedGroupedByDay, id: \.date) { group in
                 Section {
-                    ForEach(group.transactions, id: \.id) { transaction in
-                        Button {
-                            editingTransaction = transaction
-                        } label: {
-                            TransactionRowView(transaction: transaction)
-                        }
-                        .tint(.primary)
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                transactionToDelete = transaction
-                                showDeleteConfirmation = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .swipeActions(edge: .leading) {
-                            Button {
-                                duplicateTransaction(transaction)
-                            } label: {
-                                Label("Duplicate", systemImage: "doc.on.doc")
-                            }
-                            .tint(Color.accentColor)
-                        }
-                        .contextMenu {
+                    // Day group card
+                    VStack(spacing: 0) {
+                        ForEach(Array(group.transactions.enumerated()), id: \.element.id) { index, transaction in
                             Button {
                                 editingTransaction = transaction
                             } label: {
-                                Label("Edit", systemImage: "pencil")
+                                transactionRow(transaction)
                             }
-                            Button {
-                                duplicateTransaction(transaction)
-                            } label: {
-                                Label("Duplicate", systemImage: "doc.on.doc")
+                            .tint(.primary)
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    transactionToDelete = transaction
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
-                            Button(role: .destructive) {
-                                transactionToDelete = transaction
-                                showDeleteConfirmation = true
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    duplicateTransaction(transaction)
+                                } label: {
+                                    Label("Duplicate", systemImage: "doc.on.doc")
+                                }
+                                .tint(Color.accentColor)
+                            }
+                            .contextMenu {
+                                Button {
+                                    editingTransaction = transaction
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Button {
+                                    duplicateTransaction(transaction)
+                                } label: {
+                                    Label("Duplicate", systemImage: "doc.on.doc")
+                                }
+                                Button(role: .destructive) {
+                                    transactionToDelete = transaction
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .accessibilityHint("Double tap to edit. Swipe left to delete, swipe right to duplicate.")
+
+                            if index < group.transactions.count - 1 {
+                                Divider()
+                                    .padding(.leading, 60)
                             }
                         }
-                        .accessibilityHint("Double tap to edit. Swipe left to delete, swipe right to duplicate.")
                     }
                 } header: {
                     HStack {
                         Text(dayLabel(for: group.date))
-                            .font(.subheadline.weight(.semibold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(.primary)
                         Spacer()
                         Text(daySubtotal(group.transactions))
-                            .font(.subheadline.weight(.medium).monospacedDigit())
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, BudgetVaultTheme.spacingSM)
@@ -563,83 +659,93 @@ struct HistoryView: View {
                         HStack {
                             Spacer()
                             Text("Load More")
-                                .font(.subheadline)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Color.accentColor)
                             Spacer()
                         }
+                        .padding(.vertical, BudgetVaultTheme.spacingSM)
                     }
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .refreshable {
             recomputeFilteredTransactions()
         }
     }
 
-    // MARK: - Summary Item
+    // MARK: - Transaction Row (H1B Card Style)
 
     @ViewBuilder
-    private func summaryItem(label: String, value: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(color)
-        }
-    }
+    private func transactionRow(_ transaction: Transaction) -> some View {
+        let catColor = transactionCategoryColor(transaction)
 
-    // MARK: - Category Chip (visual circles)
+        HStack(spacing: BudgetVaultTheme.spacingMD) {
+            // Category color bar
+            RoundedRectangle(cornerRadius: 2)
+                .fill(catColor)
+                .frame(width: 3, height: 32)
 
-    @ViewBuilder
-    private func categoryChip(emoji: String?, name: String, color: String?, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button {
-            action()
-            HapticManager.selection()
-        } label: {
-            VStack(spacing: 2) {
-                if let emoji = emoji {
-                    Text(emoji)
-                        .font(.title3)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            Circle()
-                                .fill(isSelected ? chipColor(color).opacity(0.2) : Color.secondary.opacity(0.06))
-                        )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(isSelected ? chipColor(color) : Color.clear, lineWidth: 2)
-                        )
-                } else {
-                    // "All" chip uses a grid icon
-                    Image(systemName: "square.grid.2x2")
-                        .font(.body)
-                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            Circle()
-                                .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.06))
-                        )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
-                        )
-                }
-                Text(name)
-                    .font(.caption2)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+            // Emoji in tinted rounded-rect
+            Text(transactionEmoji(transaction))
+                .font(.title3)
+                .frame(width: 40, height: 40)
+                .background(
+                    catColor.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                )
+
+            // Info
+            VStack(alignment: .leading, spacing: 1) {
+                Text(transactionTitle(transaction))
+                    .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
+                HStack(spacing: BudgetVaultTheme.spacingXS) {
+                    Text(transaction.category?.name ?? "Income")
+                    Text("\u{00B7}")
+                    Text(transaction.date, style: .time)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
-            .frame(width: 50)
+
+            Spacer()
+
+            // Amount
+            Text(transactionFormattedAmount(transaction))
+                .font(BudgetVaultTheme.rowAmount)
+                .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : .primary)
         }
-        .tint(.primary)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .padding(.vertical, BudgetVaultTheme.spacingSM + 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(transactionEmoji(transaction)) \(transactionTitle(transaction)), \(transactionFormattedAmount(transaction)), \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
     }
 
-    private func chipColor(_ hex: String?) -> Color {
-        guard let hex = hex else { return Color.accentColor }
+    // MARK: - Transaction Row Helpers
+
+    private func transactionTitle(_ transaction: Transaction) -> String {
+        if !transaction.note.isEmpty {
+            return transaction.note
+        }
+        return transaction.isIncome ? "Income" : (transaction.category?.name ?? "Expense")
+    }
+
+    private func transactionEmoji(_ transaction: Transaction) -> String {
+        if transaction.isIncome { return "\u{1F4B5}" }
+        return transaction.category?.emoji ?? "\u{1F4E6}"
+    }
+
+    private func transactionCategoryColor(_ transaction: Transaction) -> Color {
+        if transaction.isIncome { return BudgetVaultTheme.positive }
+        guard let hex = transaction.category?.color else { return .gray }
         return Color(hex: hex)
+    }
+
+    private func transactionFormattedAmount(_ transaction: Transaction) -> String {
+        let sign = transaction.isIncome ? "+" : "-"
+        return "\(sign)\(CurrencyFormatter.format(cents: transaction.amountCents))"
     }
 
     // MARK: - Navigation
