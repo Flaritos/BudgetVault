@@ -241,6 +241,7 @@ struct ChatCategoryEditor: View {
 
     @ViewBuilder
     private func categoryRow(index: Int) -> some View {
+        if index < categories.count {
         HStack(spacing: 10) {
             // Color dot
             Circle()
@@ -293,7 +294,9 @@ struct ChatCategoryEditor: View {
             // Delete
             Button {
                 withAnimation(.easeOut(duration: 0.2)) {
-                    let _ = categories.remove(at: index)
+                    if index < categories.count {
+                        categories.remove(at: index)
+                    }
                 }
             } label: {
                 Image(systemName: "xmark.circle.fill")
@@ -306,6 +309,7 @@ struct ChatCategoryEditor: View {
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 .fill(Color.white.opacity(0.08))
         }
+        } // if index < categories.count
     }
 }
 

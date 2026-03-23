@@ -588,16 +588,6 @@ struct SettingsView: View {
         }
     }
 
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-            if !granted {
-                DispatchQueue.main.async {
-                    // Could show alert to open Settings
-                }
-            }
-        }
-    }
-
     private static let hourFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"

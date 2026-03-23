@@ -27,7 +27,9 @@ enum StreakService {
             let yesterdayStr = DateHelpers.dateString(yesterday)
 
             if lastLogDate != yesterdayStr {
-                // Missed yesterday
+                // Missed yesterday (or multiple days)
+                // NOTE: A single freeze covers the entire gap, regardless of how many days were missed.
+                // This is intentional — the freeze is a "forgiveness" mechanic, not a per-day counter.
                 if freezes > 0 {
                     // Use freeze -- preserve streak
                     freezes -= 1

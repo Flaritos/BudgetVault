@@ -27,7 +27,7 @@ struct TransactionEditView: View {
         self.categories = categories
         let dollars = transaction.amountCents / 100
         let remainder = transaction.amountCents % 100
-        _amountText = State(initialValue: remainder == 0 ? "\(dollars)" : String(format: "%d.%02d", dollars, remainder))
+        _amountText = State(initialValue: remainder == 0 ? "\(dollars)" : String(format: "%lld.%02lld", dollars, remainder))
         _isIncome = State(initialValue: transaction.isIncome)
         _selectedCategory = State(initialValue: transaction.category)
         _date = State(initialValue: transaction.date)

@@ -137,7 +137,6 @@ struct FinanceTabView: View {
             }
         }
         .background(BudgetVaultTheme.navyDark)
-        .toolbarColorScheme(.dark, for: .tabBar)
         .navigationBarHidden(true)
     }
 

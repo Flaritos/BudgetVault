@@ -9,6 +9,7 @@ struct MonthlyWrappedView: View {
     @State private var currentPage = 0
     @State private var showSaveSuccess = false
     @State private var showPhotoPermissionDenied = false
+    @State private var renderedShareImage: Image?
 
     private var calendar: Calendar { Calendar.current }
 
@@ -673,15 +674,21 @@ struct MonthlyWrappedView: View {
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 // Share button
-                ShareLink(item: shareCardImage, preview: SharePreview("My \(monthYearString) Recap", image: shareCardImage)) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(wrappedNavy)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, BudgetVaultTheme.spacingMD)
-                        .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                if let image = renderedShareImage {
+                    ShareLink(item: image, preview: SharePreview("My \(monthYearString) Recap", image: image)) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(wrappedNavy)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, BudgetVaultTheme.spacingMD)
+                            .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                    }
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                } else {
+                    ProgressView()
+                        .tint(.white)
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
                 }
-                .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 // Save Image button
                 Button {
@@ -702,6 +709,11 @@ struct MonthlyWrappedView: View {
 
                 Spacer()
                 Spacer()
+            }
+        }
+        .onAppear {
+            if renderedShareImage == nil {
+                renderedShareImage = renderShareCardImage()
             }
         }
     }
@@ -783,7 +795,7 @@ struct MonthlyWrappedView: View {
     // MARK: - Image Renderer
 
     @MainActor
-    private var shareCardImage: Image {
+    private func renderShareCardImage() -> Image {
         let cardView = shareCardContent
             .padding(BudgetVaultTheme.spacingXL)
             .frame(width: 360)

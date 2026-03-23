@@ -7,7 +7,7 @@ struct BudgetView: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
-    @Query(sort: \Budget.year, order: .reverse) private var allBudgets: [Budget]
+    @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
 
     @State private var viewingMonth: Int = 0
     @State private var viewingYear: Int = 0
@@ -93,7 +93,7 @@ struct BudgetView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: BudgetVaultTheme.spacingMD) {
-                        if isCurrentPeriod && visibleCategories.count >= 2 {
+                        if isCurrentPeriod && visibleCategories.count >= 2 && viewingBudget != nil {
                             Button {
                                 showMoveMoney = true
                             } label: {
@@ -163,8 +163,10 @@ struct BudgetView: View {
                     .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showMoveMoney) {
-                MoveMoneyView(categories: visibleCategories)
-                    .presentationDragIndicator(.visible)
+                if let budget = viewingBudget {
+                    MoveMoneyView(categories: visibleCategories, budget: budget)
+                        .presentationDragIndicator(.visible)
+                }
             }
             .onChange(of: isPremium) { _, newValue in
                 if newValue && showPaywall {
@@ -293,7 +295,10 @@ struct BudgetView: View {
                                             showPaywall = true
                                         } else {
                                             category.isHidden = false
-                                            SafeSave.save(modelContext)
+                                            guard SafeSave.save(modelContext) else {
+                                                category.isHidden = true // revert on failure
+                                                return
+                                            }
                                         }
                                     }
                                     .tint(Color.accentColor)
@@ -364,7 +369,10 @@ struct BudgetView: View {
             if isCurrentPeriod {
                 Button("Archive") {
                     category.isHidden = true
-                    SafeSave.save(modelContext)
+                    guard SafeSave.save(modelContext) else {
+                        category.isHidden = false // revert on failure
+                        return
+                    }
                 }
                 .tint(BudgetVaultTheme.caution)
             }
@@ -517,9 +525,11 @@ struct BudgetView: View {
                 }
             }
             .onAppear {
+                // Reset all state to the editing category's values to prevent leaks between sheets
+                categoryAmountText = CurrencyFormatter.formatRaw(cents: category.budgetedAmountCents)
                 isSavingsGoal = category.goalType == "savings"
                 if let goal = category.goalAmountCents {
-                    goalAmountText = String(format: "%.2f", Double(goal) / 100.0)
+                    goalAmountText = CurrencyFormatter.formatRaw(cents: goal)
                 } else {
                     goalAmountText = ""
                 }

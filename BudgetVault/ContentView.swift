@@ -36,7 +36,7 @@ struct ContentView: View {
         .onChange(of: hasCompletedOnboarding) { oldValue, newValue in
             if !oldValue && newValue && !hasLoggedFirstTransaction {
                 Task {
-                    try? await Task.sleep(for: .milliseconds(500))
+                    try? await Task.sleep(for: .milliseconds(1500))
                     NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
                 }
             }

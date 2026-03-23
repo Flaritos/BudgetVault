@@ -49,10 +49,12 @@ struct DashboardView: View {
     @State private var shareCardImage: UIImage?
     @State private var showMoveMoney = false
     @State private var showRecurring = false
+    @State private var hasCheckedAchievements = false
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
     @AppStorage(AppStorageKeys.hasSeenTransactionPaywall) private var hasSeenTransactionPaywall = false
     @AppStorage(AppStorageKeys.hasSeenStreakPaywall) private var hasSeenStreakPaywall = false
+    @AppStorage("lastWrappedViewed") private var lastWrappedViewed = ""
 
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
@@ -85,6 +87,8 @@ struct DashboardView: View {
 
     private var showWrappedCard: Bool {
         guard let budget = currentBudget else { return false }
+        let key = "\(budget.year)-\(budget.month)"
+        guard lastWrappedViewed != key else { return false }
         let fraction = viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
         return fraction >= 0.8 || previousBudget != nil
     }
@@ -220,7 +224,11 @@ struct DashboardView: View {
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
             }
-            .sheet(isPresented: $showMonthlyWrapped) {
+            .sheet(isPresented: $showMonthlyWrapped, onDismiss: {
+                if let budget = currentBudget {
+                    lastWrappedViewed = "\(budget.year)-\(budget.month)"
+                }
+            }) {
                 if let budget = currentBudget {
                     MonthlyWrappedView(budget: budget, allTransactions: allTransactions)
                         .presentationDragIndicator(.visible)
@@ -292,20 +300,24 @@ struct DashboardView: View {
                         currencyCode: selectedCurrency
                     )
 
-                    let newBadges = AchievementService.checkAchievements(
-                        budget: budget,
-                        transactions: allTransactions
-                    )
-                    if let first = newBadges.first {
-                        HapticManager.notification(.success)
-                        newAchievementBanner = first.title
+                    if !hasCheckedAchievements {
+                        hasCheckedAchievements = true
 
-                        if first.id == "under_budget_1" || first.id == "streak_30" {
-                            prepareShareCard(for: first, budget: budget)
+                        let newBadges = AchievementService.checkAchievements(
+                            budget: budget,
+                            transactions: allTransactions
+                        )
+                        if let first = newBadges.first {
+                            HapticManager.notification(.success)
+                            newAchievementBanner = first.title
+
+                            if first.id == "under_budget_1" || first.id == "streak_30" {
+                                prepareShareCard(for: first, budget: budget)
+                            }
+
+                            try? await Task.sleep(for: .seconds(3))
+                            newAchievementBanner = nil
                         }
-
-                        try? await Task.sleep(for: .seconds(3))
-                        newAchievementBanner = nil
                     }
 
                     ReviewPromptService.checkFirstMonthUnderBudget()
@@ -318,14 +330,16 @@ struct DashboardView: View {
                 if !isPremium {
                     let txCount = allTransactions.count
                     transactionCount = txCount
+                    var didShowPaywall = false
 
                     if txCount >= 5 && !hasSeenTransactionPaywall {
                         try? await Task.sleep(for: .seconds(1.5))
                         hasSeenTransactionPaywall = true
                         showProactivePaywall = true
+                        didShowPaywall = true
                     }
 
-                    if currentStreak >= 7 && !hasSeenStreakPaywall {
+                    if !didShowPaywall && currentStreak >= 7 && !hasSeenStreakPaywall {
                         try? await Task.sleep(for: .seconds(1.5))
                         hasSeenStreakPaywall = true
                         showProactivePaywall = true
@@ -506,23 +520,23 @@ struct DashboardView: View {
                             .stroke(.white.opacity(0.06), lineWidth: 7)
                             .frame(width: ringSize, height: ringSize)
 
-                        // Neon arc
+                        // Neon arc — color shifts green -> yellow -> red as spending increases
                         Circle()
                             .trim(from: 0, to: min(spentFraction, 1.0))
                             .stroke(
-                                Color(red: 0.376, green: 0.647, blue: 0.98), // #60A5FA
+                                spendingArcColor(for: spentFraction),
                                 style: StrokeStyle(lineWidth: 6, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
                             .frame(width: ringSize, height: ringSize)
-                            .shadow(color: Color(red: 0.376, green: 0.647, blue: 0.98).opacity(0.5), radius: 8)
+                            .shadow(color: spendingArcColor(for: spentFraction).opacity(0.5), radius: 8)
                             .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
 
                         // Outer glow layer
                         Circle()
                             .trim(from: 0, to: min(spentFraction, 1.0))
                             .stroke(
-                                Color(red: 0.576, green: 0.773, blue: 0.988), // #93C5FD
+                                spendingArcColor(for: spentFraction).opacity(0.7),
                                 style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
@@ -555,7 +569,7 @@ struct DashboardView: View {
                         Text(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))
                             .font(.system(size: 36, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
-                            .shadow(color: Color(red: 0.376, green: 0.647, blue: 0.98).opacity(0.3), radius: 16)
+                            .shadow(color: spendingArcColor(for: spentFraction).opacity(0.3), radius: 16)
                             .contentTransition(.numericText())
                             .animation(.snappy, value: dailyAllowanceCents)
                             .minimumScaleFactor(0.5)
