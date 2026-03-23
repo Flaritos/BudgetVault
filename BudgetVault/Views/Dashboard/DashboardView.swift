@@ -615,7 +615,7 @@ struct DashboardView: View {
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
             }
-            .padding(.top, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
+            .padding(.top, BudgetVaultTheme.spacingPage + BudgetVaultTheme.spacingXL)
             .padding(.bottom, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
         }
         .accessibilityElement(children: .combine)
