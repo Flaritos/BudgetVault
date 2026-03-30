@@ -6,6 +6,7 @@ struct FinanceTabView: View {
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @Environment(StoreKitManager.self) private var storeKit
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
@@ -149,12 +150,17 @@ struct FinanceTabView: View {
             Text("Unlock the Vault")
                 .font(.title2.weight(.bold))
                 .foregroundStyle(.white)
-            Text("Premium features including budget management, insights, and debt tracking.")
+            Text("Premium features including budget intelligence, insights, and debt tracking.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
+
+            // Launch pricing card with countdown
+            LaunchPricingCardView()
+                .padding(.horizontal)
+
             Button { showPaywall = true } label: {
-                Text("See Premium Features")
+                Text(storeKit.isLaunchPricing ? "Unlock Now — Launch Price" : "See Premium Features")
             }
             .buttonStyle(PrimaryButtonStyle())
         }

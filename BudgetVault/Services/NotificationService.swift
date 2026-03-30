@@ -46,9 +46,15 @@ enum NotificationService {
         let identifiers = (1...7).map { "dailyReminder-\($0)" }
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
 
+        let streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
+
         // Schedule one notification per weekday, each with a different message
         for weekday in 1...7 {
-            let message = dailyMessages[weekday - 1]
+            var message = dailyMessages[weekday - 1]
+            // Prepend streak count for motivation
+            if streak > 1 {
+                message = "Day \(streak): \(message)"
+            }
 
             let content = UNMutableNotificationContent()
             content.title = "BudgetVault"
@@ -175,7 +181,9 @@ enum NotificationService {
 
     // MARK: - Lapsed User Re-engagement
 
-    private static let reengagementIdentifiers = ["reengagement3Day", "reengagement7Day"]
+    private static let reengagementIdentifiers = [
+        "reengagement3Day", "reengagement7Day", "reengagement14Day", "reengagement30Day"
+    ]
 
     /// Schedule re-engagement notifications for lapsed users.
     /// Call this whenever the user logs a transaction to reset the timers.
@@ -204,6 +212,28 @@ enum NotificationService {
         let trigger7 = UNTimeIntervalNotificationTrigger(timeInterval: 7 * 24 * 60 * 60, repeats: false)
         let request7 = UNNotificationRequest(identifier: "reengagement7Day", content: content7, trigger: trigger7)
         center.add(request7)
+
+        // 14-day reminder
+        let content14 = UNMutableNotificationContent()
+        content14.title = "Half the month is gone"
+        content14.body = "Your budget is mostly untracked. There's still time to finish strong."
+        content14.sound = .default
+        content14.userInfo = ["type": "reengagement"]
+
+        let trigger14 = UNTimeIntervalNotificationTrigger(timeInterval: 14 * 24 * 60 * 60, repeats: false)
+        let request14 = UNNotificationRequest(identifier: "reengagement14Day", content: content14, trigger: trigger14)
+        center.add(request14)
+
+        // 30-day reminder (final attempt)
+        let content30 = UNMutableNotificationContent()
+        content30.title = "Fresh start?"
+        content30.body = "New month, clean slate. Come back and take control of your budget."
+        content30.sound = .default
+        content30.userInfo = ["type": "reengagement"]
+
+        let trigger30 = UNTimeIntervalNotificationTrigger(timeInterval: 30 * 24 * 60 * 60, repeats: false)
+        let request30 = UNNotificationRequest(identifier: "reengagement30Day", content: content30, trigger: trigger30)
+        center.add(request30)
     }
 
     /// Cancel all re-engagement notifications.

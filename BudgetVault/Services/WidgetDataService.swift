@@ -14,6 +14,9 @@ enum WidgetDataService {
         let currencyCode: String
         let isPremium: Bool
         let topCategories: [CategorySummary]
+        let dailyAllowanceCents: Int64
+        let currentStreak: Int
+        let daysRemaining: Int
 
         struct CategorySummary: Codable {
             let emoji: String
@@ -47,13 +50,20 @@ enum WidgetDataService {
                 )
             }
 
+        // Compute daily allowance
+        let daysRemaining = max(Calendar.current.dateComponents([.day], from: Date(), to: budget.nextPeriodStart).day ?? 0, 1)
+        let dailyAllowance = budget.remainingCents / Int64(daysRemaining)
+
         let data = WidgetData(
             remainingBudgetCents: budget.remainingCents,
             totalBudgetCents: budget.totalIncomeCents,
             percentRemaining: budget.percentRemaining,
             currencyCode: UserDefaults.standard.string(forKey: AppStorageKeys.selectedCurrency) ?? "USD",
             isPremium: UserDefaults.standard.bool(forKey: AppStorageKeys.isPremium),
-            topCategories: categories
+            topCategories: categories,
+            dailyAllowanceCents: dailyAllowance,
+            currentStreak: UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak),
+            daysRemaining: daysRemaining
         )
 
         guard let encoded = try? JSONEncoder().encode(data) else { return }

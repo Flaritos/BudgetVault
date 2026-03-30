@@ -11,6 +11,9 @@ struct WidgetBudgetData: Codable {
     let currencyCode: String
     let isPremium: Bool
     let topCategories: [CategorySummary]
+    let dailyAllowanceCents: Int64
+    let currentStreak: Int
+    let daysRemaining: Int
 
     struct CategorySummary: Codable {
         let emoji: String
@@ -68,7 +71,10 @@ extension WidgetBudgetData {
                 .init(emoji: "\u{1F3E0}", name: "Rent", spentCents: 150_000, budgetedCents: 150_000),
                 .init(emoji: "\u{1F6D2}", name: "Groceries", spentCents: 8000, budgetedCents: 10000),
                 .init(emoji: "\u{1F697}", name: "Transport", spentCents: 3000, budgetedCents: 5000),
-            ]
+            ],
+            dailyAllowanceCents: 10_200,
+            currentStreak: 12,
+            daysRemaining: 18
         )
     }
 }
@@ -98,25 +104,46 @@ struct SmallBudgetWidgetView: View {
 
     var body: some View {
         ZStack {
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 ZStack {
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 6)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 5)
                     Circle()
                         .trim(from: 0, to: max(0, min(entry.data.percentRemaining, 1.0)))
-                        .stroke(ringColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                        .stroke(ringColor, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                 }
-                .frame(width: 60, height: 60)
+                .frame(width: 48, height: 48)
 
-                Text(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                Text("DAILY BUDGET")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.5)
+                    .padding(.top, 2)
+
+                Text(formatCents(entry.data.dailyAllowanceCents, code: entry.data.currencyCode))
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
 
-                Text("remaining")
-                    .font(.system(size: 10))
+                Text("\(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) left \u{00B7} \(entry.data.daysRemaining)d")
+                    .font(.system(size: 9))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                if entry.data.currentStreak > 0 {
+                    HStack(spacing: 2) {
+                        Text("\u{1F525}")
+                            .font(.system(size: 9))
+                        Text("\(entry.data.currentStreak)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.orange)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                }
             }
 
             // Logo watermark
@@ -132,7 +159,7 @@ struct SmallBudgetWidgetView: View {
             .padding(4)
         }
         .containerBackground(.fill.tertiary, for: .widget)
-        .accessibilityLabel("\(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining in budget")
+        .accessibilityLabel("\(formatCents(entry.data.dailyAllowanceCents, code: entry.data.currencyCode)) daily budget. \(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining. \(entry.data.currentStreak) day streak.")
     }
 }
 
@@ -148,55 +175,49 @@ struct MediumBudgetWidgetView: View {
     }
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Left: Ring + amount
+        HStack(spacing: 14) {
+            // Left: Ring
             VStack(spacing: 4) {
                 ZStack {
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 6)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 5)
                     Circle()
                         .trim(from: 0, to: max(0, min(entry.data.percentRemaining, 1.0)))
-                        .stroke(ringColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                        .stroke(ringColor, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                 }
-                .frame(width: 50, height: 50)
-
-                Text(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode))
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-
-                Text("remaining")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+                .frame(width: 46, height: 46)
             }
 
-            // Right: Categories or upgrade prompt
-            VStack(alignment: .leading, spacing: 4) {
-                if entry.data.isPremium {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(entry.data.topCategories.prefix(2), id: \.name) { cat in
-                            HStack(spacing: 4) {
-                                Text(cat.emoji)
-                                    .font(.system(size: 12))
-                                Text(cat.name)
-                                    .font(.system(size: 11))
-                                    .lineLimit(1)
-                                Spacer()
-                                miniProgressBar(spent: cat.spentCents, budgeted: cat.budgetedCents)
-                            }
-                        }
+            // Right: Daily allowance + streak + categories
+            VStack(alignment: .leading, spacing: 3) {
+                // Daily allowance hero
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(formatCents(entry.data.dailyAllowanceCents, code: entry.data.currencyCode))
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Text("/ day")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                // Remaining context
+                Text("\(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining \u{00B7} \(entry.data.daysRemaining) days left")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                // Streak badge
+                if entry.data.currentStreak > 0 {
+                    HStack(spacing: 3) {
+                        Text("\u{1F525}")
+                            .font(.system(size: 9))
+                        Text("\(entry.data.currentStreak)-day streak")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.orange)
                     }
-                } else {
-                    VStack(spacing: 4) {
-                        Image(systemName: "lock.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text("Upgrade for\ncategory breakdown")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
                 }
 
                 Spacer(minLength: 2)
@@ -224,7 +245,7 @@ struct MediumBudgetWidgetView: View {
                 .padding(4)
         }
         .containerBackground(.fill.tertiary, for: .widget)
-        .accessibilityLabel("\(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining in budget")
+        .accessibilityLabel("\(formatCents(entry.data.dailyAllowanceCents, code: entry.data.currencyCode)) per day. \(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining. \(entry.data.currentStreak) day streak.")
     }
 
     @ViewBuilder

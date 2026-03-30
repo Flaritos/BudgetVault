@@ -30,6 +30,17 @@ final class StoreKitManager {
         Date() < Self.launchPricingEndDate
     }
 
+    /// Returns a countdown string like "92d 14h 23m" for launch pricing, or nil if expired.
+    var launchCountdownComponents: (days: Int, hours: Int, minutes: Int)? {
+        guard isLaunchPricing else { return nil }
+        let remaining = Self.launchPricingEndDate.timeIntervalSince(Date())
+        guard remaining > 0 else { return nil }
+        let days = Int(remaining) / 86400
+        let hours = (Int(remaining) % 86400) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        return (days, hours, minutes)
+    }
+
     var premiumProduct: Product? {
         products.first { $0.id == Self.premiumProductID }
     }

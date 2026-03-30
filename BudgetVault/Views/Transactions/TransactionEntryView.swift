@@ -28,6 +28,8 @@ struct TransactionEntryView: View {
     @State private var manualCategorySelection = false
     @State private var showNoteSuggestions = false
     @State private var showSaveError = false
+    @State private var lastSavedCategory: String?
+    @State private var lastSavedAmount: String = ""
     @State private var didApplyIntentPrefill = false
     @State private var categoryAutoSelected = false
     @FocusState private var isInputFocused: Bool
@@ -41,6 +43,14 @@ struct TransactionEntryView: View {
 
     var body: some View {
         NavigationStack {
+            VStack(spacing: 0) {
+                // Brand accent stripe
+                LinearGradient(
+                    colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue],
+                    startPoint: .leading, endPoint: .trailing
+                )
+                .frame(height: 4)
+
             VStack(spacing: BudgetVaultTheme.spacingLG) {
                 // Expense / Income toggle
                 Picker("Type", selection: $isIncome) {
@@ -48,6 +58,7 @@ struct TransactionEntryView: View {
                     Text("Income").tag(true)
                 }
                 .pickerStyle(.segmented)
+                .tint(BudgetVaultTheme.navyDark)
                 .padding(.horizontal)
 
                 // Amount display with ghost text for suggested amount
@@ -62,11 +73,24 @@ struct TransactionEntryView: View {
                         .font(BudgetVaultTheme.amountEntry)
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
-                        .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
+                        .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.navyDark))
                         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 }
                 .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
                 .padding(.top, BudgetVaultTheme.spacingSM)
+
+                // Budget context hint
+                if !isIncome, let cat = selectedCategory {
+                    let remaining = cat.budgetedAmountCents - cat.spentCents(in: budget)
+                    HStack(spacing: 4) {
+                        Text(CurrencyFormatter.format(cents: max(remaining, 0)))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(remaining > 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
+                        Text(remaining > 0 ? "left in \(cat.name)" : "over in \(cat.name)")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                }
 
                 // Suggested amount tap target
                 if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
@@ -161,9 +185,12 @@ struct TransactionEntryView: View {
 
                 // Date and note
                 VStack(spacing: BudgetVaultTheme.spacingXS) {
+                    // Allow selecting dates from the previous period too
+                    let previousPeriodStart = Calendar.current.date(byAdding: .month, value: -1, to: budget.periodStart) ?? budget.periodStart
+
                     HStack {
                         DatePicker("Date", selection: $date,
-                                   in: budget.periodStart...budget.nextPeriodStart.addingTimeInterval(-1),
+                                   in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
                                    displayedComponents: .date)
                             .labelsHidden()
                         TextField("Add a note", text: $note)
@@ -188,6 +215,19 @@ struct TransactionEntryView: View {
                             }
                     }
                     .padding(.horizontal)
+
+                    // Warning for previous period date
+                    if date < budget.periodStart {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(BudgetVaultTheme.caution)
+                            Text("This date is in last month's budget period")
+                                .font(.caption)
+                                .foregroundStyle(BudgetVaultTheme.caution)
+                        }
+                        .padding(.horizontal)
+                    }
 
                     // Note autocomplete suggestions
                     if showNoteSuggestions && !noteSuggestions.isEmpty {
@@ -231,15 +271,33 @@ struct TransactionEntryView: View {
 
                 // Saved banner
                 if showSavedBanner {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(BudgetVaultTheme.positive)
-                        Text("Saved!")
-                            .font(.subheadline.bold())
+                            .font(.title3)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Saved!")
+                                .font(.subheadline.bold())
+                            if let cat = lastSavedCategory {
+                                Text("\(lastSavedAmount) \u{00B7} \(cat)")
+                                    .font(.caption)
+                                    .opacity(0.85)
+                            }
+                        }
                     }
-                    .transition(.opacity)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: [BudgetVaultTheme.positive, Color(hex: "#059669")],
+                            startPoint: .leading, endPoint: .trailing
+                        ),
+                        in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                    )
+                    .shadow(color: BudgetVaultTheme.positive.opacity(0.4), radius: 8, y: 4)
+                    .transition(.scale.combined(with: .opacity))
                     .task {
-                        try? await Task.sleep(for: .seconds(1.5))
+                        try? await Task.sleep(for: .seconds(2.5))
                         withAnimation { showSavedBanner = false }
                     }
                 }
@@ -265,6 +323,7 @@ struct TransactionEntryView: View {
                 .padding(.horizontal)
                 .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
+            } // end outer VStack(spacing: 0) for stripe
             .navigationTitle(isIncome ? "Add Income" : "Add Expense")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
@@ -470,11 +529,15 @@ struct TransactionEntryView: View {
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.lastActiveDate)
         NotificationService.scheduleReengagementNotifications()
 
+        // Capture saved info for banner display
+        lastSavedAmount = CurrencyFormatter.format(cents: cents)
+        lastSavedCategory = isIncome ? "Income" : selectedCategory?.name
+
         // Reset form but preserve selected category
         amountText = ""
         note = ""
         categoryAutoSelected = false
         // Keep selectedCategory and manualCategorySelection as-is
-        withAnimation { showSavedBanner = true }
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { showSavedBanner = true }
     }
 }

@@ -50,11 +50,16 @@ struct DashboardView: View {
     @State private var showMoveMoney = false
     @State private var showRecurring = false
     @State private var hasCheckedAchievements = false
+    @State private var showStreakMilestone = false
+    @State private var streakMilestoneValue = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
     @AppStorage(AppStorageKeys.hasSeenTransactionPaywall) private var hasSeenTransactionPaywall = false
     @AppStorage(AppStorageKeys.hasSeenStreakPaywall) private var hasSeenStreakPaywall = false
     @AppStorage("lastWrappedViewed") private var lastWrappedViewed = ""
+    @AppStorage("dismissedLaunchBanner") private var hasDissmissedLaunchBanner = false
+    @AppStorage("lastCelebratedMilestone") private var lastCelebratedMilestone = 0
+    @State private var showFreezeToast = false
 
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
@@ -258,6 +263,12 @@ struct DashboardView: View {
                 }
                 .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showStreakMilestone) {
+                StreakMilestoneView(milestone: streakMilestoneValue) {
+                    showStreakMilestone = false
+                }
+                .interactiveDismissDisabled()
+            }
             .sheet(isPresented: $showProactivePaywall) {
                 PaywallView()
                     .presentationDragIndicator(.visible)
@@ -320,6 +331,21 @@ struct DashboardView: View {
                         }
                     }
 
+                    // Streak freeze toast
+                    if UserDefaults.standard.bool(forKey: "streakFreezeJustUsed") {
+                        UserDefaults.standard.set(false, forKey: "streakFreezeJustUsed")
+                        withAnimation { showFreezeToast = true }
+                    }
+
+                    // Streak milestone celebration
+                    if let milestone = StreakService.checkMilestone(),
+                       milestone > lastCelebratedMilestone {
+                        lastCelebratedMilestone = milestone
+                        streakMilestoneValue = milestone
+                        try? await Task.sleep(for: .seconds(0.5))
+                        showStreakMilestone = true
+                    }
+
                     ReviewPromptService.checkFirstMonthUnderBudget()
                     let periodTxCount = allTransactions.filter {
                         $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart
@@ -367,6 +393,27 @@ struct DashboardView: View {
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 .animation(reduceMotion ? .default : .spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
             }
+
+            // Freeze toast
+            if showFreezeToast {
+                HStack(spacing: 8) {
+                    Image(systemName: "shield.fill")
+                        .foregroundStyle(.white)
+                    Text("Streak freeze used! Your \(currentStreak)-day streak is safe.")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(BudgetVaultTheme.info, in: Capsule())
+                .shadow(color: BudgetVaultTheme.info.opacity(0.4), radius: 8, y: 4)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .task {
+                    try? await Task.sleep(for: .seconds(3))
+                    withAnimation { showFreezeToast = false }
+                }
+            }
         }
     }
 
@@ -405,6 +452,19 @@ struct DashboardView: View {
                     // Quick Actions Row
                     quickActionsRow
 
+                    // Launch pricing banner (non-premium only, dismissible)
+                    if !isPremium && !hasDissmissedLaunchBanner {
+                        LaunchPricingDashboardBanner {
+                            showPaywall = true
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Streak progress card
+                    if currentStreak > 0 {
+                        streakProgressCard
+                    }
+
                     // Catch-up card for returning users
                     if showCatchUpCard {
                         catchUpCard(budget: budget)
@@ -431,6 +491,44 @@ struct DashboardView: View {
                         .tint(.primary)
                         .padding(.horizontal)
                         .accessibilityLabel("Monthly summary for \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) is ready. Tap to view.")
+                    }
+
+                    // Monthly Wrapped card (available to all users near end of period)
+                    if showWrappedCard {
+                        Button {
+                            showMonthlyWrapped = true
+                        } label: {
+                            HStack(spacing: BudgetVaultTheme.spacingSM) {
+                                Image(systemName: "star.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(Color(hex: "#A78BFA"))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Your Monthly Wrapped is ready!")
+                                        .font(.subheadline.bold())
+                                    Text("See your spending personality")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(BudgetVaultTheme.spacingMD)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: "#A78BFA").opacity(0.08), Color(hex: "#6366F1").opacity(0.04)],
+                                    startPoint: .leading, endPoint: .trailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                    .strokeBorder(Color(hex: "#A78BFA").opacity(0.15), lineWidth: 1)
+                            )
+                        }
+                        .tint(.primary)
+                        .padding(.horizontal)
                     }
 
                     // 2. Envelope Cards — "Vault Compartments"
@@ -511,6 +609,16 @@ struct DashboardView: View {
             .ignoresSafeArea(edges: .top)
 
             VStack(spacing: BudgetVaultTheme.spacingLG) {
+                // Streak badge row
+                if currentStreak > 0 {
+                    HStack {
+                        Spacer()
+                        streakBadgeView
+                    }
+                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    .padding(.top, BudgetVaultTheme.spacingSM)
+                }
+
                 // Glass card with ring + amount
                 HStack(alignment: .center, spacing: BudgetVaultTheme.spacingXL - 4) {
                     // Neon ring with percentage
@@ -587,14 +695,6 @@ struct DashboardView: View {
                             Text(spentFraction < 0.75 ? "On Track" : spentFraction < 0.9 ? "Watch It" : "Over")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
-
-                            if currentStreak > 0 {
-                                Text("·")
-                                    .foregroundStyle(.white.opacity(0.3))
-                                Text("\u{1F525} \(currentStreak)")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.7))
-                            }
                         }
                         .padding(.top, BudgetVaultTheme.spacingXS)
                     }
@@ -622,11 +722,15 @@ struct DashboardView: View {
                     Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 28)
                     Spacer()
                     statItem(label: "DAY", value: dayProgressText.replacingOccurrences(of: "Day ", with: ""))
+                    Spacer()
+                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 28)
+                    Spacer()
+                    bufferDaysStat(budget: budget, dayProgressFraction: dayProgressFraction)
                 }
-                .padding(.horizontal, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
             }
             .padding(.top, BudgetVaultTheme.spacingPage + BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingSM)
+            .padding(.bottom, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingLG)
         }
         .accessibilityElement(children: .combine)
         .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) remaining. \(dayProgressText)")
@@ -641,6 +745,54 @@ struct DashboardView: View {
             Text(value)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+        }
+    }
+
+    /// Buffer days stat: remainingCents / avgDailySpend. Shows how many extra days the budget could last.
+    private func bufferDaysStat(budget: Budget, dayProgressFraction: Double) -> some View {
+        let totalSpent = budget.totalSpentCents()
+        let daysElapsed = max(Int(dayProgressFraction * Double(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)), 1)
+        let daysInPeriod = max(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30, 1)
+        let daysRemaining = daysInPeriod - daysElapsed
+
+        let bufferText: String
+        let bufferColor: Color
+
+        if totalSpent <= 0 {
+            bufferText = "\u{2014}"
+            bufferColor = .white
+        } else {
+            let avgDailySpend = totalSpent / Int64(daysElapsed)
+            if avgDailySpend <= 0 {
+                bufferText = "\u{2014}"
+                bufferColor = .white
+            } else {
+                let bufferDays = Int(budget.remainingCents / avgDailySpend)
+                let surplus = bufferDays - daysRemaining
+
+                if surplus > 0 {
+                    bufferText = "+\(surplus)d"
+                    bufferColor = BudgetVaultTheme.positive
+                } else if surplus == 0 {
+                    bufferText = "0d"
+                    bufferColor = BudgetVaultTheme.caution
+                } else {
+                    bufferText = "\(surplus)d"
+                    bufferColor = BudgetVaultTheme.negative
+                }
+            }
+        }
+
+        return VStack(spacing: 2) {
+            Text("BUFFER")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.35))
+                .tracking(0.5)
+            Text(bufferText)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(bufferColor)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
         }
@@ -999,6 +1151,97 @@ struct DashboardView: View {
             action()
         }
         .padding(.horizontal)
+    }
+
+    // MARK: - Streak Badge & Card
+
+    @ViewBuilder
+    private var streakBadgeView: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            HStack(spacing: 6) {
+                Text("\u{1F525}")
+                    .font(.system(size: 14))
+                Text("\(currentStreak)")
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color(hex: "#FBBF24"))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color(hex: "#FBBF24").opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color(hex: "#FBBF24").opacity(0.3), lineWidth: 1)
+            )
+
+            // Freeze indicator
+            if StreakService.hasAvailableFreeze() {
+                HStack(spacing: 3) {
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 8))
+                    Text("1 freeze ready")
+                        .font(.system(size: 9, weight: .medium))
+                }
+                .foregroundStyle(.white.opacity(0.4))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var streakProgressCard: some View {
+        let weekDots = StreakService.thisWeekDots()
+
+        HStack(spacing: 14) {
+            Text("\u{1F525}")
+                .font(.system(size: 28))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(currentStreak)-day streak")
+                    .font(.subheadline.bold())
+
+                if let nextMilestone = nextStreakMilestone {
+                    Text("Keep logging to reach \(nextMilestone) days!")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Weekly dots
+                HStack(spacing: 3) {
+                    ForEach(0..<7, id: \.self) { i in
+                        Circle()
+                            .fill(weekDots[i] == .logged ? Color(hex: "#FBBF24") :
+                                  weekDots[i] == .frozen ? BudgetVaultTheme.info :
+                                  Color(.systemGray5))
+                            .frame(width: 8, height: 8)
+                    }
+                }
+
+                Text(nextMilestoneLabel)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
+                .fill(Color(hex: "#FBBF24").opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
+                        .strokeBorder(Color(hex: "#FBBF24").opacity(0.12), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal)
+    }
+
+    private var nextStreakMilestone: Int? {
+        let milestones = [7, 14, 30, 60, 90, 100]
+        return milestones.first { $0 > currentStreak }
+    }
+
+    private var nextMilestoneLabel: String {
+        guard let next = nextStreakMilestone else { return "You've reached the top!" }
+        let names: [Int: String] = [7: "Week Warrior", 14: "Two Weeks Strong", 30: "Monthly Master", 60: "Sixty Solid", 90: "Ninety Nailed", 100: "Century Club"]
+        return "Next: \(next) days (\(names[next] ?? "Milestone"))"
     }
 
     // MARK: - Quick Actions Row

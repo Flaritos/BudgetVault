@@ -34,6 +34,7 @@ enum StreakService {
                     // Use freeze -- preserve streak
                     freezes -= 1
                     UserDefaults.standard.set(freezes, forKey: AppStorageKeys.streakFreezesRemaining)
+                    UserDefaults.standard.set(true, forKey: "streakFreezeJustUsed")
                 } else {
                     // No freeze -- streak is broken
                     streak = 0
@@ -91,5 +92,55 @@ enum StreakService {
             return streak
         }
         return nil
+    }
+
+    /// Whether the user has a streak freeze available this week.
+    static func hasAvailableFreeze() -> Bool {
+        UserDefaults.standard.integer(forKey: AppStorageKeys.streakFreezesRemaining) > 0
+    }
+
+    /// Day status for this week's streak progress dots (Mon–Sun).
+    enum DayStatus { case logged, frozen, empty }
+
+    static func thisWeekDots() -> [DayStatus] {
+        let today = calendar.startOfDay(for: Date())
+        let lastLogDateStr = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
+
+        // Find Monday of this week
+        var cal = Calendar.current
+        cal.firstWeekday = 2 // Monday
+        guard let weekInterval = cal.dateInterval(of: .weekOfYear, for: today) else {
+            return Array(repeating: .empty, count: 7)
+        }
+        let monday = cal.startOfDay(for: weekInterval.start)
+
+        var dots: [DayStatus] = []
+        for i in 0..<7 {
+            guard let day = cal.date(byAdding: .day, value: i, to: monday) else {
+                dots.append(.empty)
+                continue
+            }
+
+            if day > today {
+                dots.append(.empty) // Future
+            } else {
+                let dayStr = DateHelpers.dateString(day)
+                if dayStr == lastLogDateStr || dayStr == DateHelpers.dateString(today) && lastLogDateStr == dayStr {
+                    dots.append(.logged)
+                } else {
+                    // Simple heuristic: if streak is intact and day is in the past, it was either logged or frozen
+                    let streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
+                    let daysSinceMonday = cal.dateComponents([.day], from: monday, to: today).day ?? 0
+                    if streak > daysSinceMonday {
+                        dots.append(.logged) // Streak covers this day
+                    } else if day == today {
+                        dots.append(.empty) // Haven't logged today yet
+                    } else {
+                        dots.append(.empty)
+                    }
+                }
+            }
+        }
+        return dots
     }
 }

@@ -19,6 +19,9 @@ struct PaywallView: View {
                     // MARK: - Navy Gradient Hero
                     heroSection
 
+                    // MARK: - Launch Pricing Countdown
+                    LaunchPricingBannerView()
+
                     // MARK: - Content on white/system background
                     VStack(spacing: BudgetVaultTheme.spacingXL) {
                         // One-time purchase badge
@@ -292,8 +295,15 @@ struct PaywallView: View {
             Group {
                 switch storeKit.purchaseState {
                 case .idle, .error:
-                    Text("Unlock the Vault\(displayPrice.map { " for \($0)" } ?? "")")
-                        .font(.headline)
+                    VStack(spacing: 2) {
+                        Text("Unlock the Vault\(displayPrice.map { " for \($0)" } ?? "")")
+                            .font(.headline)
+                        if storeKit.isLaunchPricing {
+                            Text("Launch pricing — increases after July 1")
+                                .font(.caption2)
+                                .opacity(0.7)
+                        }
+                    }
                 case .loading:
                     ProgressView()
                         .tint(.white)
