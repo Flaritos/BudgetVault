@@ -398,6 +398,9 @@ struct BudgetVaultWidgetBundle: WidgetBundle {
         BudgetVaultMediumWidget()
         #if os(iOS)
         BudgetVaultLockScreenWidget()
+        if #available(iOS 18.0, *) {
+            LogExpenseControl()
+        }
         #endif
     }
 }

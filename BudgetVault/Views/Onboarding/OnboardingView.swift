@@ -28,7 +28,10 @@ struct OnboardingView: View {
     @ScaledMetric(relativeTo: .body) private var stepCircleSize: CGFloat = 32
     @ScaledMetric(relativeTo: .body) private var currencyBadgeSize: CGFloat = 80
 
-    private let totalPages = 7
+    /// v3.2: collapsed from 7 → 5 pages. Welcome (0) and notifications (4) are
+    /// optional bookends; the user can skip from Welcome straight to template
+    /// setup, making the fastest path 3 taps: template → income → done.
+    private let totalPages = 5
     private let freeCategoryLimit = 6
 
     private func stepIndicator(current: Int) -> some View {
@@ -51,12 +54,10 @@ struct OnboardingView: View {
     var body: some View {
         TabView(selection: $currentPage) {
             welcomePage.tag(0)
-            envelopeExplainerPage.tag(1)
-            currencyPage.tag(2)
-            templatePage.tag(3)
-            budgetSetupPage.tag(4)
-            celebrationPage.tag(5)
-            notificationPage.tag(6)
+            currencyPage.tag(1)
+            templatePage.tag(2)
+            budgetSetupPage.tag(3)
+            notificationPage.tag(4)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .animation(.easeInOut, value: currentPage)
@@ -127,7 +128,7 @@ struct OnboardingView: View {
                     }
                     Task {
                         try? await Task.sleep(for: .milliseconds(500))
-                        withAnimation { currentPage = 1 }
+                        withAnimation { currentPage = 1 } // → currency
                     }
                 } label: {
                     Text("Get Started")
@@ -141,11 +142,14 @@ struct OnboardingView: View {
                 .opacity(showWelcomeText ? 1 : 0)
 
                 Button {
-                    withAnimation { currentPage = 3 }
+                    withAnimation { currentPage = 2 } // skip welcome+currency → template
                 } label: {
                     Text("Skip to Setup")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(.white.opacity(0.12), in: Capsule())
                 }
                 .padding(.bottom, 24)
                 .opacity(showWelcomeText ? 1 : 0)
@@ -292,7 +296,7 @@ struct OnboardingView: View {
                 CurrencyPickerView(selectedCurrency: $tempCurrency)
 
                 HStack(spacing: 12) {
-                    Button { withAnimation { currentPage = 1 } } label: {
+                    Button { withAnimation { currentPage = 0 } } label: {
                         Image(systemName: "chevron.left")
                             .font(.headline)
                             .frame(width: backButtonSize, height: backButtonSize)
@@ -301,7 +305,7 @@ struct OnboardingView: View {
                     .accessibilityLabel("Go back")
                     Button {
                         selectedCurrency = tempCurrency
-                        withAnimation { currentPage = 3 }
+                        withAnimation { currentPage = 2 }
                     } label: {
                         Text("Continue")
                     }
@@ -311,7 +315,7 @@ struct OnboardingView: View {
 
                 Button {
                     selectedCurrency = tempCurrency
-                    withAnimation { currentPage = 3 }
+                    withAnimation { currentPage = 2 }
                 } label: {
                     Text("Skip to Setup")
                         .font(.subheadline)
@@ -460,7 +464,7 @@ struct OnboardingView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Button { withAnimation { currentPage = 2 } } label: {
+                    Button { withAnimation { currentPage = 1 } } label: {
                         Image(systemName: "chevron.left")
                             .font(.headline)
                             .frame(width: backButtonSize, height: backButtonSize)
@@ -468,7 +472,7 @@ struct OnboardingView: View {
                     }
                     .accessibilityLabel("Go back")
                     Button {
-                        withAnimation { currentPage = 4 }
+                        withAnimation { currentPage = 3 }
                     } label: {
                         Text("Continue")
                     }
@@ -586,7 +590,7 @@ struct OnboardingView: View {
                     }
 
                     HStack(spacing: 12) {
-                        Button { withAnimation { currentPage = 3 } } label: {
+                        Button { withAnimation { currentPage = 2 } } label: {
                             Image(systemName: "chevron.left")
                                 .font(.headline)
                                 .frame(width: backButtonSize, height: backButtonSize)
@@ -743,7 +747,8 @@ struct OnboardingView: View {
 
         SafeSave.save(modelContext)
         budgetCreated = true
-        withAnimation { currentPage = 5 }
+        // v3.2: skip the celebration page, go straight to notifications opt-in.
+        withAnimation { currentPage = 4 }
     }
 
     private func requestNotificationPermission() {

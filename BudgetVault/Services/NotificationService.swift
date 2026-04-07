@@ -103,6 +103,35 @@ enum NotificationService {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["streakAtRisk"])
     }
 
+    // MARK: - Evening Close Vault (v3.2 daily loop)
+
+    /// Schedule a 9pm "close today's vault" reminder. The action is the
+    /// daily-loop habit anchor — open the app, mark the day done (or no-spend),
+    /// and close the ring. Repeats daily until cancelled.
+    static func scheduleEveningCloseVault(hour: Int = 21) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["closeVault"])
+
+        let content = UNMutableNotificationContent()
+        content.title = "Close today's vault"
+        content.body = "Log anything you missed — or tap “No spending today.”"
+        content.sound = .default
+        content.userInfo = ["type": "closeVault"]
+        content.categoryIdentifier = dailyReminderCategoryIdentifier
+
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+
+        let request = UNNotificationRequest(identifier: "closeVault", content: content, trigger: trigger)
+        center.add(request)
+    }
+
+    static func cancelEveningCloseVault() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["closeVault"])
+    }
+
     // MARK: - Bill Due Reminder
 
     static func scheduleBillDueReminder(expenseName: String, dueDate: Date, id: String) {

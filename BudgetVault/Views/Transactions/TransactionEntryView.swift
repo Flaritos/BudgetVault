@@ -51,266 +51,40 @@ struct TransactionEntryView: View {
                 )
                 .frame(height: 4)
 
+                formContent
+            } // end outer VStack
+            .navigationTitle(isIncome ? "Add Income" : "Add Expense")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear { applyIntentPrefillIfNeeded() }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    /// Extracted to keep `body` under the Swift 6 type-checker timeout.
+    /// Was previously a single 280-line ViewBuilder that timed out under iOS 18 SDK.
+    @ViewBuilder
+    private var formContent: some View {
             VStack(spacing: BudgetVaultTheme.spacingLG) {
-                // Expense / Income toggle
-                Picker("Type", selection: $isIncome) {
-                    Text("Expense").tag(false)
-                    Text("Income").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .tint(BudgetVaultTheme.navyDark)
-                .padding(.horizontal)
-
-                // Amount display with ghost text for suggested amount
-                ZStack {
-                    if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
-                        Text(CurrencyFormatter.displayAmount(text: suggestedAmount))
-                            .font(BudgetVaultTheme.amountEntry)
-                            .foregroundStyle(.secondary.opacity(0.3))
-                    }
-
-                    Text(CurrencyFormatter.displayAmount(text: amountText))
-                        .font(BudgetVaultTheme.amountEntry)
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                        .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.navyDark))
-                        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-                }
-                .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
-                .padding(.top, BudgetVaultTheme.spacingSM)
-
-                // Budget context hint
-                if !isIncome, let cat = selectedCategory {
-                    let remaining = cat.budgetedAmountCents - cat.spentCents(in: budget)
-                    HStack(spacing: 4) {
-                        Text(CurrencyFormatter.format(cents: max(remaining, 0)))
-                            .fontWeight(.semibold)
-                            .foregroundStyle(remaining > 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
-                        Text(remaining > 0 ? "left in \(cat.name)" : "over in \(cat.name)")
-                            .foregroundStyle(.secondary)
-                    }
-                    .font(.caption)
-                }
-
-                // Suggested amount tap target
-                if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
-                    Button {
-                        amountText = suggestedAmount
-                        HapticManager.selection()
-                    } label: {
-                        Text("Use suggested amount")
-                            .font(.caption)
-                            .foregroundStyle(Color.accentColor)
-                            .padding(.horizontal, BudgetVaultTheme.spacingMD)
-                            .padding(.vertical, BudgetVaultTheme.spacingXS)
-                            .background(Color.accentColor.opacity(0.1), in: Capsule())
-                    }
-                }
-
-                // Quick amount chips
-                if !isIncome {
-                    quickAmountChips
-                }
-
-                // Quick Add templates
-                if !frequentTemplates.isEmpty && !isIncome {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: BudgetVaultTheme.spacingSM) {
-                            ForEach(Array(frequentTemplates.enumerated()), id: \.offset) { _, template in
-                                Button {
-                                    note = template.note
-                                    selectedCategory = template.category
-                                    amountText = CurrencyFormatter.formatRaw(cents: template.amountCents)
-                                    manualCategorySelection = true
-                                } label: {
-                                    HStack(spacing: BudgetVaultTheme.spacingXS) {
-                                        Text(template.category?.emoji ?? "")
-                                        Text(template.note)
-                                            .lineLimit(1)
-                                    }
-                                    .font(.caption)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(Color.accentColor.opacity(0.1), in: Capsule())
-                                }
-                                .tint(.primary)
-                                .accessibilityLabel("Quick add: \(template.category?.emoji ?? "") \(template.note), \(CurrencyFormatter.format(cents: template.amountCents))")
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-
-                // Category picker (expense only)
-                if !isIncome && categories.isEmpty {
-                    Text("Create a category in the Budget tab first.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-                } else if !isIncome {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: BudgetVaultTheme.spacingMD) {
-                            ForEach(categories, id: \.id) { category in
-                                Button {
-                                    selectedCategory = category
-                                    manualCategorySelection = true
-                                    categoryAutoSelected = false
-                                    HapticManager.selection()
-                                } label: {
-                                    ZStack(alignment: .topTrailing) {
-                                        CategoryChipView(
-                                            emoji: category.emoji,
-                                            name: category.name,
-                                            isSelected: selectedCategory?.id == category.id,
-                                            chipSize: chipSize,
-                                            chipWidth: chipWidth
-                                        )
-
-                                        // Smart category auto-select indicator
-                                        if categoryAutoSelected && selectedCategory?.id == category.id {
-                                            Image(systemName: "sparkle")
-                                                .font(.system(size: 10))
-                                                .foregroundStyle(Color.accentColor)
-                                                .offset(x: 2, y: -2)
-                                        }
-                                    }
-                                }
-                                .accessibilityLabel(category.name)
-                                .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-
-                // Date and note
-                VStack(spacing: BudgetVaultTheme.spacingXS) {
-                    // Allow selecting dates from the previous period too
-                    let previousPeriodStart = Calendar.current.date(byAdding: .month, value: -1, to: budget.periodStart) ?? budget.periodStart
-
-                    HStack {
-                        DatePicker("Date", selection: $date,
-                                   in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
-                                   displayedComponents: .date)
-                            .labelsHidden()
-                        TextField("Add a note", text: $note)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($isInputFocused)
-                            .onChange(of: note) { _, newValue in
-                                showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
-
-                                // Auto-suggest category from learning service
-                                if !manualCategorySelection {
-                                    if let suggestion = categoryLearning.suggestCategory(for: newValue),
-                                       let match = categories.first(where: { $0.name == suggestion.categoryName }) {
-                                        selectedCategory = match
-                                        categoryAutoSelected = true
-                                    } else if let suggested = suggestedCategory {
-                                        selectedCategory = suggested
-                                        categoryAutoSelected = true
-                                    } else {
-                                        categoryAutoSelected = false
-                                    }
-                                }
-                            }
-                    }
-                    .padding(.horizontal)
-
-                    // Warning for previous period date
-                    if date < budget.periodStart {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(BudgetVaultTheme.caution)
-                            Text("This date is in last month's budget period")
-                                .font(.caption)
-                                .foregroundStyle(BudgetVaultTheme.caution)
-                        }
-                        .padding(.horizontal)
-                    }
-
-                    // Note autocomplete suggestions
-                    if showNoteSuggestions && !noteSuggestions.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(noteSuggestions, id: \.self) { suggestion in
-                                    Button {
-                                        note = suggestion
-                                        showNoteSuggestions = false
-                                        if !manualCategorySelection {
-                                            if let learned = categoryLearning.suggestCategory(for: suggestion),
-                                               let match = categories.first(where: { $0.name == learned.categoryName }) {
-                                                selectedCategory = match
-                                                categoryAutoSelected = true
-                                            } else if let suggested = suggestedCategory {
-                                                selectedCategory = suggested
-                                                categoryAutoSelected = true
-                                            }
-                                        }
-                                    } label: {
-                                        Text(suggestion)
-                                            .font(.caption)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.secondary.opacity(0.12), in: Capsule())
-                                    }
-                                    .tint(.primary)
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .frame(height: 28)
-                    }
-                }
-
+                typePicker
+                amountDisplay
+                budgetContextHint
+                suggestedAmountButton
+                if !isIncome { quickAmountChips }
+                quickAddTemplatesRow
+                categoryPickerSection
+                dateAndNoteSection
                 Spacer()
-
-                // Number pad
                 NumberPadView(text: $amountText)
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
-
-                // Saved banner
-                if showSavedBanner {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title3)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Saved!")
-                                .font(.subheadline.bold())
-                            if let cat = lastSavedCategory {
-                                Text("\(lastSavedAmount) \u{00B7} \(cat)")
-                                    .font(.caption)
-                                    .opacity(0.85)
-                            }
-                        }
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        LinearGradient(
-                            colors: [BudgetVaultTheme.positive, Color(hex: "#059669")],
-                            startPoint: .leading, endPoint: .trailing
-                        ),
-                        in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                    )
-                    .shadow(color: BudgetVaultTheme.positive.opacity(0.4), radius: 8, y: 4)
-                    .transition(.scale.combined(with: .opacity))
-                    .task {
-                        try? await Task.sleep(for: .seconds(2.5))
-                        withAnimation { showSavedBanner = false }
-                    }
-                }
-
-                // Save button
-                Button {
-                    saveTransaction()
-                } label: {
-                    Text("Save")
-                }
-                .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
-                .disabled(!canSave)
-                .padding(.horizontal)
+                savedBanner
+                Button { saveTransaction() } label: { Text("Save") }
+                    .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
+                    .disabled(!canSave)
+                    .padding(.horizontal)
 
                 // Save & Add Another button
                 Button {
@@ -323,35 +97,10 @@ struct TransactionEntryView: View {
                 .padding(.horizontal)
                 .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
-            } // end outer VStack(spacing: 0) for stripe
-            .navigationTitle(isIncome ? "Add Income" : "Add Expense")
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                if !didApplyIntentPrefill {
-                    didApplyIntentPrefill = true
-                    if let amount = prefillAmount, amount > 0 {
-                        let cents = Int64(amount * 100)
-                        amountText = CurrencyFormatter.formatRaw(cents: cents)
-                    }
-                    if let catName = prefillCategoryName {
-                        let lowered = catName.lowercased()
-                        if let match = categories.first(where: { $0.name.lowercased() == lowered }) {
-                            selectedCategory = match
-                            manualCategorySelection = true
-                        }
-                    }
-                    if let prefillNote, !prefillNote.isEmpty {
-                        note = prefillNote
-                    }
-                }
-            }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") { isInputFocused = false }
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
                 }
             }
             .alert("Save Failed", isPresented: $showSaveError) {
@@ -359,6 +108,272 @@ struct TransactionEntryView: View {
             } message: {
                 Text("Your transaction could not be saved. Please try again.")
             }
+    }
+
+    private var typePicker: some View {
+        Picker("Type", selection: $isIncome) {
+            Text("Expense").tag(false)
+            Text("Income").tag(true)
+        }
+        .pickerStyle(.segmented)
+        .tint(BudgetVaultTheme.navyDark)
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var amountDisplay: some View {
+        let foreground: Color = amountText.isEmpty
+            ? Color.secondary
+            : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.navyDark)
+        ZStack {
+            if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
+                Text(CurrencyFormatter.displayAmount(text: suggestedAmount))
+                    .font(BudgetVaultTheme.amountEntry)
+                    .foregroundStyle(Color.secondary.opacity(0.3))
+            }
+
+            Text(CurrencyFormatter.displayAmount(text: amountText))
+                .font(BudgetVaultTheme.amountEntry)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .foregroundStyle(foreground)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+        }
+        .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
+        .padding(.top, BudgetVaultTheme.spacingSM)
+    }
+
+    @ViewBuilder
+    private var budgetContextHint: some View {
+        if !isIncome, let cat = selectedCategory {
+            let remaining = cat.budgetedAmountCents - cat.spentCents(in: budget)
+            HStack(spacing: 4) {
+                Text(CurrencyFormatter.format(cents: max(remaining, 0)))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(remaining > 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
+                Text(remaining > 0 ? "left in \(cat.name)" : "over in \(cat.name)")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        }
+    }
+
+    @ViewBuilder
+    private var suggestedAmountButton: some View {
+        if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
+            Button {
+                amountText = suggestedAmount
+                HapticManager.selection()
+            } label: {
+                Text("Use suggested amount")
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, BudgetVaultTheme.spacingMD)
+                    .padding(.vertical, BudgetVaultTheme.spacingXS)
+                    .background(Color.accentColor.opacity(0.1), in: Capsule())
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var quickAddTemplatesRow: some View {
+        if !frequentTemplates.isEmpty && !isIncome {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: BudgetVaultTheme.spacingSM) {
+                    ForEach(Array(frequentTemplates.enumerated()), id: \.offset) { _, template in
+                        Button {
+                            note = template.note
+                            selectedCategory = template.category
+                            amountText = CurrencyFormatter.formatRaw(cents: template.amountCents)
+                            manualCategorySelection = true
+                        } label: {
+                            HStack(spacing: BudgetVaultTheme.spacingXS) {
+                                Text(template.category?.emoji ?? "")
+                                Text(template.note).lineLimit(1)
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.accentColor.opacity(0.1), in: Capsule())
+                        }
+                        .tint(.primary)
+                        .accessibilityLabel("Quick add: \(template.category?.emoji ?? "") \(template.note), \(CurrencyFormatter.format(cents: template.amountCents))")
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var categoryPickerSection: some View {
+        if !isIncome && categories.isEmpty {
+            Text("Create a category in the Budget tab first.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+        } else if !isIncome {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: BudgetVaultTheme.spacingMD) {
+                    ForEach(categories, id: \.id) { category in
+                        Button {
+                            selectedCategory = category
+                            manualCategorySelection = true
+                            categoryAutoSelected = false
+                            HapticManager.selection()
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                CategoryChipView(
+                                    emoji: category.emoji,
+                                    name: category.name,
+                                    isSelected: selectedCategory?.id == category.id,
+                                    chipSize: chipSize,
+                                    chipWidth: chipWidth
+                                )
+                                if categoryAutoSelected && selectedCategory?.id == category.id {
+                                    Image(systemName: "sparkle")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(Color.accentColor)
+                                        .offset(x: 2, y: -2)
+                                }
+                            }
+                        }
+                        .accessibilityLabel(category.name)
+                        .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var dateAndNoteSection: some View {
+        VStack(spacing: BudgetVaultTheme.spacingXS) {
+            let previousPeriodStart = Calendar.current.date(byAdding: .month, value: -1, to: budget.periodStart) ?? budget.periodStart
+            HStack {
+                DatePicker("Date", selection: $date,
+                           in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
+                           displayedComponents: .date)
+                    .labelsHidden()
+                TextField("Add a note", text: $note)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isInputFocused)
+                    .onChange(of: note) { _, newValue in
+                        showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
+                        if !manualCategorySelection {
+                            if let suggestion = categoryLearning.suggestCategory(for: newValue),
+                               let match = categories.first(where: { $0.name == suggestion.categoryName }) {
+                                selectedCategory = match
+                                categoryAutoSelected = true
+                            } else if let suggested = suggestedCategory {
+                                selectedCategory = suggested
+                                categoryAutoSelected = true
+                            } else {
+                                categoryAutoSelected = false
+                            }
+                        }
+                    }
+            }
+            .padding(.horizontal)
+
+            if date < budget.periodStart {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(BudgetVaultTheme.caution)
+                    Text("This date is in last month's budget period")
+                        .font(.caption)
+                        .foregroundStyle(BudgetVaultTheme.caution)
+                }
+                .padding(.horizontal)
+            }
+
+            if showNoteSuggestions && !noteSuggestions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(noteSuggestions, id: \.self) { suggestion in
+                            Button {
+                                note = suggestion
+                                showNoteSuggestions = false
+                                if !manualCategorySelection {
+                                    if let learned = categoryLearning.suggestCategory(for: suggestion),
+                                       let match = categories.first(where: { $0.name == learned.categoryName }) {
+                                        selectedCategory = match
+                                        categoryAutoSelected = true
+                                    } else if let suggested = suggestedCategory {
+                                        selectedCategory = suggested
+                                        categoryAutoSelected = true
+                                    }
+                                }
+                            } label: {
+                                Text(suggestion)
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.secondary.opacity(0.12), in: Capsule())
+                            }
+                            .tint(.primary)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .frame(height: 28)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var savedBanner: some View {
+        if showSavedBanner {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Saved!")
+                        .font(.subheadline.bold())
+                    if let cat = lastSavedCategory {
+                        Text("\(lastSavedAmount) \u{00B7} \(cat)")
+                            .font(.caption)
+                            .opacity(0.85)
+                    }
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                LinearGradient(
+                    colors: [BudgetVaultTheme.positive, Color(hex: "#059669")],
+                    startPoint: .leading, endPoint: .trailing
+                ),
+                in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+            )
+            .shadow(color: BudgetVaultTheme.positive.opacity(0.4), radius: 8, y: 4)
+            .transition(.scale.combined(with: .opacity))
+            .task {
+                try? await Task.sleep(for: .seconds(2.5))
+                withAnimation { showSavedBanner = false }
+            }
+        }
+    }
+
+    private func applyIntentPrefillIfNeeded() {
+        guard !didApplyIntentPrefill else { return }
+        didApplyIntentPrefill = true
+        if let amount = prefillAmount, amount > 0 {
+            let cents = Int64(amount * 100)
+            amountText = CurrencyFormatter.formatRaw(cents: cents)
+        }
+        if let catName = prefillCategoryName {
+            let lowered = catName.lowercased()
+            if let match = categories.first(where: { $0.name.lowercased() == lowered }) {
+                selectedCategory = match
+                manualCategorySelection = true
+            }
+        }
+        if let prefillNote, !prefillNote.isEmpty {
+            note = prefillNote
         }
     }
 

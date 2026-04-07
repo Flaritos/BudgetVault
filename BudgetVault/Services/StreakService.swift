@@ -55,6 +55,30 @@ enum StreakService {
         suite?.set(streak, forKey: AppStorageKeys.currentStreak)
     }
 
+    /// One-tap "no spending today" — increments the streak without requiring
+    /// the user to log a $0 transaction. Treated identically to a real log
+    /// for streak purposes. Returns the new streak value.
+    @discardableResult
+    static func markNoSpendDay() -> Int {
+        let today = calendar.startOfDay(for: Date())
+        let todayString = DateHelpers.dateString(today)
+        let lastLogDate = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
+        if lastLogDate == todayString {
+            return UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
+        }
+        recordLogEntry()
+        UserDefaults.standard.set(todayString, forKey: "lastNoSpendDay")
+        NotificationService.cancelStreakAtRisk()
+        return UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
+    }
+
+    /// Whether the user has already logged something (real or no-spend) today.
+    static func hasClosedToday() -> Bool {
+        let todayString = DateHelpers.dateString(calendar.startOfDay(for: Date()))
+        let lastLogDate = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
+        return lastLogDate == todayString
+    }
+
     /// Record that the user logged an entry today — updates streak.
     static func recordLogEntry() {
         let today = Calendar.current.startOfDay(for: Date())

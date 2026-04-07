@@ -57,6 +57,7 @@ struct DashboardView: View {
     @AppStorage("dismissedLaunchBanner") private var hasDissmissedLaunchBanner = false
     @AppStorage("lastCelebratedMilestone") private var lastCelebratedMilestone = 0
     @State private var showFreezeToast = false
+    @State private var noSpendConfirmed = false
 
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
@@ -162,27 +163,54 @@ struct DashboardView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                // FAB — Pill-shaped floating action button
+                // FAB — Pill-shaped floating action button + no-spend day shortcut
                 if currentBudget != nil {
-                    Button {
-                        HapticManager.impact(.medium)
-                        showTransactionEntry = true
-                    } label: {
-                        HStack(spacing: BudgetVaultTheme.spacingSM) {
-                            Image(systemName: "plus")
-                                .font(.body.weight(.bold))
-                            Text("Log Expense")
-                                .font(.subheadline.weight(.semibold))
+                    HStack(spacing: BudgetVaultTheme.spacingMD) {
+                        // No-spend day one-tap (v3.2 daily loop). Closes today
+                        // without forcing a $0 transaction. Hidden once today
+                        // is already closed.
+                        if !StreakService.hasClosedToday() {
+                            Button {
+                                HapticManager.notification(.success)
+                                let newStreak = StreakService.markNoSpendDay()
+                                withAnimation { noSpendConfirmed = true }
+                                Task {
+                                    try? await Task.sleep(for: .seconds(2))
+                                    withAnimation { noSpendConfirmed = false }
+                                }
+                                _ = newStreak
+                            } label: {
+                                Image(systemName: noSpendConfirmed ? "checkmark" : "moon.zzz.fill")
+                                    .font(.body.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 48, height: 48)
+                                    .background(Color.green.opacity(0.85), in: Circle())
+                                    .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
+                            }
+                            .accessibilityLabel("Mark today as no-spend day")
+                            .accessibilityHint("Closes today's vault without logging a transaction")
                         }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-                        .padding(.vertical, BudgetVaultTheme.spacingMD)
-                        .background(Color.accentColor, in: Capsule())
-                        .shadow(color: Color.accentColor.opacity(0.3), radius: 12, y: 6)
+
+                        Button {
+                            HapticManager.impact(.medium)
+                            showTransactionEntry = true
+                        } label: {
+                            HStack(spacing: BudgetVaultTheme.spacingSM) {
+                                Image(systemName: "plus")
+                                    .font(.body.weight(.bold))
+                                Text("Log Expense")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                            .padding(.vertical, BudgetVaultTheme.spacingMD)
+                            .background(Color.accentColor, in: Capsule())
+                            .shadow(color: Color.accentColor.opacity(0.3), radius: 12, y: 6)
+                        }
+                        .accessibilityLabel("Log expense")
+                        .accessibilityHint("Opens the transaction entry form")
                     }
                     .padding(.bottom, BudgetVaultTheme.spacingLG)
-                    .accessibilityLabel("Log expense")
-                    .accessibilityHint("Opens the transaction entry form")
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
