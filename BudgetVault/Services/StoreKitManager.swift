@@ -12,7 +12,7 @@ final class StoreKitManager {
 
     /// Hardcoded launch pricing end date (set to 30 days after App Store approval).
     /// The actual price change happens in App Store Connect; this banner is cosmetic.
-    static let launchPricingEndDate = Date(timeIntervalSince1970: 1_751_328_000) // ~July 1, 2026
+    static let launchPricingEndDate = Date(timeIntervalSince1970: 1_782_950_400) // July 1, 2026 UTC
 
     var products: [Product] = []
     var isPremium = false

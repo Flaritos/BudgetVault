@@ -44,7 +44,6 @@ struct DashboardView: View {
     @State private var newAchievementBanner: String?
     @State private var showInsights = false
 
-    @State private var showProactivePaywall = false
     @State private var showShareCard = false
     @State private var shareCardImage: UIImage?
     @State private var showMoveMoney = false
@@ -54,8 +53,6 @@ struct DashboardView: View {
     @State private var streakMilestoneValue = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
-    @AppStorage(AppStorageKeys.hasSeenTransactionPaywall) private var hasSeenTransactionPaywall = false
-    @AppStorage(AppStorageKeys.hasSeenStreakPaywall) private var hasSeenStreakPaywall = false
     @AppStorage("lastWrappedViewed") private var lastWrappedViewed = ""
     @AppStorage("dismissedLaunchBanner") private var hasDissmissedLaunchBanner = false
     @AppStorage("lastCelebratedMilestone") private var lastCelebratedMilestone = 0
@@ -269,10 +266,6 @@ struct DashboardView: View {
                 }
                 .interactiveDismissDisabled()
             }
-            .sheet(isPresented: $showProactivePaywall) {
-                PaywallView()
-                    .presentationDragIndicator(.visible)
-            }
             .sheet(isPresented: $showShareCard) {
                 if let image = shareCardImage {
                     ShareLink(item: Image(uiImage: image), preview: SharePreview("BudgetVault Milestone", image: Image(uiImage: image))) {
@@ -353,23 +346,12 @@ struct DashboardView: View {
                     ReviewPromptService.checkTransactionMilestone(transactionCount: periodTxCount)
                 }
 
+                // Proactive modal paywalls removed in v3.1.1 — they interrupted habit formation.
+                // Premium upsell now lives in (1) the inline LaunchPricingDashboardBanner,
+                // (2) intent-based triggers (tapping a Premium-locked feature), and
+                // (3) a future delayed prompt at day 14 (see ROADMAP_v3.2 Sprint 1).
                 if !isPremium {
-                    let txCount = allTransactions.count
-                    transactionCount = txCount
-                    var didShowPaywall = false
-
-                    if txCount >= 5 && !hasSeenTransactionPaywall {
-                        try? await Task.sleep(for: .seconds(1.5))
-                        hasSeenTransactionPaywall = true
-                        showProactivePaywall = true
-                        didShowPaywall = true
-                    }
-
-                    if !didShowPaywall && currentStreak >= 7 && !hasSeenStreakPaywall {
-                        try? await Task.sleep(for: .seconds(1.5))
-                        hasSeenStreakPaywall = true
-                        showProactivePaywall = true
-                    }
+                    transactionCount = allTransactions.count
                 }
             }
             .onChange(of: allTransactions.count) { _, _ in
