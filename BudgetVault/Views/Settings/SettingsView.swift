@@ -41,6 +41,7 @@ struct SettingsView: View {
     @State private var exportErrorMessage = ""
     @State private var showDeleteAllConfirm = false
     @State private var showDeleteAllFinalConfirm = false
+    @State private var showFeedback = false
 
     var body: some View {
         Form {
@@ -58,6 +59,9 @@ struct SettingsView: View {
             NavigationStack {
                 RecurringExpenseListView()
             }
+        }
+        .sheet(isPresented: $showFeedback) {
+            FeedbackView()
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
@@ -560,6 +564,13 @@ struct SettingsView: View {
                        message: Text("I use BudgetVault to manage my budget \u{2014} private, on-device, and no subscription. Check it out!")) {
                 Label("Share BudgetVault", systemImage: "heart.fill")
             }
+
+            Button {
+                showFeedback = true
+            } label: {
+                Label("Send Feedback", systemImage: "bubble.left.and.bubble.right.fill")
+            }
+            .foregroundStyle(.primary)
 
             Text("Your data never leaves this device.")
                 .font(.caption)

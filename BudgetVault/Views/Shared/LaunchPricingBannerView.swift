@@ -60,7 +60,7 @@ struct LaunchPricingCardView: View {
                 }
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(storeKit.premiumProduct?.displayPrice ?? "$9.99")
+                    Text(storeKit.premiumProduct?.displayPrice ?? "$14.99")
                         .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
                     Text("one-time, forever")
@@ -121,7 +121,7 @@ struct LaunchPricingDashboardBanner: View {
                         .font(.title3)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Launch pricing: \(storeKit.premiumProduct?.displayPrice ?? "$9.99") forever")
+                        Text("Launch pricing: \(storeKit.premiumProduct?.displayPrice ?? "$14.99") forever")
                             .font(.subheadline.weight(.bold))
                         Text("Price increases July 1 — lock it in")
                             .font(.caption)
