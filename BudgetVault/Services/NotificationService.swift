@@ -108,24 +108,33 @@ enum NotificationService {
     /// Schedule a 9pm "close today's vault" reminder. The action is the
     /// daily-loop habit anchor — open the app, mark the day done (or no-spend),
     /// and close the ring. Repeats daily until cancelled.
+    ///
+    /// v3.2 audit L1: skip this push if a streak-at-risk reminder is
+    /// already scheduled today. Back-to-back 8pm + 9pm pings read as
+    /// nagging rather than helpful.
     static func scheduleEveningCloseVault(hour: Int = 21) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["closeVault"])
 
-        let content = UNMutableNotificationContent()
-        content.title = "Close today's vault"
-        content.body = "Log anything you missed — or tap “No spending today.”"
-        content.sound = .default
-        content.userInfo = ["type": "closeVault"]
-        content.categoryIdentifier = dailyReminderCategoryIdentifier
+        center.getPendingNotificationRequests { requests in
+            let hasStreakAtRisk = requests.contains { $0.identifier == "streakAtRisk" }
+            guard !hasStreakAtRisk else { return }
 
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = 0
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            let content = UNMutableNotificationContent()
+            content.title = "Close today's vault"
+            content.body = "Log anything you missed — or tap “No spending today.”"
+            content.sound = .default
+            content.userInfo = ["type": "closeVault"]
+            content.categoryIdentifier = dailyReminderCategoryIdentifier
 
-        let request = UNNotificationRequest(identifier: "closeVault", content: content, trigger: trigger)
-        center.add(request)
+            var components = DateComponents()
+            components.hour = hour
+            components.minute = 0
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+
+            let request = UNNotificationRequest(identifier: "closeVault", content: content, trigger: trigger)
+            center.add(request)
+        }
     }
 
     static func cancelEveningCloseVault() {

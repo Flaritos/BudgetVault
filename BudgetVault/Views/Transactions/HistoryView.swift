@@ -582,10 +582,11 @@ struct HistoryView: View {
                     .listRowSeparator(.hidden)
             }
 
-            // v3.2 Sprint 5: "Today" summary anchors the daily habit loop.
-            // Always renders on the current period so users can verify
-            // today's spending at a glance, with an add-CTA on zero-spend.
-            if isCurrentPeriod {
+            // v3.2 Sprint 5 / audit M1: "Today" CTA only when today has
+            // no transactions. When today DOES have transactions, the
+            // existing cachedGroupedByDay renders a Today section header,
+            // so showing a second row is redundant.
+            if isCurrentPeriod && !hasTransactionToday {
                 todaySummaryRow
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
@@ -700,59 +701,50 @@ struct HistoryView: View {
 
     // MARK: - Transaction Row (H1B Card Style)
 
-    /// v3.2: sticky "Today" row. Shows count + total spent today, or a
-    /// tap-to-add CTA when nothing has been logged yet.
-    @ViewBuilder
-    private var todaySummaryRow: some View {
+    /// v3.2: "Today" empty-state CTA. Only rendered when nothing has
+    /// been logged today — otherwise the existing day-group header
+    /// already shows Today's total and would be duplicated here.
+    private var hasTransactionToday: Bool {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        let todayTxns = allTransactions.filter {
+        return allTransactions.contains {
             !$0.isIncome && cal.isDate($0.date, inSameDayAs: today)
         }
-        let todaySpent = todayTxns.reduce(Int64(0)) { $0 + $1.amountCents }
+    }
 
+    @ViewBuilder
+    private var todaySummaryRow: some View {
         HStack(spacing: BudgetVaultTheme.spacingMD) {
-            Image(systemName: todayTxns.isEmpty ? "sun.max.fill" : "checkmark.circle.fill")
+            Image(systemName: "sun.max.fill")
                 .font(.title3)
-                .foregroundStyle(todayTxns.isEmpty ? Color.orange : Color.green)
+                .foregroundStyle(Color.orange)
                 .frame(width: 36, height: 36)
                 .background(
-                    (todayTxns.isEmpty ? Color.orange : Color.green).opacity(0.12),
+                    Color.orange.opacity(0.12),
                     in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 )
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("Today")
                     .font(.subheadline.weight(.bold))
-                if todayTxns.isEmpty {
-                    Text("Nothing logged yet")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("\(todayTxns.count) transaction\(todayTxns.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text("Nothing logged yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            if todayTxns.isEmpty {
-                Button {
-                    NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
-                } label: {
-                    Text("Log")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.accentColor, in: Capsule())
-                }
-                .buttonStyle(.plain)
-            } else {
-                Text(CurrencyFormatter.format(cents: todaySpent))
-                    .font(BudgetVaultTheme.rowAmount)
+            Button {
+                NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+            } label: {
+                Text("Log")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.accentColor, in: Capsule())
             }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, BudgetVaultTheme.spacingSM + 2)
         .padding(.horizontal)

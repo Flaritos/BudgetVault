@@ -58,6 +58,9 @@ struct DashboardView: View {
     @AppStorage("lastCelebratedMilestone") private var lastCelebratedMilestone = 0
     @State private var showFreezeToast = false
     @State private var noSpendConfirmed = false
+    /// Observed copy of StreakService.hasClosedToday() — plain state so
+    /// mutations trigger redraws. Refreshed in refreshCachedValues().
+    @State private var todayClosed = false
 
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
@@ -166,30 +169,32 @@ struct DashboardView: View {
                 // FAB — Pill-shaped floating action button + no-spend day shortcut
                 if currentBudget != nil {
                     HStack(spacing: BudgetVaultTheme.spacingMD) {
-                        // No-spend day one-tap (v3.2 daily loop). Closes today
-                        // without forcing a $0 transaction. Hidden once today
-                        // is already closed.
-                        if !StreakService.hasClosedToday() {
-                            Button {
-                                HapticManager.notification(.success)
-                                let newStreak = StreakService.markNoSpendDay()
-                                withAnimation { noSpendConfirmed = true }
-                                Task {
-                                    try? await Task.sleep(for: .seconds(2))
-                                    withAnimation { noSpendConfirmed = false }
-                                }
-                                _ = newStreak
-                            } label: {
-                                Image(systemName: noSpendConfirmed ? "checkmark" : "moon.zzz.fill")
-                                    .font(.body.weight(.bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 48, height: 48)
-                                    .background(Color.green.opacity(0.85), in: Circle())
-                                    .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
-                            }
-                            .accessibilityLabel("Mark today as no-spend day")
-                            .accessibilityHint("Closes today's vault without logging a transaction")
+                        // v3.2 audit C2: persistent state instead of hiding
+                        // the button after tap. Disabled + checkmark tells
+                        // the user "today is closed" without losing
+                        // discoverability or leaving them wondering what
+                        // happened.
+                        Button {
+                            guard !todayClosed else { return }
+                            HapticManager.notification(.success)
+                            _ = StreakService.markNoSpendDay()
+                            withAnimation { todayClosed = true }
+                        } label: {
+                            Image(systemName: todayClosed ? "checkmark" : "moon.zzz.fill")
+                                .font(.body.weight(.bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 48, height: 48)
+                                .background(
+                                    todayClosed
+                                        ? Color.green.opacity(0.55)
+                                        : Color.green.opacity(0.85),
+                                    in: Circle()
+                                )
+                                .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
                         }
+                        .disabled(todayClosed)
+                        .accessibilityLabel(todayClosed ? "Today's vault is closed" : "Mark today as no-spend day")
+                        .accessibilityHint("Closes today's vault without logging a transaction")
 
                         Button {
                             HapticManager.impact(.medium)
@@ -580,7 +585,7 @@ struct DashboardView: View {
                 .clipShape(RoundedCorner(radius: BudgetVaultTheme.radiusXL, corners: [.topLeft, .topRight]))
                 .padding(.top, -20) // overlap the hero gradient
             }
-            .padding(.bottom, 80) // space for FAB
+            .padding(.bottom, 120) // v3.2 audit H2: space for widened FAB (moon + pill)
             .onAppear {
                 guard !hasAppeared else { return }
                 if reduceMotion {
@@ -781,8 +786,15 @@ struct DashboardView: View {
             } else {
                 let bufferDays = Int(budget.remainingCents / avgDailySpend)
                 let surplus = bufferDays - daysRemaining
+                // v3.2 audit H1: cap absurd values. If the user's pace
+                // would last 2x+ the period we already know they're way
+                // ahead — show a clean "∞" instead of "+1370d".
+                let cap = daysInPeriod * 2
 
-                if surplus > 0 {
+                if surplus > cap {
+                    bufferText = "\u{221E}"
+                    bufferColor = BudgetVaultTheme.positive
+                } else if surplus > 0 {
                     bufferText = "+\(surplus)d"
                     bufferColor = BudgetVaultTheme.positive
                 } else if surplus == 0 {
@@ -1391,6 +1403,7 @@ struct DashboardView: View {
 
     /// Pre-compute spent values once and cache them (0.1 performance fix)
     private func refreshCachedValues() {
+        todayClosed = StreakService.hasClosedToday()
         let budget = currentBudget
         cachedBudget = budget
         guard let budget else {

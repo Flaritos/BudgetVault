@@ -125,14 +125,18 @@ struct ChatOnboardingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Skip button (top right, steps 1-3 only)
+                // Skip button (top right, steps 1-3 only). v3.2: promoted
+                // from subtle gray text to a visible pill chip per audit M2.
                 if currentStep > 0 && currentStep < 4 {
                     HStack {
                         Spacer()
                         Button { skipOnboarding() } label: {
-                            Text("Skip")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.35))
+                            Text("Skip for now")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(.white.opacity(0.12), in: Capsule())
                         }
                     }
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
@@ -197,7 +201,7 @@ struct ChatOnboardingView: View {
                     .foregroundStyle(.white.opacity(0.6))
                     .multilineTextAlignment(.center)
 
-                Text("4 steps to unlock your vault")
+                Text("4 quick steps — skip anytime")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.35))
                     .padding(.top, BudgetVaultTheme.spacingSM)
@@ -205,15 +209,28 @@ struct ChatOnboardingView: View {
 
             Spacer()
 
-            Button {
-                advanceStep()
-            } label: {
-                Text("Begin Setup")
-                    .font(.headline)
-                    .foregroundStyle(BudgetVaultTheme.navyDark)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+            VStack(spacing: 12) {
+                Button {
+                    advanceStep()
+                } label: {
+                    Text("Begin Setup")
+                        .font(.headline)
+                        .foregroundStyle(BudgetVaultTheme.navyDark)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                }
+
+                // v3.2 audit M2: explicit "skip for now" on welcome so the
+                // fastest path to the app is a single tap.
+                Button {
+                    skipOnboarding()
+                } label: {
+                    Text("Skip for now")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(.vertical, 8)
+                }
             }
             .padding(.horizontal, BudgetVaultTheme.spacingXL)
             .padding(.bottom, BudgetVaultTheme.spacingXL)

@@ -1,9 +1,12 @@
 import Foundation
+import os
 #if canImport(ActivityKit) && os(iOS)
 import ActivityKit
 #endif
 
 #if canImport(ActivityKit) && os(iOS)
+
+private let liveActivityLog = Logger(subsystem: "io.budgetvault.app", category: "LiveActivity")
 
 /// Wrapper around ActivityKit for the daily allowance Live Activity.
 /// Started on the first transaction of the day, updated on each subsequent
@@ -54,10 +57,9 @@ enum BudgetLiveActivityService {
                 pushType: nil
             )
         } catch {
-            // Live Activities can fail silently — not worth alerting the user.
-            #if DEBUG
-            print("[BudgetLiveActivity] start failed: \(error)")
-            #endif
+            // v3.2 audit L2: OSLog so production issues are diagnosable
+            // via Console.app without crashing on the user.
+            liveActivityLog.error("start failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
