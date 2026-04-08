@@ -1409,6 +1409,42 @@ struct DashboardView: View {
             allBudgets: allBudgets,
             currentStreak: currentStreak
         )
+        refreshLiveActivity(budget: budget)
+    }
+
+    /// v3.2 Sprint 2 wiring: keep the Lock Screen / Dynamic Island Live
+    /// Activity in sync with the current budget. Starts the activity the
+    /// first time we see a budget today, then pushes updates on subsequent
+    /// refreshes. No-op on iOS < 16.2 or if the user has disabled activities.
+    private func refreshLiveActivity(budget: Budget) {
+        let remainingCents = budget.remainingCents
+        let dailyAllowance = viewModel.dailyAllowanceCents(
+            remainingCents: remainingCents,
+            periodStart: budget.periodStart,
+            nextPeriodStart: budget.nextPeriodStart
+        )
+        let totalDays = max(1, Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)
+        let dayOfPeriod = max(1, min(totalDays, (Calendar.current.dateComponents([.day], from: budget.periodStart, to: Date()).day ?? 0) + 1))
+        let spentFraction: Double = budget.totalIncomeCents > 0
+            ? 1.0 - (Double(remainingCents) / Double(budget.totalIncomeCents))
+            : 0
+        BudgetLiveActivityService.update(
+            remainingCents: remainingCents,
+            dailyAllowanceCents: dailyAllowance,
+            spentFraction: max(0, min(1, spentFraction)),
+            dayOfPeriod: dayOfPeriod,
+            totalDays: totalDays,
+            currencyCode: selectedCurrency
+        )
+        BudgetLiveActivityService.start(
+            remainingCents: remainingCents,
+            dailyAllowanceCents: dailyAllowance,
+            spentFraction: max(0, min(1, spentFraction)),
+            dayOfPeriod: dayOfPeriod,
+            totalDays: totalDays,
+            currencyCode: selectedCurrency,
+            periodEndDate: budget.nextPeriodStart
+        )
     }
 
     /// Look up cached spent value for a category, falling back to live computation
@@ -1421,18 +1457,26 @@ struct DashboardView: View {
     private func schedulePersonalizedWeeklySummary(budget: Budget) {
         let calendar = Calendar.current
         let today = Date()
-        guard let weekAgo = calendar.date(byAdding: .day, value: -7, to: today) else { return }
+        guard let weekAgo = calendar.date(byAdding: .day, value: -7, to: today),
+              let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: today) else { return }
 
         let weekTransactions = allTransactions.filter {
             !$0.isIncome && $0.date >= weekAgo && $0.date < today
         }
         let weeklySpent = weekTransactions.reduce(Int64(0)) { $0 + $1.amountCents }
 
+        // v3.2 Sprint 3: include last week for comparative pulse copy.
+        let lastWeekTransactions = allTransactions.filter {
+            !$0.isIncome && $0.date >= twoWeeksAgo && $0.date < weekAgo
+        }
+        let lastWeekSpent = lastWeekTransactions.reduce(Int64(0)) { $0 + $1.amountCents }
+
         NotificationService.scheduleWeeklySummary(
             weeklySpent: weeklySpent,
             transactionCount: weekTransactions.count,
             remaining: budget.remainingCents,
-            currencyCode: selectedCurrency
+            currencyCode: selectedCurrency,
+            lastWeekSpent: lastWeekSpent
         )
     }
 

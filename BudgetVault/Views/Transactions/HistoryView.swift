@@ -582,6 +582,16 @@ struct HistoryView: View {
                     .listRowSeparator(.hidden)
             }
 
+            // v3.2 Sprint 5: "Today" summary anchors the daily habit loop.
+            // Always renders on the current period so users can verify
+            // today's spending at a glance, with an add-CTA on zero-spend.
+            if isCurrentPeriod {
+                todaySummaryRow
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
             // Grouped transactions by day
             ForEach(cachedGroupedByDay, id: \.date) { group in
                 Section {
@@ -609,6 +619,18 @@ struct HistoryView: View {
                                     Label("Duplicate", systemImage: "doc.on.doc")
                                 }
                                 .tint(Color.accentColor)
+
+                                Button {
+                                    transaction.isReconciled.toggle()
+                                    try? modelContext.save()
+                                    HapticManager.selection()
+                                } label: {
+                                    Label(
+                                        transaction.isReconciled ? "Unreview" : "Reviewed",
+                                        systemImage: transaction.isReconciled ? "checkmark.circle.fill" : "checkmark.circle"
+                                    )
+                                }
+                                .tint(.green)
                             }
                             .contextMenu {
                                 Button {
@@ -678,6 +700,70 @@ struct HistoryView: View {
 
     // MARK: - Transaction Row (H1B Card Style)
 
+    /// v3.2: sticky "Today" row. Shows count + total spent today, or a
+    /// tap-to-add CTA when nothing has been logged yet.
+    @ViewBuilder
+    private var todaySummaryRow: some View {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let todayTxns = allTransactions.filter {
+            !$0.isIncome && cal.isDate($0.date, inSameDayAs: today)
+        }
+        let todaySpent = todayTxns.reduce(Int64(0)) { $0 + $1.amountCents }
+
+        HStack(spacing: BudgetVaultTheme.spacingMD) {
+            Image(systemName: todayTxns.isEmpty ? "sun.max.fill" : "checkmark.circle.fill")
+                .font(.title3)
+                .foregroundStyle(todayTxns.isEmpty ? Color.orange : Color.green)
+                .frame(width: 36, height: 36)
+                .background(
+                    (todayTxns.isEmpty ? Color.orange : Color.green).opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                )
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Today")
+                    .font(.subheadline.weight(.bold))
+                if todayTxns.isEmpty {
+                    Text("Nothing logged yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("\(todayTxns.count) transaction\(todayTxns.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            if todayTxns.isEmpty {
+                Button {
+                    NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+                } label: {
+                    Text("Log")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text(CurrencyFormatter.format(cents: todaySpent))
+                    .font(BudgetVaultTheme.rowAmount)
+            }
+        }
+        .padding(.vertical, BudgetVaultTheme.spacingSM + 2)
+        .padding(.horizontal)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .padding(.horizontal)
+        .padding(.vertical, 4)
+    }
+
     @ViewBuilder
     private func transactionRow(_ transaction: Transaction) -> some View {
         let catColor = transactionCategoryColor(transaction)
@@ -713,10 +799,18 @@ struct HistoryView: View {
 
             Spacer()
 
-            // Amount
-            Text(transactionFormattedAmount(transaction))
-                .font(BudgetVaultTheme.rowAmount)
-                .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : .primary)
+            // Amount + reconciled indicator
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(transactionFormattedAmount(transaction))
+                    .font(BudgetVaultTheme.rowAmount)
+                    .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : .primary)
+                if transaction.isReconciled {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.green.opacity(0.7))
+                        .accessibilityLabel("Reviewed")
+                }
+            }
         }
         .padding(.vertical, BudgetVaultTheme.spacingSM + 2)
         .accessibilityElement(children: .combine)

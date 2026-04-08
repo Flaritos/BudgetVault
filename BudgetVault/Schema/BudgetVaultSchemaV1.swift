@@ -199,11 +199,14 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var id: UUID = UUID()
         var amountCents: Int64 = 0
         var note: String = ""
-        // TODO: iOS 18 - Add @Attribute(.index) for query performance
         var date: Date = Date.now
         var isIncome: Bool = false
         var isRecurring: Bool = false
         var createdAt: Date = Date.now
+        /// v3.2: user has manually marked this transaction as reviewed/verified.
+        /// Lightweight reconciliation — not a full YNAB-style flow. Defaults
+        /// to false so existing rows auto-migrate cleanly.
+        var isReconciled: Bool = false
 
         var category: Category?
 
@@ -218,6 +221,7 @@ enum BudgetVaultSchemaV1: VersionedSchema {
             self.isIncome = isIncome
             self.createdAt = Date.now
             self.category = category
+            self.isReconciled = false
         }
 
         // MARK: Computed

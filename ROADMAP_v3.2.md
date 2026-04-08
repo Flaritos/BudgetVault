@@ -84,6 +84,12 @@ Blocks v3.3 partner sharing and iPad. Non-negotiable.
 
 ---
 
+## Deferred mid-sprint (to v3.2.1 or later)
+- **@Query predicate refactor** (Sprint 4 #16) — requires threading runtime period bounds through `@Query` initializers, which is invasive and risks breaking the Dashboard/History/Insights data flow on a live app. Current perf is acceptable below ~5K transactions; revisit when a user reports slowdown, or when we bump to iOS 18's fully dynamic `@Query(filter:)` API.
+- **SwiftData `@Attribute(.index)`** (Sprint 4 #18 part) — adding indexes is a schema change that requires a `BudgetVaultSchemaV2` migration. The reconciliation field (`isReconciled`) uses lightweight additive migration which is safe; indexes are not. Batched with the predicate refactor above.
+- **Interactive Widget Button full wiring** — widget already has `Button(intent: OpenAddExpenseIntent())` but the intent just opens the app. True in-widget save-without-opening is a Sprint 3 extension.
+- **Split transactions** — deferred to Sprint 3.5 after the reconciliation checkbox lands in user hands and we can judge whether people actually want splits vs. just separate transactions.
+
 ## Explicitly Deferred to v3.3+
 
 - **iPad support** — worth it, but not the retention lever. 2-3 days work post-v3.2.

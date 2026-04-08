@@ -158,7 +158,11 @@ enum NotificationService {
 
     /// Schedule a personalized weekly summary with computed spending data.
     /// Call this from the dashboard or app lifecycle with actual budget data.
-    static func scheduleWeeklySummary(weeklySpent: Int64, transactionCount: Int, remaining: Int64, currencyCode: String) {
+    ///
+    /// v3.2 Sprint 3: now takes `lastWeekSpent` to build a comparative body —
+    /// comparison-to-last-week copy is the format Copilot users praise most,
+    /// per the competitive audit.
+    static func scheduleWeeklySummary(weeklySpent: Int64, transactionCount: Int, remaining: Int64, currencyCode: String, lastWeekSpent: Int64 = -1) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
 
@@ -166,9 +170,22 @@ enum NotificationService {
         let remainingFormatted = CurrencyFormatter.format(cents: remaining, currencyCode: currencyCode)
 
         let content = UNMutableNotificationContent()
-        content.title = "Weekly Summary"
+        content.title = "Weekly Pulse"
         if weeklySpent > 0 {
-            content.body = "You spent \(spentFormatted) this week across \(transactionCount) transaction\(transactionCount == 1 ? "" : "s"). \(remainingFormatted) remaining."
+            var body = "You spent \(spentFormatted) this week across \(transactionCount) transaction\(transactionCount == 1 ? "" : "s")."
+            if lastWeekSpent > 0 {
+                let delta = weeklySpent - lastWeekSpent
+                let deltaFormatted = CurrencyFormatter.format(cents: abs(delta), currencyCode: currencyCode)
+                if delta < 0 {
+                    body += " \(deltaFormatted) less than last week — nice."
+                } else if delta > 0 {
+                    body += " \(deltaFormatted) more than last week."
+                } else {
+                    body += " Same as last week."
+                }
+            }
+            body += " \(remainingFormatted) remaining."
+            content.body = body
         } else {
             content.body = "No spending logged this week. \(remainingFormatted) remaining in your budget."
         }
