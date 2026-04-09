@@ -145,28 +145,98 @@ struct FinanceTabView: View {
 
     @ViewBuilder
     private var nonPremiumContent: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            VaultDialMark(size: 80)
-            Text("Unlock the Vault")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
-            Text("Premium features including budget intelligence, insights, and debt tracking.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.5))
-                .multilineTextAlignment(.center)
+        // v3.2 audit H5: tab was a pure paywall with a countdown timer —
+        // dark-pattern vibe. Now shows a teaser grid of what's inside
+        // BEFORE the paywall CTA so users see the value, then decide.
+        ScrollView {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
+                VaultDialMark(size: 72)
+                    .padding(.top, BudgetVaultTheme.spacingLG)
 
-            // Launch pricing card with countdown
-            LaunchPricingCardView()
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
+                    Text("The Vault")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text("Premium features. Unlock once, keep forever.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                }
+
+                // Feature teaser grid — 4 of the premium features previewed
+                // with icon + name so the tab feels like a preview, not a wall.
+                VStack(spacing: BudgetVaultTheme.spacingMD) {
+                    vaultFeatureRow(
+                        icon: "brain.head.profile",
+                        title: "Vault Intelligence",
+                        blurb: "On-device ML predicts month-end spend and flags anomalies."
+                    )
+                    vaultFeatureRow(
+                        icon: "creditcard.trianglebadge.exclamationmark",
+                        title: "Debt Tracker",
+                        blurb: "Track payoff progress with avalanche and snowball strategies."
+                    )
+                    vaultFeatureRow(
+                        icon: "sparkles.rectangle.stack.fill",
+                        title: "Monthly Wrapped",
+                        blurb: "A Spotify-style look at your month. Yours to share."
+                    )
+                    vaultFeatureRow(
+                        icon: "infinity",
+                        title: "Unlimited Categories",
+                        blurb: "Build the budget you actually need, no limits."
+                    )
+                }
                 .padding(.horizontal)
 
-            Button { showPaywall = true } label: {
-                Text(storeKit.isLaunchPricing ? "Unlock Now — Launch Price" : "See Premium Features")
+                LaunchPricingCardView()
+                    .padding(.horizontal)
+
+                Button { showPaywall = true } label: {
+                    Text(storeKit.isLaunchPricing ? "Unlock Now" : "See Premium Features")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal)
+                .padding(.bottom, BudgetVaultTheme.spacingXL)
             }
-            .buttonStyle(PrimaryButtonStyle())
+            .padding(BudgetVaultTheme.spacingLG)
         }
-        .padding(BudgetVaultTheme.spacingXL)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BudgetVaultTheme.navyDark)
+    }
+
+    @ViewBuilder
+    private func vaultFeatureRow(icon: String, title: String, blurb: String) -> some View {
+        HStack(alignment: .top, spacing: BudgetVaultTheme.spacingMD) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(neonBlue)
+                .frame(width: 40, height: 40)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(neonBlue.opacity(0.12))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                Text(blurb)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                .fill(Color.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                        .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
     }
 
     // MARK: - Vault Header

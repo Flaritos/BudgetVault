@@ -61,6 +61,9 @@ struct DashboardView: View {
     /// Observed copy of StreakService.hasClosedToday() — plain state so
     /// mutations trigger redraws. Refreshed in refreshCachedValues().
     @State private var todayClosed = false
+    /// v3.2 audit B4: visible feedback for no-spend button tap.
+    @State private var showNoSpendToast = false
+    @State private var showBufferInfo = false
 
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
@@ -178,7 +181,15 @@ struct DashboardView: View {
                             guard !todayClosed else { return }
                             HapticManager.notification(.success)
                             _ = StreakService.markNoSpendDay()
-                            withAnimation { todayClosed = true }
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                                todayClosed = true
+                                showNoSpendToast = true
+                            }
+                            // Auto-dismiss the toast after 2.5s.
+                            Task {
+                                try? await Task.sleep(for: .seconds(2.5))
+                                withAnimation { showNoSpendToast = false }
+                            }
                         } label: {
                             Image(systemName: todayClosed ? "checkmark" : "moon.zzz.fill")
                                 .font(.body.weight(.bold))
@@ -300,6 +311,11 @@ struct DashboardView: View {
                 }
                 .interactiveDismissDisabled()
             }
+            .alert("Buffer Days", isPresented: $showBufferInfo) {
+                Button("Got it") {}
+            } message: {
+                Text("How many extra days your budget could last at your current pace.\n\n+5d means you're ahead of schedule. -2d means you'll run out 2 days early.\n\n∞ means you're WAY ahead — keep it up.")
+            }
             .sheet(isPresented: $showShareCard) {
                 if let image = shareCardImage {
                     ShareLink(item: Image(uiImage: image), preview: SharePreview("BudgetVault Milestone", image: Image(uiImage: image))) {
@@ -408,6 +424,23 @@ struct DashboardView: View {
                 .padding(.top, 8)
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 .animation(reduceMotion ? .default : .spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
+            }
+
+            // v3.2 audit B4: no-spend day confirmation toast.
+            if showNoSpendToast {
+                HStack(spacing: 8) {
+                    Image(systemName: "moon.zzz.fill")
+                        .foregroundStyle(.white)
+                    Text("Today's vault is closed \u{00B7} streak saved")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.green.opacity(0.9), in: Capsule())
+                .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             // Freeze toast
@@ -586,7 +619,7 @@ struct DashboardView: View {
                 .clipShape(RoundedCorner(radius: BudgetVaultTheme.radiusXL, corners: [.topLeft, .topRight]))
                 .padding(.top, -20) // overlap the hero gradient
             }
-            .padding(.bottom, 120) // v3.2 audit H2: space for widened FAB (moon + pill)
+            .padding(.bottom, 160) // v3.2 audit H3/B3: space for widened FAB + tab bar safe area
             .onAppear {
                 guard !hasAppeared else { return }
                 if reduceMotion {
@@ -612,7 +645,14 @@ struct DashboardView: View {
         dayProgressText: String
     ) -> some View {
         let spentFraction = 1.0 - budget.percentRemaining
+        // v3.2 audit B1: when there's real spending but < 1% of budget,
+        // show "<1%" instead of rounding to "0%" — which reads as
+        // "nothing logged" to first-time users.
         let spentPercent = Int(min(spentFraction, 1.0) * 100)
+        let spentPercentLabel: String = {
+            if spentFraction > 0 && spentPercent == 0 { return "<1%" }
+            return "\(spentPercent)%"
+        }()
         let ringSize: CGFloat = 100
 
         ZStack {
@@ -674,7 +714,7 @@ struct DashboardView: View {
 
                         // Percentage text
                         VStack(spacing: 0) {
-                            Text("\(spentPercent)%")
+                            Text(spentPercentLabel)
                                 .font(.system(size: 20, weight: .heavy, design: .rounded))
                                 .foregroundStyle(.white)
                             Text("spent")
@@ -809,10 +849,20 @@ struct DashboardView: View {
         }
 
         return VStack(spacing: 2) {
-            Text("BUFFER")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(.white.opacity(0.35))
-                .tracking(0.5)
+            // v3.2 audit L1: tappable buffer label → info alert explaining
+            // what buffer days are. Users didn't know what "+5d" meant.
+            Button { showBufferInfo = true } label: {
+                HStack(spacing: 3) {
+                    Text("BUFFER")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .tracking(0.5)
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 8))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+            }
+            .buttonStyle(.plain)
             Text(bufferText)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(bufferColor)
@@ -1222,11 +1272,11 @@ struct DashboardView: View {
                 Text("\(currentStreak)-day streak")
                     .font(.subheadline.bold())
 
-                if let nextMilestone = nextStreakMilestone {
-                    Text("Keep logging to reach \(nextMilestone) days!")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                // v3.2 audit L2: softened preachy "Keep logging to reach X days!"
+                // on 1-day streak. Just surface the next milestone as a quiet line.
+                Text(nextMilestoneLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 // Weekly dots
                 HStack(spacing: 3) {
@@ -1238,21 +1288,24 @@ struct DashboardView: View {
                             .frame(width: 8, height: 8)
                     }
                 }
-
-                Text(nextMilestoneLabel)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                .padding(.top, 2)
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // v3.2 audit M5: unified card background to white with a narrow orange
+        // accent stripe instead of cream — cream was the only cream surface in
+        // the whole app, clashing with the envelope card and navy hero.
         .background(
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
-                .fill(Color(hex: "#FBBF24").opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
-                        .strokeBorder(Color(hex: "#FBBF24").opacity(0.12), lineWidth: 1)
-                )
+                .fill(Color(.systemBackground))
+                .overlay(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color(hex: "#FBBF24"))
+                        .frame(width: 3)
+                        .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                }
+                .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
         )
         .padding(.horizontal)
     }
@@ -1263,9 +1316,10 @@ struct DashboardView: View {
     }
 
     private var nextMilestoneLabel: String {
-        guard let next = nextStreakMilestone else { return "You've reached the top!" }
-        let names: [Int: String] = [7: "Week Warrior", 14: "Two Weeks Strong", 30: "Monthly Master", 60: "Sixty Solid", 90: "Ninety Nailed", 100: "Century Club"]
-        return "Next: \(next) days (\(names[next] ?? "Milestone"))"
+        guard let next = nextStreakMilestone else { return "You're a legend." }
+        // v3.2 audit L2: toned down from "Next: X days (Week Warrior)" on
+        // a 1-day streak — reads preachy. Simpler, quieter cue.
+        return "Next milestone: \(next) days"
     }
 
     // MARK: - Quick Actions Row

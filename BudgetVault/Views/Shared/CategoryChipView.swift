@@ -21,7 +21,11 @@ struct CategoryChipView: View {
             Text(name)
                 .font(.caption2)
                 .lineLimit(1)
-                .foregroundStyle(.secondary)
+                // v3.2 audit M3: absolute colors. Parent Button's tint was
+                // bleeding into Text's hierarchical .secondary, rendering
+                // labels as tinted blue. Navy by default; electric blue on
+                // selected so users can see which envelope they chose.
+                .foregroundStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.7))
         }
         .frame(width: chipWidth)
     }

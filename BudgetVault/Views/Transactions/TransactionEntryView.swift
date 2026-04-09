@@ -238,12 +238,26 @@ struct TransactionEntryView: View {
                                 }
                             }
                         }
+                        .tint(.primary) // v3.2 M3: prevent button tint bleed into chip label
                         .accessibilityLabel(category.name)
                         .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
                     }
                 }
                 .padding(.horizontal)
             }
+            // v3.2 audit H4: right-edge fade mask so horizontal overflow
+            // is discoverable instead of silently cut off.
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.0),
+                        .init(color: .black, location: 0.9),
+                        .init(color: .clear, location: 1.0)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
         }
     }
 

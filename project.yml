@@ -25,6 +25,7 @@ schemes:
       storeKitConfiguration: BudgetVault/Configuration.storekit
     test:
       config: Debug
+      storeKitConfiguration: BudgetVault/Configuration.storekit
       targets:
         - BudgetVaultTests
         - BudgetVaultUITests
@@ -38,7 +39,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app
-        MARKETING_VERSION: "3.1.1"
+        MARKETING_VERSION: "3.2"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: BudgetVault/BudgetVault.entitlements
@@ -106,7 +107,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.widget
-        MARKETING_VERSION: "3.1.1"
+        MARKETING_VERSION: "3.2"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: BudgetVaultWidget/BudgetVaultWidget.entitlements

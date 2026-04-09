@@ -68,17 +68,19 @@ struct LaunchPricingCardView: View {
                         .foregroundStyle(.white.opacity(0.5))
                 }
 
+                // v3.2 audit L8: was a ticking "83d 12h 0m" countdown which
+                // felt like artificial urgency and conflicted with the calm
+                // privacy-first tone. Now shows a single date.
                 HStack(spacing: 6) {
-                    Text("Increases in")
+                    Image(systemName: "calendar")
                         .font(.caption2)
                         .foregroundStyle(BudgetVaultTheme.caution)
-
-                    HStack(spacing: 3) {
-                        cdBox("\(cd.days)d")
-                        cdBox("\(cd.hours)h")
-                        cdBox("\(cd.minutes)m")
-                    }
+                    Text("Price goes up July 1")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(BudgetVaultTheme.caution)
                 }
+                // keep cd referenced so the guard-let stays meaningful
+                .opacity(cd.days >= 0 ? 1 : 1)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)

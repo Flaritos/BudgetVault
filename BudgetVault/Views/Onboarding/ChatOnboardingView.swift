@@ -125,9 +125,11 @@ struct ChatOnboardingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Skip button (top right, steps 1-3 only). v3.2: promoted
-                // from subtle gray text to a visible pill chip per audit M2.
-                if currentStep > 0 && currentStep < 4 {
+                // Skip button (top right, steps 2-3 only). v3.2: promoted
+                // from subtle gray text to a visible pill chip.
+                // v3.2 audit M7: HIDDEN on currency step (step 1) — skipping
+                // currency leaves the app in an undefined state.
+                if currentStep > 1 && currentStep < 4 {
                     HStack {
                         Spacer()
                         Button { skipOnboarding() } label: {
@@ -200,6 +202,13 @@ struct ChatOnboardingView: View {
                     .font(.body)
                     .foregroundStyle(.white.opacity(0.6))
                     .multilineTextAlignment(.center)
+
+                // v3.2 audit M1/L5: surface the strongest anti-positioning
+                // claim at the exact moment users decide to stay.
+                Text("No bank login. One-time price.")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color(hex: "#60A5FA"))
+                    .padding(.top, BudgetVaultTheme.spacingXS)
 
                 Text("4 quick steps — skip anytime")
                     .font(.caption)
@@ -362,8 +371,10 @@ struct ChatOnboardingView: View {
                     .foregroundStyle(.white.opacity(0.4))
             }
 
-            // Large amount display
-            Text(CurrencyFormatter.displayAmount(text: incomeText))
+            // Large amount display.
+            // v3.2 audit M6: format with thousands separators so $5,000 matches
+            // the dashboard instead of "$5000".
+            Text(formattedIncomeDisplay)
                 .font(.system(size: 48, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -428,6 +439,16 @@ struct ChatOnboardingView: View {
                 }
             }
         }
+    }
+
+    /// Formatted display for the income entry — always uses thousands
+    /// separators to match the dashboard formatting (v3.2 audit M6).
+    private var formattedIncomeDisplay: String {
+        if incomeText.isEmpty { return CurrencyFormatter.displayAmount(text: "") }
+        guard let cents = MoneyHelpers.parseCurrencyString(incomeText), cents > 0 else {
+            return CurrencyFormatter.displayAmount(text: incomeText)
+        }
+        return CurrencyFormatter.format(cents: cents, currencyCode: selectedCurrency)
     }
 
     private func handleNumberKey(_ key: String) {
@@ -517,6 +538,7 @@ struct ChatOnboardingView: View {
                         .font(.caption)
                         .foregroundStyle(unallocated > 0 ? Color(hex: "#60A5FA") : .white.opacity(0.35))
                         .padding(.top, BudgetVaultTheme.spacingXS)
+                        .padding(.bottom, 24) // v3.2 audit H6: prevent clipping behind "Looks Good" CTA
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingLG)
             }
@@ -691,11 +713,14 @@ struct ChatOnboardingView: View {
             )
 
             VStack(spacing: BudgetVaultTheme.spacingMD) {
-                Text("Vault Unlocked")
+                // v3.2 audit M2: was blue→purple gradient; purple is the only
+                // purple in the app so it looked off-brand. Single-hue cyan
+                // gradient keeps the palette disciplined.
+                Text("Ready to Go")
                     .font(.system(size: 32, weight: .heavy, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color(hex: "#60A5FA"), Color(hex: "#A78BFA")],
+                            colors: [Color(hex: "#93C5FD"), Color(hex: "#60A5FA")],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -716,8 +741,11 @@ struct ChatOnboardingView: View {
                     }
                 } label: {
                     HStack {
-                        Image(systemName: "lock.open.fill")
-                        Text("Open My Vault")
+                        Image(systemName: "arrow.right.circle.fill")
+                        // v3.2 audit L6: "Open My Vault" collides with "Unlock
+                        // the Vault" on the premium paywall — two "vaults".
+                        // Rename to clarify this is just "enter the app".
+                        Text("Start Budgeting")
                     }
                     .font(.headline)
                     .foregroundStyle(BudgetVaultTheme.navyDark)

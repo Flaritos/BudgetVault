@@ -73,6 +73,14 @@ final class StoreKitManager {
         productLoadError = nil
         do {
             products = try await Product.products(for: [Self.premiumProductID, Self.tipProductID])
+            // NOTE: The displayPrice shown during dev/sim runs comes from
+            // BudgetVault/Configuration.storekit (StoreKit Testing). The
+            // production price is driven by App Store Connect and does
+            // NOT use this file. Sim storekitd daemons sometimes cache
+            // stale prices in com.apple.storekitd/Cache.db across erases.
+            // If sim shows a different price than Configuration.storekit:
+            //   1. Confirm the bundled file via `find ... Configuration.storekit`
+            //   2. Know that users will see App Store Connect's price, period.
             if products.isEmpty {
                 productLoadError = "Unable to load products. Check your connection."
             }

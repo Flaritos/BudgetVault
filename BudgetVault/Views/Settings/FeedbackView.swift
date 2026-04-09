@@ -30,7 +30,10 @@ struct FeedbackView: View {
                 }
 
                 Section {
-                    Text("Saved on this device only. We can't read it unless you tap “Email to BudgetVault” below — your call.")
+                    // v3.2 audit M8: rewritten to sound confident instead of
+                    // defensive. Privacy-first brand should assert the rule,
+                    // not hedge with "we can't read unless…"
+                    Text("Stored on this device. Only sent if you choose Email to BudgetVault below.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

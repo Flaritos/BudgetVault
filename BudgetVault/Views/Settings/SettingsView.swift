@@ -241,10 +241,19 @@ struct SettingsView: View {
                     Circle()
                         .fill(Color(hex: accentColorHex))
                         .frame(width: 22, height: 22)
+                    // v3.2 audit L7: unlabeled lone star read as broken icon.
+                    // Explicit "Premium" chip + lock makes the gate obvious.
                     if !isPremium {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 3) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text("Premium")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.caption)

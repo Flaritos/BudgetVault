@@ -19,6 +19,17 @@ enum UITestSeedService {
 
         resetUserDefaults()
         wipeSwiftData(container: container)
+
+        // -uitest-wipe-only: just clean state and exit. Used for end-to-end
+        // smoke tests that drive the real onboarding flow manually.
+        if args.contains("-uitest-wipe-only") {
+            // Explicitly ensure onboarding shows — belt + suspenders since
+            // resetUserDefaults should already leave the key absent.
+            UserDefaults.standard.set(false, forKey: AppStorageKeys.hasCompletedOnboarding)
+            UserDefaults.standard.synchronize()
+            return
+        }
+
         seedBaseline(
             container: container,
             includeToday: !args.contains("-uitest-today-empty"),

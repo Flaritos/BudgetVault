@@ -367,9 +367,16 @@ struct HistoryView: View {
             .padding(.bottom, BudgetVaultTheme.spacingSM)
         }
         .padding(.top, BudgetVaultTheme.spacingSM)
+        // v3.2 audit H1: replaced royal-blue brandGradient (which clashed
+        // with the rest of the app and made the search field unreadable)
+        // with the same navy gradient used on Home's hero.
         .background {
-            BudgetVaultTheme.brandGradient
-                .ignoresSafeArea(edges: .top)
+            LinearGradient(
+                colors: [BudgetVaultTheme.navyDark.opacity(0.95), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .top)
         }
     }
 
@@ -382,9 +389,11 @@ struct HistoryView: View {
                 Text("SPENT")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
+                // v3.2 audit H2: neutral navy for normal spend totals;
+                // red (BudgetVaultTheme.negative) is reserved for overspend.
                 Text(CurrencyFormatter.format(cents: totalSpent))
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
-                    .foregroundStyle(BudgetVaultTheme.negative)
+                    .foregroundStyle(BudgetVaultTheme.navyDark)
             }
             .frame(maxWidth: .infinity)
 
