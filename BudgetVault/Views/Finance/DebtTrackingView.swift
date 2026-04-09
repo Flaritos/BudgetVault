@@ -57,39 +57,83 @@ struct DebtTrackingView: View {
         }
     }
 
+    private var paidOffDebts: [DebtAccount] {
+        allDebts.filter { !$0.isActive }
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                if !activeDebts.isEmpty {
-                    totalDebtSection
-                    payoffStrategySection
-                    debtsListSection
-                }
-
-                let paidOff = allDebts.filter { !$0.isActive }
-                if !paidOff.isEmpty {
-                    paidOffSection(paidOff)
-                }
-
-                if activeDebts.isEmpty && allDebts.filter({ !$0.isActive }).isEmpty {
-                    emptyStateSection
-                }
-            }
-            .navigationTitle("Debt Tracker")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        if isPremium {
-                            showAddDebt = true
-                        } else {
-                            showPaywall = true
+            ScrollView {
+                VStack(spacing: BudgetVaultTheme.spacingLG) {
+                    // Header
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Debts")
+                                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("Track and eliminate")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
                         }
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
+                        Spacer()
+                        Button {
+                            if isPremium {
+                                showAddDebt = true
+                            } else {
+                                showPaywall = true
+                            }
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(BudgetVaultTheme.brightBlue)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .accessibilityLabel("Add debt")
+                    }
+                    .padding(.horizontal)
+
+                    if !activeDebts.isEmpty {
+                        // Total Debt Summary Card
+                        totalDebtCard
+
+                        // Strategy Picker
+                        strategySection
+
+                        // Focus Next
+                        if let focusDebt = sortedDebts.first {
+                            focusNextCard(focusDebt)
+                        }
+
+                        // Active Debt Cards
+                        VStack(spacing: BudgetVaultTheme.spacingSM) {
+                            ForEach(sortedDebts) { debt in
+                                NavigationLink(destination: DebtDetailView(debt: debt)) {
+                                    debtCard(debt)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Paid Off Section
+                    if !paidOffDebts.isEmpty {
+                        paidOffSection
+                    }
+
+                    // Empty State
+                    if activeDebts.isEmpty && paidOffDebts.isEmpty {
+                        emptyStateCard
                     }
                 }
+                .padding(.vertical)
             }
+            .background(BudgetVaultTheme.navyDark.ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .sheet(isPresented: $showAddDebt) {
                 AddDebtView()
             }
@@ -99,110 +143,139 @@ struct DebtTrackingView: View {
         }
     }
 
-    // MARK: - Total Debt Section
+    // MARK: - Total Debt Card
 
-    private var totalDebtSection: some View {
-        Section {
-            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                Text("Total Debt")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+    private var totalDebtCard: some View {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
+            Text("Total Remaining")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+                .textCase(.uppercase)
+                .tracking(1)
 
-                Text(CurrencyFormatter.format(cents: totalDebtCents))
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .foregroundStyle(BudgetVaultTheme.negative)
+            Text(CurrencyFormatter.format(cents: totalDebtCents))
+                .font(BudgetVaultTheme.priceDisplay)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+                .foregroundStyle(.white)
 
-                // Overall progress
-                VStack(spacing: BudgetVaultTheme.spacingXS) {
-                    ProgressView(value: overallPaidPercentage)
-                        .tint(BudgetVaultTheme.positive)
+            // Progress bar
+            VStack(spacing: BudgetVaultTheme.spacingXS) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(.white.opacity(0.08))
+                            .frame(height: 8)
 
-                    HStack {
-                        Text("\(Int(overallPaidPercentage * 100))% paid off")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(activeDebts.count) active debt\(activeDebts.count == 1 ? "" : "s")")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(BudgetVaultTheme.positive)
+                            .frame(width: max(0, geo.size.width * overallPaidPercentage), height: 8)
                     }
                 }
-            }
-            .padding(.vertical, BudgetVaultTheme.spacingSM)
-        }
-    }
+                .frame(height: 8)
 
-    // MARK: - Payoff Strategy Section
-
-    private var payoffStrategySection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
-                Text("Payoff Strategy")
-                    .font(.headline)
-
-                Picker("Strategy", selection: $selectedStrategy) {
-                    ForEach(PayoffStrategy.allCases, id: \.self) { strategy in
-                        Text(strategy.rawValue).tag(strategy)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                HStack(spacing: BudgetVaultTheme.spacingSM) {
-                    Image(systemName: selectedStrategy.systemImage)
-                        .foregroundStyle(BudgetVaultTheme.electricBlue)
-                    Text(selectedStrategy.description)
+                HStack {
+                    Text("\(Int(overallPaidPercentage * 100))% paid off")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(BudgetVaultTheme.positive)
+                    Spacer()
+                    Text("\(activeDebts.count) active")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.4))
                 }
+            }
+        }
+        .padding(BudgetVaultTheme.spacingXL)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                .fill(.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                        .stroke(.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Total debt: \(CurrencyFormatter.format(cents: totalDebtCents)), \(Int(overallPaidPercentage * 100)) percent paid off, \(activeDebts.count) active debts")
+    }
 
-                if let focusDebt = sortedDebts.first {
-                    HStack(spacing: BudgetVaultTheme.spacingSM) {
-                        Text(focusDebt.emoji)
-                            .font(.title3)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Focus extra payments on:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(focusDebt.name)
-                                .font(.subheadline.bold())
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing) {
-                            Text(CurrencyFormatter.format(cents: focusDebt.currentBalanceCents))
-                                .font(BudgetVaultTheme.rowAmount)
-                                .foregroundStyle(BudgetVaultTheme.negative)
-                            if focusDebt.interestRate > 0 {
-                                Text("\(focusDebt.interestRate, specifier: "%.1f")% APR")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+    // MARK: - Strategy Section
+
+    private var strategySection: some View {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+            Picker("Strategy", selection: $selectedStrategy) {
+                ForEach(PayoffStrategy.allCases, id: \.self) { strategy in
+                    Text(strategy.rawValue).tag(strategy)
+                }
+            }
+            .pickerStyle(.segmented)
+            .colorMultiply(BudgetVaultTheme.brightBlue)
+
+            HStack(spacing: BudgetVaultTheme.spacingSM) {
+                Image(systemName: selectedStrategy.systemImage)
+                    .foregroundStyle(BudgetVaultTheme.electricBlue)
+                Text(selectedStrategy.description)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Focus Next Card
+
+    private func focusNextCard(_ debt: DebtAccount) -> some View {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+            HStack(spacing: 4) {
+                Text("FOCUS NEXT")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(BudgetVaultTheme.caution)
+                    .tracking(1)
+                Text("\u{26A1}")
+                    .font(.caption)
+            }
+
+            HStack(spacing: BudgetVaultTheme.spacingSM) {
+                Text(debt.emoji)
+                    .font(.title2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(debt.name)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.white)
+                    if debt.interestRate > 0 {
+                        Text("\(debt.interestRate, specifier: "%.1f")% APR")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.4))
                     }
-                    .padding(BudgetVaultTheme.spacingMD)
-                    .background(
-                        RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
-                            .fill(Color.accentColor.opacity(0.08))
-                    )
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(CurrencyFormatter.format(cents: debt.currentBalanceCents))
+                        .font(BudgetVaultTheme.rowAmount)
+                        .foregroundStyle(.white)
+                    if let months = debt.estimatedMonthsToPayoff {
+                        Text("~\(months) mo")
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
                 }
             }
-            .padding(.vertical, BudgetVaultTheme.spacingXS)
         }
+        .padding(BudgetVaultTheme.spacingLG)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                .fill(BudgetVaultTheme.caution.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                        .stroke(BudgetVaultTheme.caution.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal)
     }
 
-    // MARK: - Debts List Section
+    // MARK: - Debt Card
 
-    private var debtsListSection: some View {
-        Section("Active Debts") {
-            ForEach(sortedDebts) { debt in
-                NavigationLink(destination: DebtDetailView(debt: debt)) {
-                    debtRow(debt)
-                }
-            }
-            .onDelete(perform: archiveDebts)
-        }
-    }
-
-    private func debtRow(_ debt: DebtAccount) -> some View {
+    private func debtCard(_ debt: DebtAccount) -> some View {
         VStack(spacing: BudgetVaultTheme.spacingSM) {
             HStack {
                 Text(debt.emoji)
@@ -210,86 +283,150 @@ struct DebtTrackingView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(debt.name)
                         .font(.subheadline.bold())
-                    if debt.interestRate > 0 {
-                        Text("\(debt.interestRate, specifier: "%.1f")% APR")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        .foregroundStyle(.white)
+                    HStack(spacing: BudgetVaultTheme.spacingSM) {
+                        if debt.interestRate > 0 {
+                            Text("\(debt.interestRate, specifier: "%.1f")% APR")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.4))
+                        }
+                        if debt.dueDay > 0 {
+                            Text("Due \(ordinal(debt.dueDay))")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.4))
+                        }
                     }
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(CurrencyFormatter.format(cents: debt.currentBalanceCents))
                         .font(BudgetVaultTheme.rowAmount)
-                        .foregroundStyle(BudgetVaultTheme.negative)
+                        .foregroundStyle(.white)
                     Text("of \(CurrencyFormatter.format(cents: debt.originalBalanceCents))")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.4))
                 }
             }
 
-            ProgressView(value: debt.paidOffPercentage)
-                .tint(BudgetVaultTheme.positive)
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.white.opacity(0.08))
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(BudgetVaultTheme.positive)
+                        .frame(width: max(0, geo.size.width * debt.paidOffPercentage), height: 6)
+                }
+            }
+            .frame(height: 6)
+
+            HStack {
+                Text("\(Int(debt.paidOffPercentage * 100))% paid")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.4))
+                Spacer()
+                if let months = debt.estimatedMonthsToPayoff {
+                    Text("~\(months) mo to payoff")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+            }
         }
-        .padding(.vertical, BudgetVaultTheme.spacingXS)
+        .padding(BudgetVaultTheme.spacingLG)
+        .background(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                .fill(.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                        .stroke(.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(debt.emoji) \(debt.name): \(CurrencyFormatter.format(cents: debt.currentBalanceCents)) of \(CurrencyFormatter.format(cents: debt.originalBalanceCents))\(debt.interestRate > 0 ? ", \(String(format: "%.1f", debt.interestRate)) percent APR" : ""), \(Int(debt.paidOffPercentage * 100)) percent paid off")
     }
 
     // MARK: - Paid Off Section
 
-    private func paidOffSection(_ paidOff: [DebtAccount]) -> some View {
-        Section("Paid Off") {
-            ForEach(paidOff) { debt in
+    private var paidOffSection: some View {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+            HStack(spacing: 6) {
+                Text("PAID OFF")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(BudgetVaultTheme.positive)
+                    .tracking(1)
+                Text("\u{1F389}")
+                    .font(.caption)
+            }
+            .padding(.horizontal)
+
+            ForEach(paidOffDebts) { debt in
                 HStack {
                     Text(debt.emoji)
                         .font(.title3)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(debt.name)
                             .font(.subheadline)
-                            .strikethrough()
+                            .foregroundStyle(.white.opacity(0.5))
+                            .strikethrough(color: .white.opacity(0.3))
                         Text(CurrencyFormatter.format(cents: debt.originalBalanceCents))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.3))
                     }
                     Spacer()
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(BudgetVaultTheme.positive)
+                        .font(.title3)
                 }
+                .padding(BudgetVaultTheme.spacingMD)
+                .background(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                        .fill(BudgetVaultTheme.positive.opacity(0.06))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                .stroke(BudgetVaultTheme.positive.opacity(0.12), lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal)
             }
         }
     }
 
     // MARK: - Empty State
 
-    private var emptyStateSection: some View {
-        Section {
-            VStack(spacing: BudgetVaultTheme.spacingLG) {
-                Image(systemName: "creditcard.trianglebadge.exclamationmark")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
+    private var emptyStateCard: some View {
+        VStack(spacing: BudgetVaultTheme.spacingLG) {
+            Image(systemName: "creditcard.trianglebadge.exclamationmark")
+                .font(.system(size: 48))
+                .foregroundStyle(.white.opacity(0.3))
 
-                Text("No Debts Tracked")
-                    .font(.headline)
+            Text("No Debts Tracked")
+                .font(.headline)
+                .foregroundStyle(.white)
 
-                Text("Add your debts to track payoff progress and find the best strategy to become debt-free.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            Text("Add your debts to track payoff progress and find the best strategy to become debt-free.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.5))
+                .multilineTextAlignment(.center)
 
-                Button {
-                    if isPremium {
-                        showAddDebt = true
-                    } else {
-                        showPaywall = true
-                    }
-                } label: {
-                    Label("Add First Debt", systemImage: "plus.circle.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, BudgetVaultTheme.spacingMD)
+            Button {
+                if isPremium {
+                    showAddDebt = true
+                } else {
+                    showPaywall = true
                 }
-                .buttonStyle(.borderedProminent)
+            } label: {
+                Label("Add First Debt", systemImage: "plus.circle.fill")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, BudgetVaultTheme.spacingMD)
+                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
             }
-            .padding(.vertical, BudgetVaultTheme.spacingXL)
         }
+        .padding(BudgetVaultTheme.spacingXL)
+        .padding(.horizontal)
     }
 
     // MARK: - Actions
@@ -299,5 +436,18 @@ struct DebtTrackingView: View {
             sortedDebts[index].isActive = false
         }
         SafeSave.save(modelContext)
+    }
+
+    // MARK: - Helpers
+
+    private func ordinal(_ day: Int) -> String {
+        let suffix: String
+        switch day {
+        case 1, 21, 31: suffix = "st"
+        case 2, 22: suffix = "nd"
+        case 3, 23: suffix = "rd"
+        default: suffix = "th"
+        }
+        return "\(day)\(suffix)"
     }
 }

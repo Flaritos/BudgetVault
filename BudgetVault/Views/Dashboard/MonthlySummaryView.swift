@@ -5,6 +5,7 @@ struct MonthlySummaryView: View {
     let budget: Budget
     @Environment(\.dismiss) private var dismiss
     @State private var shareImage: Image?
+    @State private var showCelebration = false
 
     private var categories: [Category] {
         (budget.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
@@ -54,6 +55,8 @@ struct MonthlySummaryView: View {
                     .padding(.vertical, 24)
                     .frame(maxWidth: .infinity)
                     .background(BudgetVaultTheme.heroBrandGradient)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(DateHelpers.monthYearString(month: budget.month, year: budget.year)) summary. Income: \(CurrencyFormatter.format(cents: budget.totalIncomeCents)), Spent: \(CurrencyFormatter.format(cents: totalSpent))")
 
                     // Delta
                     HStack {
@@ -84,14 +87,33 @@ struct MonthlySummaryView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(cat.name): \(CurrencyFormatter.format(cents: spent)) of \(CurrencyFormatter.format(cents: budgeted)), \(under ? "under budget" : "over budget")")
                         }
                     }
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
 
                     // Celebration
-                    if underBudgetCount > 0 {
-                        Text("You stayed under budget in \(underBudgetCount)/\(categories.count) categories!")
+                    if delta > 0 {
+                        VStack(spacing: 8) {
+                            Text("Budget Hero!")
+                                .font(.title3.bold())
+                            Text("+\(CurrencyFormatter.format(cents: delta))")
+                                .font(.system(size: 32, weight: .heavy, design: .rounded))
+                                .foregroundStyle(BudgetVaultTheme.positive)
+                            Text("saved this month")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            if underBudgetCount > 0 {
+                                Text("Under budget in \(underBudgetCount)/\(categories.count) categories")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding()
+                    } else if underBudgetCount > 0 {
+                        Text("Under budget in \(underBudgetCount)/\(categories.count) categories")
                             .font(.headline)
                             .multilineTextAlignment(.center)
                             .padding()
@@ -113,9 +135,14 @@ struct MonthlySummaryView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .overlay {
+                ConfettiView(isActive: showCelebration, style: .confetti, particleCount: 50)
+            }
             .onAppear {
                 // Prompt for review if user was under budget
                 if budget.remainingCents > 0 {
+                    showCelebration = true
+                    HapticManager.notification(.success)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         ReviewPromptService.requestIfAppropriate()
                     }

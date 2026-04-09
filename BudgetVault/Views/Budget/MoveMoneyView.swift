@@ -5,6 +5,8 @@ struct MoveMoneyView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    @ScaledMetric(relativeTo: .body) private var pickerSize: CGFloat = 64
+
     let categories: [Category]
     var budget: Budget? = nil
 
@@ -19,10 +21,10 @@ struct MoveMoneyView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
                 Text("Move Money")
                     .font(.title2.bold())
-                    .padding(.top, 16)
+                    .padding(.top, BudgetVaultTheme.spacingLG)
 
                 fromPicker
                 Image(systemName: "arrow.down")
@@ -41,7 +43,7 @@ struct MoveMoneyView: View {
                 .buttonStyle(PrimaryButtonStyle(isEnabled: canMove))
                 .disabled(!canMove)
                 .padding(.horizontal)
-                .padding(.bottom, 8)
+                .padding(.bottom, BudgetVaultTheme.spacingSM)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -54,13 +56,13 @@ struct MoveMoneyView: View {
     // MARK: - Sub-views
 
     private var fromPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
             Text("From")
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: BudgetVaultTheme.spacingSM) {
                     ForEach(categories, id: \.id) { cat in
                         let isSelected = fromCategory?.id == cat.id
                         Button {
@@ -69,16 +71,16 @@ struct MoveMoneyView: View {
                                 toCategory = nil
                             }
                         } label: {
-                            VStack(spacing: 4) {
+                            VStack(spacing: BudgetVaultTheme.spacingXS) {
                                 Text(cat.emoji)
                                     .font(.title3)
                                 Text(cat.name)
                                     .font(.caption2)
                                     .lineLimit(1)
                             }
-                            .frame(width: 64, height: 64)
+                            .frame(width: pickerSize, height: pickerSize)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                                     .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
                             )
                         }
@@ -93,28 +95,28 @@ struct MoveMoneyView: View {
     }
 
     private var toPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
             Text("To")
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: BudgetVaultTheme.spacingSM) {
                     ForEach(categories.filter { $0.id != fromCategory?.id }, id: \.id) { cat in
                         let isSelected = toCategory?.id == cat.id
                         Button {
                             toCategory = cat
                         } label: {
-                            VStack(spacing: 4) {
+                            VStack(spacing: BudgetVaultTheme.spacingXS) {
                                 Text(cat.emoji)
                                     .font(.title3)
                                 Text(cat.name)
                                     .font(.caption2)
                                     .lineLimit(1)
                             }
-                            .frame(width: 64, height: 64)
+                            .frame(width: pickerSize, height: pickerSize)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                                     .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
                             )
                         }
@@ -131,11 +133,14 @@ struct MoveMoneyView: View {
     @ViewBuilder
     private var amountSection: some View {
         Text(displayAmount)
-            .font(.system(size: 36, weight: .bold, design: .rounded))
-            .padding(.top, 8)
+            .font(BudgetVaultTheme.priceDisplay)
+            .minimumScaleFactor(0.7)
+            .lineLimit(1)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+            .padding(.top, BudgetVaultTheme.spacingSM)
 
         NumberPadView(text: $amountText)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
         if exceedsAvailable {
             Text("Exceeds remaining \(CurrencyFormatter.format(cents: fromRemainingCents))")

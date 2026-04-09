@@ -14,6 +14,9 @@ enum AppStorageKeys {
     static let debugPremiumOverride = "debugPremiumOverride"
     static let lastPaywallDecline = "lastPaywallDecline"
     static let reviewPromptCount = "reviewPromptCount"
+    static let transactionCount = "transactionCount"
+    static let hasSeenTransactionPaywall = "hasSeenTransactionPaywall"
+    static let hasSeenStreakPaywall = "hasSeenStreakPaywall"
 
     // MARK: - Appearance
     static let selectedCurrency = "selectedCurrency"
@@ -39,4 +42,10 @@ enum AppStorageKeys {
 
     // MARK: - Cloud
     static let iCloudSyncEnabled = "iCloudSyncEnabled"
+
+    // MARK: - Engagement & Retention
+    static let lastActiveDate = "lastActiveDate"
+    static let morningBriefingEnabled = "morningBriefingEnabled"
+    static let morningBriefingHour = "morningBriefingHour"
+    static let catchUpDismissedDate = "catchUpDismissedDate"
 }

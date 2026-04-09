@@ -18,9 +18,17 @@ schemes:
       targets:
         BudgetVault: all
         BudgetVaultWidgetExtension: all
+        BudgetVaultTests: [test]
+        BudgetVaultUITests: [test]
     run:
       config: Debug
       storeKitConfiguration: BudgetVault/Configuration.storekit
+    test:
+      config: Debug
+      storeKitConfiguration: BudgetVault/Configuration.storekit
+      targets:
+        - BudgetVaultTests
+        - BudgetVaultUITests
 
 targets:
   BudgetVault:
@@ -31,8 +39,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app
-        MARKETING_VERSION: "1.0.2"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "3.2"
+        CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: BudgetVault/BudgetVault.entitlements
         TARGETED_DEVICE_FAMILY: "1"
@@ -51,9 +59,37 @@ targets:
           - UIInterfaceOrientationPortrait
         UIRequiresFullScreen: true
         NSFaceIDUsageDescription: "BudgetVault uses Face ID to protect your financial data."
+        NSPhotoLibraryAddUsageDescription: "BudgetVault needs access to save your monthly wrapped card to your photo library."
+        BGTaskSchedulerPermittedIdentifiers:
+          - io.budgetvault.app.refresh
 
     dependencies:
       - target: BudgetVaultWidgetExtension
+
+  BudgetVaultTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - BudgetVaultTests
+    dependencies:
+      - target: BudgetVault
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  BudgetVaultUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - BudgetVaultUITests
+    dependencies:
+      - target: BudgetVault
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: BudgetVault
 
   BudgetVaultWidgetExtension:
     type: app-extension
@@ -71,7 +107,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.widget
-        MARKETING_VERSION: "1.0.2"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "3.2"
+        CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: BudgetVaultWidget/BudgetVaultWidget.entitlements

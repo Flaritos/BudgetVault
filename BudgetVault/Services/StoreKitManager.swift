@@ -12,7 +12,7 @@ final class StoreKitManager {
 
     /// Hardcoded launch pricing end date (set to 30 days after App Store approval).
     /// The actual price change happens in App Store Connect; this banner is cosmetic.
-    static let launchPricingEndDate = Date(timeIntervalSince1970: 1_751_328_000) // ~July 1, 2026
+    static let launchPricingEndDate = Date(timeIntervalSince1970: 1_782_950_400) // July 1, 2026 UTC
 
     var products: [Product] = []
     var isPremium = false
@@ -20,6 +20,7 @@ final class StoreKitManager {
     var errorMessage: String?
     var productLoadError: String?
     var showPendingAlert = false
+    var showPostPurchaseWelcome = false
 
     enum PurchaseState {
         case idle, loading, success, error
@@ -27,6 +28,17 @@ final class StoreKitManager {
 
     var isLaunchPricing: Bool {
         Date() < Self.launchPricingEndDate
+    }
+
+    /// Returns a countdown string like "92d 14h 23m" for launch pricing, or nil if expired.
+    var launchCountdownComponents: (days: Int, hours: Int, minutes: Int)? {
+        guard isLaunchPricing else { return nil }
+        let remaining = Self.launchPricingEndDate.timeIntervalSince(Date())
+        guard remaining > 0 else { return nil }
+        let days = Int(remaining) / 86400
+        let hours = (Int(remaining) % 86400) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        return (days, hours, minutes)
     }
 
     var premiumProduct: Product? {
@@ -61,6 +73,14 @@ final class StoreKitManager {
         productLoadError = nil
         do {
             products = try await Product.products(for: [Self.premiumProductID, Self.tipProductID])
+            // NOTE: The displayPrice shown during dev/sim runs comes from
+            // BudgetVault/Configuration.storekit (StoreKit Testing). The
+            // production price is driven by App Store Connect and does
+            // NOT use this file. Sim storekitd daemons sometimes cache
+            // stale prices in com.apple.storekitd/Cache.db across erases.
+            // If sim shows a different price than Configuration.storekit:
+            //   1. Confirm the bundled file via `find ... Configuration.storekit`
+            //   2. Know that users will see App Store Connect's price, period.
             if products.isEmpty {
                 productLoadError = "Unable to load products. Check your connection."
             }
@@ -91,8 +111,12 @@ final class StoreKitManager {
                 await transaction.finish()
                 await checkEntitlements()
                 purchaseState = .success
-                // Cache for instant UI
+                showPostPurchaseWelcome = true
+                // Cache for instant UI + Keychain source of truth
                 UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
+                if isPremium {
+                    KeychainService.set(true, forKey: "isPremium")
+                }
 
             case .userCancelled:
                 purchaseState = .idle
@@ -130,6 +154,7 @@ final class StoreKitManager {
         if UserDefaults.standard.bool(forKey: AppStorageKeys.debugPremiumOverride) {
             isPremium = true
             UserDefaults.standard.set(true, forKey: AppStorageKeys.isPremium)
+            KeychainService.set(true, forKey: "isPremium")
             return
         }
         #endif
@@ -146,6 +171,14 @@ final class StoreKitManager {
         isPremium = hasPremium
         // Cache for instant UI
         UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
+
+        // Keychain is the authoritative source of truth for premium status.
+        // Sync Keychain to match StoreKit's verified entitlement state.
+        if hasPremium {
+            KeychainService.set(true, forKey: "isPremium")
+        } else {
+            KeychainService.delete(forKey: "isPremium")
+        }
     }
 
     // MARK: - Transaction Listener

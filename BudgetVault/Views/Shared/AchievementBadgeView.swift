@@ -11,9 +11,9 @@ struct AchievementBadgeView: View {
 
     private var tierColor: Color {
         switch achievement.tier {
-        case .bronze: return Color(hex: "#CD7F32")
-        case .silver: return Color(hex: "#A0A0A0")
-        case .gold: return Color(hex: "#FFD700")
+        case .bronze: return BudgetVaultTheme.badgeBronze
+        case .silver: return BudgetVaultTheme.badgeSilver
+        case .gold: return BudgetVaultTheme.badgeGold
         }
     }
 
@@ -21,19 +21,19 @@ struct AchievementBadgeView: View {
         switch achievement.tier {
         case .bronze:
             return LinearGradient(
-                colors: [Color(hex: "#CD7F32"), Color(hex: "#8B5A2B")],
+                colors: [BudgetVaultTheme.badgeBronze, BudgetVaultTheme.badgeBronzeDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .silver:
             return LinearGradient(
-                colors: [Color(hex: "#C0C0C0"), Color(hex: "#808080")],
+                colors: [BudgetVaultTheme.badgeSilver, BudgetVaultTheme.badgeSilverDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .gold:
             return LinearGradient(
-                colors: [Color(hex: "#FFD700"), Color(hex: "#DAA520")],
+                colors: [BudgetVaultTheme.badgeGold, BudgetVaultTheme.badgeGoldDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -142,7 +142,7 @@ struct AchievementGridView: View {
             // Header
             HStack {
                 Image(systemName: "trophy.fill")
-                    .foregroundStyle(Color(hex: "#FFD700"))
+                    .foregroundStyle(BudgetVaultTheme.badgeGold)
                 Text("Achievements")
                     .font(.headline)
                 Spacer()
@@ -163,7 +163,7 @@ struct AchievementGridView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(
                             LinearGradient(
-                                colors: [Color(hex: "#FFD700"), Color(hex: "#DAA520")],
+                                colors: [BudgetVaultTheme.badgeGold, BudgetVaultTheme.badgeGoldDark],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -172,6 +172,8 @@ struct AchievementGridView: View {
                 }
             }
             .frame(height: 6)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Achievement progress: \(unlocked.count) of \(AchievementService.allAchievements.count) unlocked")
 
             // Grid
             ZStack {

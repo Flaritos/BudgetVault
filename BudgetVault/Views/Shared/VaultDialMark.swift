@@ -54,19 +54,15 @@ struct VaultDialMark: View {
                 .frame(width: pointerWidth, height: pointerHeight)
                 .offset(y: pointerOffset)
 
-            // Envelope (stays fixed in center)
-            ZStack {
-                RoundedRectangle(cornerRadius: size * 0.02)
-                    .strokeBorder(color.opacity(0.85), lineWidth: envelopeStroke)
-                    .frame(width: envelopeWidth, height: envelopeHeight)
-
-                VaultEnvelopeFlap()
-                    .stroke(color.opacity(0.85), lineWidth: envelopeStroke)
-                    .frame(width: envelopeWidth, height: envelopeHeight * 0.6)
-                    .offset(y: -(envelopeHeight * 0.2))
-            }
+            // Round 7 R2: switched to SF Symbol lock.fill for unambiguous
+            // legibility at any size. Custom lock shapes were reading as
+            // rounded rectangles at small sizes (welcome screen 60pt).
+            Image(systemName: "lock.fill")
+                .font(.system(size: size * 0.35, weight: .semibold))
+                .foregroundStyle(color.opacity(0.9))
         }
         .frame(width: size * (showGlow ? 1.4 : 1), height: size * (showGlow ? 1.4 : 1))
+        .accessibilityHidden(true)
     }
 }
 

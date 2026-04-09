@@ -23,7 +23,7 @@ struct Insight: Identifiable {
 
 enum InsightsEngine {
 
-    static func generateInsights(budget: Budget, previousBudget: Budget?, allBudgets: [Budget] = []) -> [Insight] {
+    static func generateInsights(budget: Budget, previousBudget: Budget?, allBudgets: [Budget] = [], currentStreak: Int? = nil, lastLogDate: String? = nil) -> [Insight] {
         var insights: [Insight] = []
         let calendar = Calendar.current
         let today = Date()
@@ -37,9 +37,16 @@ enum InsightsEngine {
         let daysSoFar = max(1, calendar.dateComponents([.day], from: budget.periodStart, to: today).day ?? 1)
         let totalSpent = budget.totalSpentCents()
 
+        // Pre-compute spent map once for all categories (0.1 performance fix)
+        var spentMap: [UUID: Int64] = [:]
+        for cat in categories {
+            spentMap[cat.id] = cat.spentCents(in: budget)
+        }
+
         // 1. Category >90% budget
         for cat in categories {
-            let pct = cat.percentSpent(in: budget)
+            let spent = spentMap[cat.id] ?? 0
+            let pct = cat.budgetedAmountCents > 0 ? Double(spent) / Double(cat.budgetedAmountCents) : 0
             if pct >= 0.9 && cat.budgetedAmountCents > 0 {
                 insights.append(Insight(
                     icon: cat.emoji,
@@ -103,7 +110,7 @@ enum InsightsEngine {
         }
 
         // 5. Streak
-        let streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
+        let streak = currentStreak ?? UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
         if streak >= 7 {
             insights.append(Insight(
                 icon: "🔥",
@@ -114,11 +121,11 @@ enum InsightsEngine {
         }
 
         // 6. Streak at risk
-        let lastLogDate = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
-        if streak > 0 && !lastLogDate.isEmpty {
+        let resolvedLastLogDate = lastLogDate ?? UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
+        if streak > 0 && !resolvedLastLogDate.isEmpty {
             let todayStr = DateHelpers.dateString(calendar.startOfDay(for: today))
             let hour = calendar.component(.hour, from: today)
-            if lastLogDate != todayStr && hour >= 18 {
+            if resolvedLastLogDate != todayStr && hour >= 18 {
                 insights.append(Insight(
                     icon: "⚠️",
                     title: "Streak at risk!",
@@ -250,14 +257,18 @@ enum InsightsEngine {
         }
 
         // 11. Savings Rate
+        // v3.2 audit K6: renamed "income" → "budget" because the denominator
+        // is the budget target, not actual income transactions. Showing
+        // "Saving 98% of income" when the user hasn't logged any income
+        // transactions was a trust-killing divide-by-wrong-thing error.
         if budget.totalIncomeCents > 0 && totalSpent > 0 {
             let savingsRate = Double(budget.totalIncomeCents - totalSpent) / Double(budget.totalIncomeCents)
             if savingsRate >= 0.2 {
                 let pct = Int(savingsRate * 100)
                 insights.append(Insight(
                     icon: "🏦",
-                    title: "Saving \(pct)% of income",
-                    message: "You're on track to save \(CurrencyFormatter.format(cents: budget.totalIncomeCents - totalSpent)) this month.",
+                    title: "\(pct)% of budget unspent",
+                    message: "You're on track to keep \(CurrencyFormatter.format(cents: budget.totalIncomeCents - totalSpent)) this month.",
                     severity: .success
                 ))
             } else if savingsRate < 0 {
@@ -276,7 +287,7 @@ enum InsightsEngine {
             var totalDeviation = 0.0
             for cat in catsWithBudget {
                 let budgetedRatio = Double(cat.budgetedAmountCents) / Double(budget.totalIncomeCents)
-                let actualRatio = Double(cat.spentCents(in: budget)) / Double(totalSpent)
+                let actualRatio = Double(spentMap[cat.id] ?? 0) / Double(totalSpent)
                 totalDeviation += abs(budgetedRatio - actualRatio)
             }
             // Score: 100 = perfect match, 0 = completely off
@@ -304,9 +315,9 @@ enum InsightsEngine {
             var fastestRate = 0.0
 
             for cat in catsWithBudget {
-                let spent = cat.spentCents(in: budget)
-                guard spent > 0 else { continue }
-                let dailyRate = Double(spent) / Double(daysSoFar)
+                let catSpent = spentMap[cat.id] ?? 0
+                guard catSpent > 0 else { continue }
+                let dailyRate = Double(catSpent) / Double(daysSoFar)
                 let projectedDays = Double(cat.budgetedAmountCents) / dailyRate
                 let burnRate = Double(daysSoFar) / projectedDays // >1 means draining faster than period
 
@@ -316,9 +327,10 @@ enum InsightsEngine {
                 }
             }
 
-            if let cat = fastestCat, cat.spentCents(in: budget) > 0 {
-                let dailyDrain = Double(cat.spentCents(in: budget)) / Double(daysSoFar)
-                let daysUntilEmpty = dailyDrain > 0 ? Int(Double(cat.budgetedAmountCents - cat.spentCents(in: budget)) / dailyDrain) : daysInPeriod
+            if let cat = fastestCat {
+                let catSpent = spentMap[cat.id] ?? 0
+                let dailyDrain = catSpent > 0 ? Double(catSpent) / Double(daysSoFar) : 0
+                let daysUntilEmpty = dailyDrain > 0 ? Int(Double(cat.budgetedAmountCents - catSpent) / dailyDrain) : daysInPeriod
                 if daysUntilEmpty > 0 && daysUntilEmpty < (daysInPeriod - daysSoFar) {
                     insights.append(Insight(
                         icon: "⏳",
@@ -384,7 +396,7 @@ enum InsightsEngine {
         var recurringSpent: Int64 = 0
         var discretionarySpent: Int64 = 0
         for cat in categories {
-            let spent = cat.spentCents(in: budget)
+            let spent = spentMap[cat.id] ?? 0
             let isRecurring = !(cat.recurringExpenses ?? []).isEmpty
             if isRecurring {
                 recurringSpent += spent

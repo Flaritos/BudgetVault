@@ -5,6 +5,9 @@ struct RecurringExpenseFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    @ScaledMetric(relativeTo: .body) private var chipSize: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) private var chipWidth: CGFloat = 56
+
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
 
     let expense: RecurringExpense?
@@ -19,8 +22,15 @@ struct RecurringExpenseFormView: View {
 
     private var isEditing: Bool { expense != nil }
 
+    @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
+
+    private var currentBudget: Budget? {
+        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: max(resetDay, 1))
+        return allBudgets.first { $0.month == m && $0.year == y }
+    }
+
     private var categories: [Category] {
-        (allBudgets.first?.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
+        (currentBudget?.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     init(expense: RecurringExpense?) {
@@ -63,18 +73,13 @@ struct RecurringExpenseFormView: View {
                                     selectedCategory = category
                                     HapticManager.selection()
                                 } label: {
-                                    VStack(spacing: 4) {
-                                        Text(category.emoji)
-                                            .font(.title2)
-                                            .frame(width: 44, height: 44)
-                                            .background(
-                                                Circle()
-                                                    .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
-                                            )
-                                        Text(category.name)
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
+                                    CategoryChipView(
+                                        emoji: category.emoji,
+                                        name: category.name,
+                                        isSelected: selectedCategory?.id == category.id,
+                                        chipSize: chipSize,
+                                        chipWidth: chipWidth
+                                    )
                                 }
                                 .accessibilityLabel(category.name)
                                 .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
@@ -133,12 +138,15 @@ struct RecurringExpenseFormView: View {
         let cents = MoneyHelpers.parseCurrencyString(amountText) ?? 0
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
 
+        let expenseToSchedule: RecurringExpense
+
         if let expense {
             expense.name = trimmedName
             expense.amountCents = cents
             expense.frequency = frequency.rawValue
             expense.category = selectedCategory
             expense.nextDueDate = startDate
+            expenseToSchedule = expense
         } else {
             let newExpense = RecurringExpense(
                 name: trimmedName,
@@ -148,8 +156,19 @@ struct RecurringExpenseFormView: View {
                 category: selectedCategory
             )
             modelContext.insert(newExpense)
+            expenseToSchedule = newExpense
         }
         SafeSave.save(modelContext)
+
+        // Schedule bill due reminder if enabled
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.billDueReminders) {
+            NotificationService.scheduleBillDueReminder(
+                expenseName: trimmedName,
+                dueDate: expenseToSchedule.nextDueDate,
+                id: expenseToSchedule.id.uuidString
+            )
+        }
+
         HapticManager.notification(.success)
         dismiss()
     }

@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 import StoreKit
+import TipKit
 
-struct SettingsPlaceholderView: View {
+struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(AppStorageKeys.biometricLockEnabled) private var biometricLockEnabled = false
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
@@ -14,6 +15,8 @@ struct SettingsPlaceholderView: View {
     @AppStorage(AppStorageKeys.dailyReminderHour) private var dailyReminderHour = 20
     @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
     @AppStorage(AppStorageKeys.billDueReminders) private var billDueReminders = false
+    @AppStorage(AppStorageKeys.morningBriefingEnabled) private var morningBriefingEnabled = false
+    @AppStorage(AppStorageKeys.morningBriefingHour) private var morningBriefingHour = 8
     @AppStorage(AppStorageKeys.reviewPromptCount) private var reviewPromptCount = 0
     @AppStorage(AppStorageKeys.iCloudSyncEnabled) private var iCloudSyncEnabled = false
 
@@ -30,8 +33,6 @@ struct SettingsPlaceholderView: View {
     @State private var tempCurrency = ""
     @State private var showThemePicker = false
     @State private var showBudgetTemplates = false
-    @State private var showDebtTracking = false
-    @State private var showNetWorth = false
     @State private var showAchievements = false
     @State private var templateAppliedAlert = false
     @Environment(StoreKitManager.self) private var storeKit
@@ -39,83 +40,113 @@ struct SettingsPlaceholderView: View {
     @State private var showExportError = false
     @State private var exportErrorMessage = ""
     @State private var showDeleteAllConfirm = false
+    @State private var showDeleteAllFinalConfirm = false
+    @State private var showFeedback = false
 
     var body: some View {
-        NavigationStack {
-            Form {
-                premiumBadge
-                securitySection
-                profileSection
-                dataSection
-                notificationsSection
-                premiumSection
-                iCloudSection
-                aboutSection
+        Form {
+            premiumBadge
+            securitySection
+            profileSection
+            dataSection
+            notificationsSection
+            premiumSection
+            iCloudSection
+            aboutSection
+        }
+        .navigationTitle("Settings")
+        // v3.2 audit H13: opaque nav bar background so the title doesn't
+        // render on top of list content when scrolling (iOS default
+        // behavior leaves it transparent with translucent-on-scroll).
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
+        .sheet(isPresented: $showRecurring) {
+            NavigationStack {
+                RecurringExpenseListView()
             }
-            .navigationTitle("Settings")
-            .sheet(isPresented: $showRecurring) {
-                NavigationStack {
-                    RecurringExpenseListView()
-                }
-            }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
-            }
-            .sheet(isPresented: $showCurrencyPicker) {
-                NavigationStack {
-                    CurrencyPickerView(selectedCurrency: $tempCurrency)
-                        .navigationTitle("Currency")
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") {
-                                    selectedCurrency = tempCurrency
-                                    showCurrencyPicker = false
-                                }
+        }
+        .sheet(isPresented: $showFeedback) {
+            FeedbackView()
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+        }
+        .sheet(isPresented: $showCurrencyPicker) {
+            NavigationStack {
+                CurrencyPickerView(selectedCurrency: $tempCurrency)
+                    .navigationTitle("Currency")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                selectedCurrency = tempCurrency
+                                showCurrencyPicker = false
                             }
                         }
+                    }
+            }
+        }
+        .sheet(isPresented: $showCSVImport) {
+            CSVImportView()
+        }
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportURL {
+                ShareSheetView(url: url)
+            }
+        }
+        .sheet(isPresented: $showThemePicker) {
+            ThemePickerView()
+        }
+        .sheet(isPresented: $showBudgetTemplates) {
+            BudgetTemplateSheetView()
+        }
+        .sheet(isPresented: $showAchievements) {
+            AchievementGridView()
+        }
+        .alert("Template Applied", isPresented: $templateAppliedAlert) {
+            Button("OK") {}
+        } message: {
+            Text("Missing categories from the template have been added to your current budget.")
+        }
+        .alert("Export Failed", isPresented: $showExportError) {
+            Button("OK") {}
+        } message: {
+            Text(exportErrorMessage)
+        }
+        .onChange(of: selectedCurrency) { _, _ in
+            SettingsSyncService.pushAllSettings()
+        }
+        .onChange(of: resetDay) { _, _ in
+            SettingsSyncService.pushAllSettings()
+        }
+        .onChange(of: accentColorHex) { _, _ in
+            SettingsSyncService.pushAllSettings()
+        }
+        .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
+            Button("Export Data First") {
+                // Trigger export, then show final confirm
+                do {
+                    let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay)
+                    exportURL = url
+                    showExportShare = true
+                } catch {
+                    // If export fails, go straight to final confirm
+                    showDeleteAllFinalConfirm = true
                 }
             }
-            .sheet(isPresented: $showCSVImport) {
-                CSVImportView()
+            Button("Continue Without Exporting", role: .destructive) {
+                showDeleteAllFinalConfirm = true
             }
-            .sheet(isPresented: $showExportShare) {
-                if let url = exportURL {
-                    ShareSheetView(url: url)
-                }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("We recommend exporting your data before deleting. This cannot be undone.")
+        }
+        .alert("Are you sure?", isPresented: $showDeleteAllFinalConfirm) {
+            Button("Delete Everything", role: .destructive) {
+                deleteAllData()
             }
-            .sheet(isPresented: $showThemePicker) {
-                ThemePickerView()
-            }
-            .sheet(isPresented: $showBudgetTemplates) {
-                BudgetTemplateSheetView()
-            }
-            .sheet(isPresented: $showDebtTracking) {
-                DebtTrackingView()
-            }
-            .sheet(isPresented: $showNetWorth) {
-                NetWorthView()
-            }
-            .sheet(isPresented: $showAchievements) {
-                AchievementGridView()
-            }
-            .alert("Template Applied", isPresented: $templateAppliedAlert) {
-                Button("OK") {}
-            } message: {
-                Text("Missing categories from the template have been added to your current budget.")
-            }
-            .alert("Export Failed", isPresented: $showExportError) {
-                Button("OK") {}
-            } message: {
-                Text(exportErrorMessage)
-            }
-            .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
-                Button("Delete Everything", role: .destructive) {
-                    deleteAllData()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will permanently delete all budgets, transactions, and settings. This cannot be undone.")
-            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete all budgets, transactions, and settings. This action cannot be undone.")
         }
     }
 
@@ -158,6 +189,7 @@ struct SettingsPlaceholderView: View {
                         .fill(BudgetVaultTheme.brandGradient)
                         .padding(.vertical, 2)
                 )
+                .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")
             }
         }
     }
@@ -200,12 +232,10 @@ struct SettingsPlaceholderView: View {
                 }
             }
 
+            // v3.2 audit K7: accent color is FREE for all per MEMORY.md.
+            // Earlier L7 fix mistakenly locked it behind Premium — reverted.
             Button {
-                if isPremium {
-                    showThemePicker = true
-                } else {
-                    showPaywall = true
-                }
+                showThemePicker = true
             } label: {
                 HStack {
                     Text("Accent Color")
@@ -214,15 +244,9 @@ struct SettingsPlaceholderView: View {
                     Circle()
                         .fill(Color(hex: accentColorHex))
                         .frame(width: 22, height: 22)
-                    if !isPremium {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             }
 
@@ -240,8 +264,12 @@ struct SettingsPlaceholderView: View {
 
     // MARK: - Data
 
+    private let recurringExpenseTip = RecurringExpenseTip()
+
     private var dataSection: some View {
         Section("Data") {
+            TipView(recurringExpenseTip)
+
             Button {
                 showRecurring = true
             } label: {
@@ -285,47 +313,15 @@ struct SettingsPlaceholderView: View {
                 Label("Budget Templates", systemImage: "doc.on.doc")
             }
 
-            // TODO: Re-enable Debt Tracking and Net Worth once fully tested
-            // Button {
-            //     if isPremium {
-            //         showDebtTracking = true
-            //     } else {
-            //         showPaywall = true
-            //     }
-            // } label: {
-            //     HStack {
-            //         Label("Debt Tracking", systemImage: "creditcard.fill")
-            //         if !isPremium {
-            //             Spacer()
-            //             Image(systemName: "star.fill")
-            //                 .font(.caption)
-            //                 .foregroundStyle(.secondary)
-            //         }
-            //     }
-            // }
-
-            // Button {
-            //     if isPremium {
-            //         showNetWorth = true
-            //     } else {
-            //         showPaywall = true
-            //     }
-            // } label: {
-            //     HStack {
-            //         Label("Net Worth", systemImage: "chart.line.uptrend.xyaxis")
-            //         if !isPremium {
-            //             Spacer()
-            //             Image(systemName: "star.fill")
-            //                 .font(.caption)
-            //                 .foregroundStyle(.secondary)
-            //         }
-            //     }
-            // }
-
+            // v3.2 audit M7: removed "Multi-Budget Profiles — Coming Soon"
+            // row. Shipped Settings shouldn't advertise unshipped features.
+            // v3.2 audit M3/M15: trophy.fill → star for achievements
+            // (trophy was gamified Duolingo tone). Also moved below the
+            // other rows so it's not adjacent to destructive Delete.
             Button {
                 showAchievements = true
             } label: {
-                Label("Achievements", systemImage: "trophy.fill")
+                Label("Milestones", systemImage: "star.leadinghalf.filled")
             }
 
             Button(role: .destructive) {
@@ -346,9 +342,11 @@ struct SettingsPlaceholderView: View {
                     if enabled {
                         checkNotificationPermission()
                         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                            if granted {
-                                DispatchQueue.main.async {
+                            DispatchQueue.main.async {
+                                if granted {
                                     NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
+                                } else {
+                                    dailyReminderEnabled = false
                                 }
                             }
                         }
@@ -373,9 +371,11 @@ struct SettingsPlaceholderView: View {
                     if enabled {
                         checkNotificationPermission()
                         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                            if granted {
-                                DispatchQueue.main.async {
+                            DispatchQueue.main.async {
+                                if granted {
                                     NotificationService.scheduleWeeklySummary()
+                                } else {
+                                    weeklyDigestEnabled = false
                                 }
                             }
                         }
@@ -388,9 +388,40 @@ struct SettingsPlaceholderView: View {
                 .onChange(of: billDueReminders) { _, enabled in
                     if enabled {
                         checkNotificationPermission()
-                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                            if !granted {
+                                DispatchQueue.main.async {
+                                    billDueReminders = false
+                                }
+                            }
+                        }
                     }
                 }
+
+            Toggle("Morning Briefing", isOn: $morningBriefingEnabled)
+                .onChange(of: morningBriefingEnabled) { _, enabled in
+                    if enabled {
+                        checkNotificationPermission()
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                            if !granted {
+                                DispatchQueue.main.async {
+                                    morningBriefingEnabled = false
+                                }
+                            }
+                            // Will be scheduled with real data from dashboard .task
+                        }
+                    } else {
+                        NotificationService.cancelMorningBriefing()
+                    }
+                }
+
+            if morningBriefingEnabled {
+                Picker("Briefing Time", selection: $morningBriefingHour) {
+                    ForEach(5...11, id: \.self) { hour in
+                        Text(formatHour(hour)).tag(hour)
+                    }
+                }
+            }
         }
         .alert("Notifications Disabled", isPresented: $showNotificationDeniedAlert) {
             Button("Open Settings") {
@@ -495,7 +526,12 @@ struct SettingsPlaceholderView: View {
                 }
             }
 
-            Text("Data stays on Apple's servers only. No third-party servers.")
+            // v3.2 audit H8: caption now matches the toggle state.
+            // Previously said "data stays on Apple's servers" regardless
+            // of whether sync was on or off, which contradicted reality.
+            Text(iCloudSyncEnabled
+                 ? "Data stays on Apple's servers only. No third-party servers."
+                 : "iCloud Sync is off. All data stays on this device only.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -521,6 +557,15 @@ struct SettingsPlaceholderView: View {
                        subject: Text("BudgetVault"),
                        message: Text("I use BudgetVault to manage my budget \u{2014} private, on-device, and no subscription. Check it out!")) {
                 Label("Share BudgetVault", systemImage: "heart.fill")
+            }
+
+            // v3.2 audit L9: removed the .foregroundStyle(.primary)
+            // override that rendered the bubble icon black; now it
+            // inherits the row tint like every other Settings row.
+            Button {
+                showFeedback = true
+            } label: {
+                Label("Send Feedback", systemImage: "bubble.left.and.bubble.right.fill")
             }
 
             Text("Your data never leaves this device.")
@@ -550,16 +595,6 @@ struct SettingsPlaceholderView: View {
         }
     }
 
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-            if !granted {
-                DispatchQueue.main.async {
-                    // Could show alert to open Settings
-                }
-            }
-        }
-    }
-
     private static let hourFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
@@ -578,21 +613,29 @@ struct SettingsPlaceholderView: View {
         }
         try? modelContext.save()
 
-        // Reset UserDefaults
-        let keysToReset = [
-            AppStorageKeys.currentStreak, AppStorageKeys.lastLogDate, AppStorageKeys.hasLoggedFirstTransaction,
-            AppStorageKeys.hasCompletedOnboarding, AppStorageKeys.streakFreezesRemaining, AppStorageKeys.lastFreezeReset,
-            AppStorageKeys.isPremium, AppStorageKeys.resetDay, AppStorageKeys.selectedCurrency, AppStorageKeys.dailyReminderEnabled,
-            AppStorageKeys.dailyReminderHour, AppStorageKeys.weeklyDigestEnabled, AppStorageKeys.billDueReminders,
-            AppStorageKeys.iCloudSyncEnabled, AppStorageKeys.accentColorHex, AppStorageKeys.lastSummaryViewed,
-            AppStorageKeys.reviewPromptCount, AppStorageKeys.userName,
-            "unlockedAchievements", "underBudgetMonthCount",
+        // Reset UserDefaults — enumerate all keys and remove any that match app prefixes
+        // This catches dynamic keys like "lastCategoryAlert-*" and "underBudget_*_*"
+        let appPrefixes = [
+            "resetDay", "hasCompleted", "hasLogged", "userName", "isPremium",
+            "debugPremium", "lastPaywall", "reviewPrompt", "selectedCurrency",
+            "accentColor", "biometricLock", "currentStreak", "lastLog",
+            "streakFreezes", "lastFreeze", "lastSummary", "dailyReminder",
+            "weeklyDigest", "billDue", "iCloudSync", "underBudget",
+            "lastCategoryAlert", "unlockedAchievements",
+            "lastActiveDate", "morningBriefing", "catchUpDismissed",
+            "categoryLearningMappings", "reviewTriggered_", "lastReviewPrompt",
+            "transactionCount", "hasSeenTransaction", "hasSeenStreak", "installDate",
         ]
-        for key in keysToReset {
-            UserDefaults.standard.removeObject(forKey: key)
+        for key in UserDefaults.standard.dictionaryRepresentation().keys {
+            if appPrefixes.contains(where: { key.hasPrefix($0) }) {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
         NotificationService.cancelDailyReminder()
         NotificationService.cancelWeeklySummary()
+        NotificationService.cancelMorningBriefing()
+        NotificationService.cancelReengagementNotifications()
+        NotificationService.cancelEndOfPeriodNotifications()
     }
 
     private func formatHour(_ hour: Int) -> String {
@@ -679,7 +722,7 @@ struct BudgetTemplateSheetView: View {
         var nextOrder = maxSortOrder + 1
 
         let currentCount = (budget.categories ?? []).filter { !$0.isHidden }.count
-        let freeLimit = 4
+        let freeLimit = 6
         var added = 0
 
         for cat in template.categories {

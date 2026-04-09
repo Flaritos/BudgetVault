@@ -2,30 +2,40 @@ import SwiftUI
 
 struct MainTabView: View {
     @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @State private var selectedTab = 0
 
     var body: some View {
-        TabView {
-            DashboardPlaceholderView()
+        TabView(selection: $selectedTab) {
+            DashboardView()
+                .tag(0)
                 .tabItem {
-                    Label("Dashboard", systemImage: "chart.pie.fill")
+                    Label("Home", systemImage: "house.fill")
                 }
-            BudgetPlaceholderView()
-                .tabItem {
-                    Label("Budget", systemImage: "list.bullet.rectangle.fill")
-                }
-            HistoryPlaceholderView()
+
+            HistoryView()
+                .tag(1)
                 .tabItem {
                     Label("History", systemImage: "clock.fill")
                 }
-            InsightsPlaceholderView()
+
+            FinanceTabView()
+                .tag(2)
                 .tabItem {
-                    Label("Insights", systemImage: "lightbulb.fill")
+                    Label("Vault", systemImage: isPremium ? "lock.open.fill" : "lock.fill")
                 }
-            SettingsPlaceholderView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
-                }
+
+            NavigationStack {
+                SettingsView()
+            }
+            .tag(3)
+            .tabItem {
+                Label("Settings", systemImage: "gearshape.fill")
+            }
         }
-        .tint(Color.accentColor)
+        .tint(BudgetVaultTheme.userAccentColor)
+        .onReceive(NotificationCenter.default.publisher(for: .switchToHistoryTab)) { _ in
+            selectedTab = 1
+        }
     }
 }

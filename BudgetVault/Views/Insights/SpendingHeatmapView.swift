@@ -160,6 +160,7 @@ struct SpendingHeatmapView: View {
         .padding(BudgetVaultTheme.spacingLG)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
         .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .accessibilityLabel("Spending heatmap for \(DateHelpers.monthYearString(month: budget.month, year: budget.year))")
         .popover(item: $selectedDay) { day in
             dayPopover(day)
                 .presentationCompactAdaptation(.popover)

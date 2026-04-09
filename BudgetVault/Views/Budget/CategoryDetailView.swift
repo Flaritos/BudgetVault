@@ -5,7 +5,11 @@ struct CategoryDetailView: View {
     let category: Category
     let budget: Budget
 
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @State private var editingTransaction: Transaction?
+    @State private var showPaywall = false
+    @State private var showAddTransaction = false
 
     private var transactions: [Transaction] {
         (category.transactions ?? [])
@@ -17,9 +21,9 @@ struct CategoryDetailView: View {
         List {
             // Header
             Section {
-                VStack(spacing: 12) {
+                VStack(spacing: BudgetVaultTheme.spacingMD) {
                     Text(category.emoji)
-                        .font(.system(size: 48))
+                        .font(BudgetVaultTheme.iconLarge)
 
                     Text(category.name)
                         .font(.title2.bold())
@@ -36,6 +40,42 @@ struct CategoryDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(category.emoji) \(category.name): spent \(CurrencyFormatter.format(cents: category.spentCents(in: budget))) of \(CurrencyFormatter.format(cents: category.budgetedAmountCents))")
+            }
+
+            // Settings
+            if isPremium {
+                Section("Settings") {
+                    Toggle("Roll over unspent amount", isOn: Binding(
+                        get: { category.rollOverUnspent },
+                        set: { newValue in
+                            category.rollOverUnspent = newValue
+                            SafeSave.save(modelContext)
+                        }
+                    ))
+
+                    if category.rollOverUnspent {
+                        Text("Unspent funds will carry forward to next month's budget for this category.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                Section("Settings") {
+                    Button {
+                        showPaywall = true
+                    } label: {
+                        HStack {
+                            Label("Roll over unspent", systemImage: "arrow.forward.circle")
+                            Spacer()
+                            Image(systemName: "lock.fill")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .tint(.primary)
+                }
             }
 
             // Transactions
@@ -52,14 +92,37 @@ struct CategoryDetailView: View {
                             TransactionRowView(transaction: transaction)
                         }
                         .tint(.primary)
+                        .accessibilityHint("Double tap to edit transaction")
                     }
                 }
             }
         }
         .navigationTitle(category.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAddTransaction = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("Add expense to \(category.name)")
+            }
+        }
+        .sheet(isPresented: $showAddTransaction) {
+            TransactionEntryView(
+                budget: budget,
+                categories: (budget.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder },
+                prefillCategoryName: category.name
+            )
+            .presentationDragIndicator(.visible)
+        }
         .sheet(item: $editingTransaction) { transaction in
             TransactionEditView(transaction: transaction, budget: budget, categories: (budget.categories ?? []).filter { !$0.isHidden })
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+                .presentationDragIndicator(.visible)
         }
     }
 }

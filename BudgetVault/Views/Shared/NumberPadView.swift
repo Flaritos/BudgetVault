@@ -7,7 +7,7 @@ struct NumberPadKeyStyle: ButtonStyle {
         configuration.label
             .background(
                 isSpecial ? AnyShapeStyle(BudgetVaultTheme.electricBlue.opacity(0.08)) : AnyShapeStyle(Color.secondary.opacity(0.08)),
-                in: RoundedRectangle(cornerRadius: 10)
+                in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusPad)
             )
             .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
@@ -17,6 +17,8 @@ struct NumberPadKeyStyle: ButtonStyle {
 struct NumberPadView: View {
     @Binding var text: String
 
+    @ScaledMetric(relativeTo: .title) private var keyMinHeight: CGFloat = 52
+
     private let buttons: [[String]] = [
         ["1", "2", "3"],
         ["4", "5", "6"],
@@ -25,7 +27,7 @@ struct NumberPadView: View {
     ]
 
     var body: some View {
-        Grid(horizontalSpacing: 16, verticalSpacing: 12) {
+        Grid(horizontalSpacing: BudgetVaultTheme.spacingLG, verticalSpacing: BudgetVaultTheme.spacingMD) {
             ForEach(buttons, id: \.self) { row in
                 GridRow {
                     ForEach(row, id: \.self) { key in
@@ -35,11 +37,11 @@ struct NumberPadView: View {
                             if key == "delete.backward" {
                                 Image(systemName: "delete.backward")
                                     .font(.title2)
-                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .frame(maxWidth: .infinity, minHeight: keyMinHeight)
                             } else {
                                 Text(key)
                                     .font(.title.bold())
-                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .frame(maxWidth: .infinity, minHeight: keyMinHeight)
                             }
                         }
                         .buttonStyle(NumberPadKeyStyle(isSpecial: key == "delete.backward" || key == "."))

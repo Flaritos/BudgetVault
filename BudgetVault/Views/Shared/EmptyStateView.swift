@@ -8,9 +8,9 @@ struct EmptyStateView: View {
     var action: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: BudgetVaultTheme.spacingMD) {
             Image(systemName: icon)
-                .font(.system(size: 48))
+                .font(BudgetVaultTheme.iconLarge)
                 .foregroundStyle(.secondary)
                 .symbolEffect(.pulse)
             Text(title)
@@ -26,7 +26,7 @@ struct EmptyStateView: View {
                     .padding(.top, 4)
             }
         }
-        .padding(40)
+        .padding(BudgetVaultTheme.spacingPage)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
     }

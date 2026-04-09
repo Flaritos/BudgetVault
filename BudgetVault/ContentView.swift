@@ -8,27 +8,35 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var authService = BiometricAuthService()
+    @State private var showLaunchScreen = true
 
     var body: some View {
-        Group {
-            if !hasCompletedOnboarding {
-                OnboardingView()
-            } else if biometricLockEnabled && !authService.isAuthenticated {
-                BiometricLockView(authService: authService)
-            } else {
-                MainTabView()
+        ZStack {
+            // Main content
+            if !showLaunchScreen {
+                if !hasCompletedOnboarding {
+                    ChatOnboardingView()
+                } else if biometricLockEnabled && !authService.isAuthenticated {
+                    BiometricLockView(authService: authService)
+                } else {
+                    MainTabView()
+                }
+            }
+
+            // Launch screen overlay
+            if showLaunchScreen {
+                LaunchScreenView(isShowing: $showLaunchScreen)
             }
         }
         .background {
-            // Fill the entire screen including safe areas
-            // Uses navyDark during onboarding, system background otherwise
-            (hasCompletedOnboarding ? Color(.systemGroupedBackground) : BudgetVaultTheme.navyDark)
+            (hasCompletedOnboarding && !showLaunchScreen ? Color(.systemGroupedBackground) : BudgetVaultTheme.navyDark)
                 .ignoresSafeArea()
         }
+        .animation(.smooth(duration: 0.5), value: hasCompletedOnboarding)
         .onChange(of: hasCompletedOnboarding) { oldValue, newValue in
             if !oldValue && newValue && !hasLoggedFirstTransaction {
                 Task {
-                    try? await Task.sleep(for: .milliseconds(500))
+                    try? await Task.sleep(for: .milliseconds(1500))
                     NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
                 }
             }

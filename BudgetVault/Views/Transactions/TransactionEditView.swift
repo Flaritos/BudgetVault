@@ -5,6 +5,9 @@ struct TransactionEditView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    @ScaledMetric(relativeTo: .body) private var chipSize: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) private var chipWidth: CGFloat = 56
+
     let transaction: Transaction
     let budget: Budget
     let categories: [Category]
@@ -15,6 +18,7 @@ struct TransactionEditView: View {
     @State private var date: Date
     @State private var note: String
     @State private var showDeleteConfirmation = false
+    @State private var showSaveError = false
     @FocusState private var isInputFocused: Bool
 
     init(transaction: Transaction, budget: Budget, categories: [Category]) {
@@ -23,7 +27,7 @@ struct TransactionEditView: View {
         self.categories = categories
         let dollars = transaction.amountCents / 100
         let remainder = transaction.amountCents % 100
-        _amountText = State(initialValue: remainder == 0 ? "\(dollars)" : String(format: "%d.%02d", dollars, remainder))
+        _amountText = State(initialValue: remainder == 0 ? "\(dollars)" : String(format: "%lld.%02lld", dollars, remainder))
         _isIncome = State(initialValue: transaction.isIncome)
         _selectedCategory = State(initialValue: transaction.category)
         _date = State(initialValue: transaction.date)
@@ -32,104 +36,119 @@ struct TransactionEditView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Picker("Type", selection: $isIncome) {
-                    Text("Expense").tag(false)
-                    Text("Income").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-
-                Text(CurrencyFormatter.displayAmount(text: amountText))
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundStyle(amountText.isEmpty ? .secondary : .primary)
-                    .padding(.top, 8)
-
-                if !isIncome && categories.isEmpty {
-                    Text("Create a category in the Budget tab first.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-                } else if !isIncome {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(categories, id: \.id) { category in
-                                Button {
-                                    selectedCategory = category
-                                    HapticManager.selection()
-                                } label: {
-                                    VStack(spacing: 4) {
-                                        Text(category.emoji)
-                                            .font(.title2)
-                                            .frame(width: 44, height: 44)
-                                            .background(
-                                                Circle()
-                                                    .strokeBorder(selectedCategory?.id == category.id ? Color.accentColor : Color.clear, lineWidth: 3)
-                                            )
-                                        Text(category.name)
-                                            .font(.caption2)
-                                            .lineLimit(1)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .frame(width: 56)
-                                }
-                                .accessibilityLabel(category.name)
-                                .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
-                            }
-                        }
-                        .padding(.horizontal)
+            editFormContent
+                .navigationTitle("Edit Transaction")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") { isInputFocused = false }
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
                     }
                 }
+                .confirmationDialog("Delete this transaction?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                    Button("Delete", role: .destructive) {
+                        deleteTransaction()
+                    }
+                } message: {
+                    Text(deleteConfirmationMessage)
+                }
+                .alert("Save Failed", isPresented: $showSaveError) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("Your changes could not be saved. Please try again.")
+                }
+        }
+    }
 
-                HStack {
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
-                        .labelsHidden()
-                    TextField("Add a note", text: $note)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($isInputFocused)
+    private var deleteConfirmationMessage: String {
+        "\(CurrencyFormatter.format(cents: transaction.amountCents)) \u{2022} \(transaction.note.isEmpty ? "No note" : transaction.note)\n\(transaction.date.formatted(date: .abbreviated, time: .omitted))\n\(transaction.category?.name ?? "Income")"
+    }
+
+    @ViewBuilder
+    private var editFormContent: some View {
+        VStack(spacing: BudgetVaultTheme.spacingLG) {
+            Picker("Type", selection: $isIncome) {
+                Text("Expense").tag(false)
+                Text("Income").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+
+            Text(CurrencyFormatter.displayAmount(text: amountText))
+                .font(BudgetVaultTheme.amountEntry)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .foregroundStyle(amountText.isEmpty ? .secondary : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.electricBlue))
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+                .padding(.top, BudgetVaultTheme.spacingSM)
+                .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
+
+            categorySection
+
+            HStack {
+                DatePicker("Date", selection: $date, in: budget.periodStart...budget.nextPeriodStart.addingTimeInterval(-1), displayedComponents: .date)
+                    .labelsHidden()
+                TextField("Add a note", text: $note)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isInputFocused)
+            }
+            .padding(.horizontal)
+
+            Spacer()
+
+            NumberPadView(text: $amountText)
+                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+
+            Button {
+                saveChanges()
+            } label: {
+                Text("Save Changes")
+            }
+            .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
+            .disabled(!canSave)
+            .padding(.horizontal)
+
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                Text("Delete Transaction")
+                    .font(.subheadline)
+            }
+            .padding(.bottom, BudgetVaultTheme.spacingSM)
+        }
+    }
+
+    @ViewBuilder
+    private var categorySection: some View {
+        if !isIncome && categories.isEmpty {
+            Text("Create a category in the Budget tab first.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+        } else if !isIncome {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: BudgetVaultTheme.spacingMD) {
+                    ForEach(categories, id: \.id) { category in
+                        Button {
+                            selectedCategory = category
+                            HapticManager.selection()
+                        } label: {
+                            CategoryChipView(
+                                emoji: category.emoji,
+                                name: category.name,
+                                isSelected: selectedCategory?.id == category.id,
+                                chipSize: chipSize,
+                                chipWidth: chipWidth
+                            )
+                        }
+                        .accessibilityLabel(category.name)
+                        .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
+                    }
                 }
                 .padding(.horizontal)
-
-                Spacer()
-
-                NumberPadView(text: $amountText)
-                    .padding(.horizontal, 24)
-
-                Button {
-                    saveChanges()
-                } label: {
-                    Text("Save Changes")
-                }
-                .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
-                .disabled(!canSave)
-                .padding(.horizontal)
-
-                Button(role: .destructive) {
-                    showDeleteConfirmation = true
-                } label: {
-                    Text("Delete Transaction")
-                        .font(.subheadline)
-                }
-                .padding(.bottom, 8)
-            }
-            .navigationTitle("Edit Transaction")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { isInputFocused = false }
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .confirmationDialog("Delete this transaction?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    modelContext.delete(transaction)
-                    SafeSave.save(modelContext)
-                    HapticManager.notification(.warning)
-                    dismiss()
-                }
             }
         }
     }
@@ -140,6 +159,17 @@ struct TransactionEditView: View {
         return true
     }
 
+    private func deleteTransaction() {
+        modelContext.delete(transaction)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            showSaveError = true
+            return
+        }
+        HapticManager.notification(.warning)
+        dismiss()
+    }
+
     private func saveChanges() {
         guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else { return }
         transaction.amountCents = cents
@@ -147,7 +177,11 @@ struct TransactionEditView: View {
         transaction.category = isIncome ? nil : selectedCategory
         transaction.date = date
         transaction.note = note
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            showSaveError = true
+            return
+        }
         HapticManager.notification(.success)
         dismiss()
     }
