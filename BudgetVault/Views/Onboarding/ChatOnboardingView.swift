@@ -231,6 +231,7 @@ struct ChatOnboardingView: View {
                         .foregroundStyle(.white.opacity(0.7))
                         .padding(.vertical, 8)
                 }
+                .accessibilityIdentifier("welcomeSkipButton")
             }
             .padding(.horizontal, BudgetVaultTheme.spacingXL)
             .padding(.bottom, BudgetVaultTheme.spacingXL)

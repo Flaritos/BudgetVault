@@ -195,6 +195,7 @@ struct DashboardView: View {
                         .disabled(todayClosed)
                         .accessibilityLabel(todayClosed ? "Today's vault is closed" : "Mark today as no-spend day")
                         .accessibilityHint("Closes today's vault without logging a transaction")
+                        .accessibilityIdentifier("noSpendButton")
 
                         Button {
                             HapticManager.impact(.medium)
@@ -817,6 +818,7 @@ struct DashboardView: View {
                 .foregroundStyle(bufferColor)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
+                .accessibilityIdentifier("bufferStat")
         }
     }
 

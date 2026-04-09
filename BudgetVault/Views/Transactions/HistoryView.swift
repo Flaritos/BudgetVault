@@ -754,6 +754,7 @@ struct HistoryView: View {
         )
         .padding(.horizontal)
         .padding(.vertical, 4)
+        .accessibilityIdentifier("todayEmptyRow")
     }
 
     @ViewBuilder

@@ -100,6 +100,15 @@ struct BudgetVaultApp: App {
                     forKey: .fileProtectionKey
                 )
             }
+
+            #if DEBUG
+            // UI test seeding. Launch argument "-uitest 1" wipes UserDefaults,
+            // seeds a deterministic fixture budget, skips onboarding, and
+            // (optionally) marks today as closed via "-uitest-closed 1".
+            if let container, ProcessInfo.processInfo.arguments.contains("-uitest") {
+                UITestSeedService.applyLaunchArguments(container: container)
+            }
+            #endif
         } catch {
             container = nil
             _containerError = State(initialValue: error.localizedDescription)

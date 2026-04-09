@@ -19,6 +19,7 @@ schemes:
         BudgetVault: all
         BudgetVaultWidgetExtension: all
         BudgetVaultTests: [test]
+        BudgetVaultUITests: [test]
     run:
       config: Debug
       storeKitConfiguration: BudgetVault/Configuration.storekit
@@ -26,6 +27,7 @@ schemes:
       config: Debug
       targets:
         - BudgetVaultTests
+        - BudgetVaultUITests
 
 targets:
   BudgetVault:
@@ -74,6 +76,19 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.tests
         GENERATE_INFOPLIST_FILE: YES
+
+  BudgetVaultUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - BudgetVaultUITests
+    dependencies:
+      - target: BudgetVault
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: BudgetVault
 
   BudgetVaultWidgetExtension:
     type: app-extension
