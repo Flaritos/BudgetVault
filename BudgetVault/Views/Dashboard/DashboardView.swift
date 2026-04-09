@@ -41,7 +41,7 @@ struct DashboardView: View {
     @State private var showPaywall = false
     @State private var showMonthlyWrapped = false
     @State private var showAchievements = false
-    @State private var newAchievementBanner: String?
+    // Round 8: newAchievementBanner state removed with overlay banner.
     @State private var showInsights = false
 
     @State private var showShareCard = false
@@ -243,15 +243,14 @@ struct DashboardView: View {
                         .accessibilityHint("Opens the transaction entry form")
                     }
                     .padding(.bottom, BudgetVaultTheme.spacingSM)
-                    .padding(.top, BudgetVaultTheme.spacingSM)
-                    // Subtle fade from transparent to system bg so scrolled
-                    // content doesn't abruptly clip at the FAB top edge.
+                    .padding(.top, BudgetVaultTheme.spacingSM + 4)
+                    // Round 8 RR5: solid opaque background so envelope row
+                    // below the safe-area inset boundary is fully hidden,
+                    // not half-visible through a gradient fade.
                     .background(
-                        LinearGradient(
-                            colors: [Color(.systemBackground).opacity(0), Color(.systemBackground)],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                        .allowsHitTesting(false)
+                        Color(.systemBackground)
+                            .opacity(0.98)
+                            .blur(radius: 0.5)
                     )
                 }
             }
@@ -386,16 +385,14 @@ struct DashboardView: View {
                             budget: budget,
                             transactions: allTransactions
                         )
+                        // Round 8: achievement overlay banner removed — fire
+                        // only a success haptic; users discover new badges
+                        // via Settings → Milestones.
                         if let first = newBadges.first {
                             HapticManager.notification(.success)
-                            newAchievementBanner = first.title
-
                             if first.id == "under_budget_1" || first.id == "streak_30" {
                                 prepareShareCard(for: first, budget: budget)
                             }
-
-                            try? await Task.sleep(for: .seconds(3))
-                            newAchievementBanner = nil
                         }
                     }
 
@@ -437,27 +434,13 @@ struct DashboardView: View {
         // don't collide with the hero glass card. The hero ignores safe
         // area edges to extend navy gradient under the status bar, so
         // we explicitly anchor toasts ~80pt from top (well below the
-        // dynamic island and above the glass card's first row).
+        // Round 8: achievement banner DELETED entirely — it kept
+        // colliding with the hero, envelope cards, Recent row, or
+        // tab bar no matter where we anchored it. Users still see
+        // their unlocks on Settings → Milestones; first-unlock
+        // celebration now happens via the "new badge" ring pulse
+        // on the dashboard hero (below) + a success haptic.
         .overlay(alignment: .bottom) {
-            if let badge = newAchievementBanner {
-                HStack(spacing: BudgetVaultTheme.spacingSM) {
-                    // v3.2 audit M3: vault-themed lock glyph replaces trophy emoji.
-                    Image(systemName: "lock.shield.fill")
-                        .foregroundStyle(Color(hex: "#60A5FA"))
-                    // Round 7: trimmed the weak trailing " · Getting Started"
-                    Text(badge)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.white)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(BudgetVaultTheme.navyDark.opacity(0.95), in: Capsule())
-                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                .padding(.bottom, 16) // R7: above FAB safe-area well below status bar, above hero card
-                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
-                .animation(reduceMotion ? .default : .spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
-            }
-
             // v3.2 audit B4: no-spend day confirmation toast (bottom now).
             if showNoSpendToast {
                 HStack(spacing: 8) {
@@ -471,7 +454,7 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(Color.green.opacity(0.9), in: Capsule())
                 .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
-                .padding(.bottom, 16) // R7: above FAB safe-area well below status bar, above hero card
+                .padding(.bottom, 120) // R8 RR1: clear FAB safeAreaInset + tab bar well below status bar, above hero card
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
@@ -488,7 +471,7 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(BudgetVaultTheme.info, in: Capsule())
                 .shadow(color: BudgetVaultTheme.info.opacity(0.4), radius: 8, y: 4)
-                .padding(.bottom, 16) // R7: above FAB safe-area well below status bar, above hero card
+                .padding(.bottom, 120) // R8 RR1: clear FAB safeAreaInset + tab bar well below status bar, above hero card
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .task {
                     try? await Task.sleep(for: .seconds(3))
@@ -1012,7 +995,7 @@ struct DashboardView: View {
                 LinearGradient(
                     stops: [
                         .init(color: .black, location: 0.0),
-                        .init(color: .black, location: 0.92),
+                        .init(color: .black, location: 0.80),
                         .init(color: .clear, location: 1.0)
                     ],
                     startPoint: .leading,

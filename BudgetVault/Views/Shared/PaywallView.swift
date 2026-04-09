@@ -117,13 +117,13 @@ struct PaywallView: View {
                     }
                 }
             }
-            // v3.2 audit K8/H6: dismiss icon is a circular close button in
-            // the top-right, not a plain blue "Close" text on top of the
-            // blue "$14.99" CTA (accidental tap trap). Also an explicit
-            // toolbarBackground keeps the Close glyph from being drawn
-            // mid-scroll over content.
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
+            // v3.2 K8/H6: circular Close in top-right (not blue text next
+            // to the blue CTA).
+            // Round 8 RR4: toolbarBackground is now hidden so the navy
+            // hero extends flush to the top of the sheet without a
+            // white nav bar strip above it.
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
