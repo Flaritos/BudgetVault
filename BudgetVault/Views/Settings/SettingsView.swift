@@ -55,6 +55,11 @@ struct SettingsView: View {
             aboutSection
         }
         .navigationTitle("Settings")
+        // v3.2 audit H13: opaque nav bar background so the title doesn't
+        // render on top of list content when scrolling (iOS default
+        // behavior leaves it transparent with translucent-on-scroll).
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
         .sheet(isPresented: $showRecurring) {
             NavigationStack {
                 RecurringExpenseListView()
@@ -554,12 +559,14 @@ struct SettingsView: View {
                 Label("Share BudgetVault", systemImage: "heart.fill")
             }
 
+            // v3.2 audit L9: removed the .foregroundStyle(.primary)
+            // override that rendered the bubble icon black; now it
+            // inherits the row tint like every other Settings row.
             Button {
                 showFeedback = true
             } label: {
                 Label("Send Feedback", systemImage: "bubble.left.and.bubble.right.fill")
             }
-            .foregroundStyle(.primary)
 
             Text("Your data never leaves this device.")
                 .font(.caption)

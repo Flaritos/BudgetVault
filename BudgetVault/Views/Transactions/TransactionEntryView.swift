@@ -286,10 +286,17 @@ struct TransactionEntryView: View {
         VStack(spacing: BudgetVaultTheme.spacingXS) {
             let previousPeriodStart = Calendar.current.date(byAdding: .month, value: -1, to: budget.periodStart) ?? budget.periodStart
             HStack {
-                DatePicker("Date", selection: $date,
-                           in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
-                           displayedComponents: .date)
-                    .labelsHidden()
+                // v3.2 audit L5: added a calendar glyph so the date pill
+                // reads as a picker, not a category chip.
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    DatePicker("Date", selection: $date,
+                               in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
+                               displayedComponents: .date)
+                        .labelsHidden()
+                }
                 TextField("Add a note", text: $note)
                     .textFieldStyle(.roundedBorder)
                     .focused($isInputFocused)

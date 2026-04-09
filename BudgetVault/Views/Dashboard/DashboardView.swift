@@ -623,7 +623,11 @@ struct DashboardView: View {
                     }
 
                     // Siri tip
+                    // v3.2 audit L3: was the only gray tip card in an
+                    // otherwise-white-surface dashboard. Wrapped in a white
+                    // card so it matches the surface token.
                     TipView(SiriTip())
+                        .tipBackground(Color(.systemBackground))
                         .padding(.horizontal)
 
                     // Premium teaser
@@ -635,6 +639,10 @@ struct DashboardView: View {
                 }
                 .background(Color(.systemBackground))
                 .clipShape(RoundedCorner(radius: BudgetVaultTheme.radiusXL, corners: [.topLeft, .topRight]))
+                // v3.2 audit L7: subtle shadow at the navy → white seam
+                // so the content "floats" above the hero gradient instead
+                // of meeting it at a hard horizontal line.
+                .shadow(color: .black.opacity(0.15), radius: 10, y: -4)
                 .padding(.top, -20) // overlap the hero gradient
             }
             // v3.2 audit K1: significantly increased bottom padding to
@@ -799,6 +807,22 @@ struct DashboardView: View {
                         }
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                // v3.2 audit M6: persistent privacy chip above the stats
+                // row. The brand's #1 pillar was whispered once in 11pt —
+                // it deserves a quiet permanent presence on the hero.
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 9))
+                    Text("On-device \u{00B7} No bank login")
+                        .font(.system(size: 10, weight: .semibold))
+                        .tracking(0.2)
+                }
+                .foregroundStyle(.white.opacity(0.5))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color.white.opacity(0.06), in: Capsule())
+                .padding(.bottom, 4)
 
                 // Stats row below the card
                 HStack {

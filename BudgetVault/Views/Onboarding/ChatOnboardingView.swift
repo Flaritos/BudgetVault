@@ -92,6 +92,9 @@ struct ChatOnboardingView: View {
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.dailyReminderEnabled) private var dailyReminderEnabled = false
+    // v3.2 audit H9: privacy-first app prompts biometric lock during
+    // onboarding instead of defaulting OFF silently.
+    @AppStorage(AppStorageKeys.biometricLockEnabled) private var biometricLockEnabled = false
 
     @State private var currentStep = 0 // 0=welcome, 1=currency, 2=income, 3=envelopes, 4=unlocked
     @State private var dialRotation: Double = 0
@@ -735,6 +738,26 @@ struct ChatOnboardingView: View {
             Spacer()
 
             VStack(spacing: BudgetVaultTheme.spacingMD) {
+                // v3.2 audit H9: biometric lock prompt — opt-in, on-brand,
+                // defaults to ON for users with Face ID / Touch ID enrolled.
+                Toggle(isOn: $biometricLockEnabled) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "faceid")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text("Lock the vault with Face ID")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
+                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "#60A5FA")))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                        .fill(Color.white.opacity(0.06))
+                )
+
                 Button {
                     withAnimation(.smooth(duration: 0.5)) {
                         hasCompletedOnboarding = true
@@ -752,18 +775,6 @@ struct ChatOnboardingView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-                }
-
-                Button {
-                    requestDailyReminders()
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("Enable daily reminders")
-                            .font(.subheadline)
-                        Image(systemName: "arrow.right")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.white.opacity(0.45))
                 }
             }
             .padding(.horizontal, BudgetVaultTheme.spacingXL)
