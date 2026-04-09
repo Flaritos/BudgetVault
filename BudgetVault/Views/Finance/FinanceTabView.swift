@@ -197,7 +197,9 @@ struct FinanceTabView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal)
-                .padding(.bottom, BudgetVaultTheme.spacingXL)
+                // v3.2 audit K5: extra bottom padding so the CTA clears
+                // the floating tab bar safe-area on the initial viewport.
+                .padding(.bottom, 100)
             }
             .padding(BudgetVaultTheme.spacingLG)
         }

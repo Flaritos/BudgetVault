@@ -38,20 +38,22 @@ struct FeedbackView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if didSave {
-                    Section {
-                        Button {
-                            if let url = FeedbackService.mailtoURL() {
-                                openURL(url) { accepted in
-                                    if !accepted { showMailFallback = true }
-                                }
+                // v3.2 audit H10: Email button always visible so the
+                // "Only sent if you tap Email…" helper text makes sense.
+                // Disabled until the user has saved at least one entry.
+                Section {
+                    Button {
+                        if let url = FeedbackService.mailtoURL() {
+                            openURL(url) { accepted in
+                                if !accepted { showMailFallback = true }
                             }
-                        } label: {
-                            Label("Email to BudgetVault", systemImage: "envelope.fill")
                         }
-                    } footer: {
-                        Text("Opens Mail with your full feedback log attached as text. Nothing is sent until you hit Send.")
+                    } label: {
+                        Label("Email to BudgetVault", systemImage: "envelope.fill")
                     }
+                    .disabled(!didSave && FeedbackService.count() == 0)
+                } footer: {
+                    Text("Opens Mail with your feedback log attached as text. Nothing is sent until you hit Send.")
                 }
             }
             .navigationTitle("Send Feedback")

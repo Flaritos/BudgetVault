@@ -227,12 +227,10 @@ struct SettingsView: View {
                 }
             }
 
+            // v3.2 audit K7: accent color is FREE for all per MEMORY.md.
+            // Earlier L7 fix mistakenly locked it behind Premium — reverted.
             Button {
-                if isPremium {
-                    showThemePicker = true
-                } else {
-                    showPaywall = true
-                }
+                showThemePicker = true
             } label: {
                 HStack {
                     Text("Accent Color")
@@ -241,24 +239,9 @@ struct SettingsView: View {
                     Circle()
                         .fill(Color(hex: accentColorHex))
                         .frame(width: 22, height: 22)
-                    // v3.2 audit L7: unlabeled lone star read as broken icon.
-                    // Explicit "Premium" chip + lock makes the gate obvious.
-                    if !isPremium {
-                        HStack(spacing: 3) {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 10, weight: .semibold))
-                            Text("Premium")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.secondary.opacity(0.12), in: Capsule())
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             }
 
@@ -325,23 +308,15 @@ struct SettingsView: View {
                 Label("Budget Templates", systemImage: "doc.on.doc")
             }
 
-            // Multi-Budget placeholder (coming soon)
-            HStack {
-                Label("Multi-Budget Profiles", systemImage: "square.stack.fill")
-                Spacer()
-                Text("Coming Soon")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.secondary.opacity(0.12), in: Capsule())
-            }
-            .foregroundStyle(.secondary)
-
+            // v3.2 audit M7: removed "Multi-Budget Profiles — Coming Soon"
+            // row. Shipped Settings shouldn't advertise unshipped features.
+            // v3.2 audit M3/M15: trophy.fill → star for achievements
+            // (trophy was gamified Duolingo tone). Also moved below the
+            // other rows so it's not adjacent to destructive Delete.
             Button {
                 showAchievements = true
             } label: {
-                Label("Achievements", systemImage: "trophy.fill")
+                Label("Milestones", systemImage: "star.leadinghalf.filled")
             }
 
             Button(role: .destructive) {
@@ -546,7 +521,12 @@ struct SettingsView: View {
                 }
             }
 
-            Text("Data stays on Apple's servers only. No third-party servers.")
+            // v3.2 audit H8: caption now matches the toggle state.
+            // Previously said "data stays on Apple's servers" regardless
+            // of whether sync was on or off, which contradicted reality.
+            Text(iCloudSyncEnabled
+                 ? "Data stays on Apple's servers only. No third-party servers."
+                 : "iCloud Sync is off. All data stays on this device only.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

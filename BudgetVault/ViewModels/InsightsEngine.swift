@@ -257,14 +257,18 @@ enum InsightsEngine {
         }
 
         // 11. Savings Rate
+        // v3.2 audit K6: renamed "income" → "budget" because the denominator
+        // is the budget target, not actual income transactions. Showing
+        // "Saving 98% of income" when the user hasn't logged any income
+        // transactions was a trust-killing divide-by-wrong-thing error.
         if budget.totalIncomeCents > 0 && totalSpent > 0 {
             let savingsRate = Double(budget.totalIncomeCents - totalSpent) / Double(budget.totalIncomeCents)
             if savingsRate >= 0.2 {
                 let pct = Int(savingsRate * 100)
                 insights.append(Insight(
                     icon: "🏦",
-                    title: "Saving \(pct)% of income",
-                    message: "You're on track to save \(CurrencyFormatter.format(cents: budget.totalIncomeCents - totalSpent)) this month.",
+                    title: "\(pct)% of budget unspent",
+                    message: "You're on track to keep \(CurrencyFormatter.format(cents: budget.totalIncomeCents - totalSpent)) this month.",
                     severity: .success
                 ))
             } else if savingsRate < 0 {

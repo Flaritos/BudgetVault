@@ -53,7 +53,9 @@ struct TransactionEntryView: View {
 
                 formContent
             } // end outer VStack
-            .navigationTitle(isIncome ? "Add Income" : "Add Expense")
+            // v3.2 audit M16: was "Add Expense"/"Add Income", duplicating
+            // the segmented picker. Neutral title lets the picker drive.
+            .navigationTitle("New Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear { applyIntentPrefillIfNeeded() }
             .toolbar {
@@ -81,10 +83,28 @@ struct TransactionEntryView: View {
                 NumberPadView(text: $amountText)
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
                 savedBanner
-                Button { saveTransaction() } label: { Text("Save") }
-                    .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
-                    .disabled(!canSave)
-                    .padding(.horizontal)
+                // v3.2 audit K3: inline hint so users know WHY Save is
+                // disabled. Previously the button just sat grey silently
+                // and blocked the 5-second log loop for first-time users.
+                saveHelperText
+                // v3.2 whimsy: button briefly collapses to a check before dismiss.
+                Button {
+                    HapticManager.notification(.success)
+                    saveTransaction()
+                } label: {
+                    if showSavedBanner {
+                        Image(systemName: "checkmark")
+                            .font(.title3.weight(.bold))
+                            .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Text("Save")
+                            .transition(.opacity)
+                    }
+                }
+                .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
+                .disabled(!canSave)
+                .padding(.horizontal)
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: showSavedBanner)
 
                 // Save & Add Another button
                 Button {
@@ -337,6 +357,30 @@ struct TransactionEntryView: View {
         }
     }
 
+    /// Audit K3: tells the user exactly why Save is disabled, if it is.
+    @ViewBuilder
+    private var saveHelperText: some View {
+        if !canSave {
+            let msg: String = {
+                if (MoneyHelpers.parseCurrencyString(amountText) ?? 0) == 0 {
+                    return "Enter an amount to continue"
+                }
+                if !isIncome && selectedCategory == nil {
+                    return "Pick a category to save"
+                }
+                return ""
+            }()
+            if !msg.isEmpty {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 4)
+                    .transition(.opacity)
+            }
+        }
+    }
+
     @ViewBuilder
     private var savedBanner: some View {
         if showSavedBanner {
@@ -406,13 +450,19 @@ struct TransactionEntryView: View {
                         amountText = "\(dollars)"
                         HapticManager.selection()
                     } label: {
+                        // v3.2 audit H7: bumped to 44pt min tap target (WCAG).
                         Text("\(symbol)\(dollars)")
-                            .font(.caption.bold())
-                            .padding(.horizontal, BudgetVaultTheme.spacingMD)
-                            .padding(.vertical, BudgetVaultTheme.spacingSM)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(amountText == "\(dollars)" ? Color.accentColor : Color.primary)
+                            .frame(minWidth: 56, minHeight: 44)
+                            .padding(.horizontal, 4)
                             .background(
-                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
-                                    .fill(Color.accentColor.opacity(amountText == "\(dollars)" ? 0.2 : 0.08))
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                    .fill(Color.accentColor.opacity(amountText == "\(dollars)" ? 0.15 : 0.07))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                    .strokeBorder(amountText == "\(dollars)" ? Color.accentColor : Color.clear, lineWidth: 1.5)
                             )
                     }
                     .tint(.primary)

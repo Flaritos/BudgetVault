@@ -64,6 +64,11 @@ struct DashboardView: View {
     /// v3.2 audit B4: visible feedback for no-spend button tap.
     @State private var showNoSpendToast = false
     @State private var showBufferInfo = false
+    /// v3.2 whimsy: "vault closes" ceremony — on no-spend tap the hero
+    /// ring briefly animates from its current arc to a full green circle.
+    @State private var vaultClosingAnimation = false
+    /// v3.2 whimsy: hero ring draws in from 0 on every foreground.
+    @State private var ringDrawnIn = false
 
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
@@ -181,12 +186,19 @@ struct DashboardView: View {
                             guard !todayClosed else { return }
                             HapticManager.notification(.success)
                             _ = StreakService.markNoSpendDay()
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                            // v3.2 whimsy signature moment: "close the vault"
+                            // The hero ring sweeps to full green for 600ms
+                            // before the toast slides in. This is the "thunk".
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                vaultClosingAnimation = true
                                 todayClosed = true
-                                showNoSpendToast = true
                             }
-                            // Auto-dismiss the toast after 2.5s.
                             Task {
+                                try? await Task.sleep(for: .milliseconds(700))
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    vaultClosingAnimation = false
+                                    showNoSpendToast = true
+                                }
                                 try? await Task.sleep(for: .seconds(2.5))
                                 withAnimation { showNoSpendToast = false }
                             }
@@ -314,7 +326,7 @@ struct DashboardView: View {
             .alert("Buffer Days", isPresented: $showBufferInfo) {
                 Button("Got it") {}
             } message: {
-                Text("How many extra days your budget could last at your current pace.\n\n+5d means you're ahead of schedule. -2d means you'll run out 2 days early.\n\n∞ means you're WAY ahead — keep it up.")
+                Text("How many extra days your budget could last at your current pace.\n\n+5d means you're ahead of schedule. -2d means you'll run out 2 days early.\n\n∞ means your pace could last forever at this rate.")
             }
             .sheet(isPresented: $showShareCard) {
                 if let image = shareCardImage {
@@ -408,25 +420,31 @@ struct DashboardView: View {
                 refreshCachedValues()
             }
         }
-        .overlay(alignment: .top) {
+        // v3.2 audit K2/L12: all three transient toasts (achievement,
+        // no-spend, freeze) now anchor to the BOTTOM above the FAB, out
+        // of the way of the hero ring. A single bottom overlay with
+        // priority ordering replaces the top stack that used to collide
+        // with the daily allowance label.
+        .overlay(alignment: .bottom) {
             if let badge = newAchievementBanner {
                 HStack(spacing: BudgetVaultTheme.spacingSM) {
-                    Image(systemName: "trophy.fill")
-                        .foregroundStyle(.yellow)
-                    Text("Achievement Unlocked: \(badge)")
+                    // v3.2 audit M3: vault-themed lock glyph replaces trophy emoji.
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundStyle(Color(hex: "#60A5FA"))
+                    Text("First entry secured \u{00B7} \(badge)")
                         .font(.subheadline.bold())
+                        .foregroundStyle(.white)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: Capsule())
-                .shadow(radius: 4, y: 2)
-                .scaleEffect(newAchievementBanner != nil ? 1.0 : 0.5)
-                .padding(.top, 8)
-                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                .background(BudgetVaultTheme.navyDark.opacity(0.95), in: Capsule())
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                .padding(.bottom, 180) // clear FAB
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 .animation(reduceMotion ? .default : .spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
             }
 
-            // v3.2 audit B4: no-spend day confirmation toast.
+            // v3.2 audit B4: no-spend day confirmation toast (bottom now).
             if showNoSpendToast {
                 HStack(spacing: 8) {
                     Image(systemName: "moon.zzz.fill")
@@ -439,8 +457,8 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(Color.green.opacity(0.9), in: Capsule())
                 .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
-                .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.bottom, 180) // clear FAB
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // Freeze toast
@@ -456,8 +474,8 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(BudgetVaultTheme.info, in: Capsule())
                 .shadow(color: BudgetVaultTheme.info.opacity(0.4), radius: 8, y: 4)
-                .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.bottom, 180) // clear FAB
+                .transition(.move(edge: .bottom).combined(with: .opacity))
                 .task {
                     try? await Task.sleep(for: .seconds(3))
                     withAnimation { showFreezeToast = false }
@@ -619,7 +637,12 @@ struct DashboardView: View {
                 .clipShape(RoundedCorner(radius: BudgetVaultTheme.radiusXL, corners: [.topLeft, .topRight]))
                 .padding(.top, -20) // overlap the hero gradient
             }
-            .padding(.bottom, 160) // v3.2 audit H3/B3: space for widened FAB + tab bar safe area
+            // v3.2 audit K1: significantly increased bottom padding to
+            // ensure the FAB (moon + Log Expense pill + shadow) cannot
+            // overlap envelope progress bars, insights cards, or recent
+            // transaction rows at any scroll position. 200pt accounts
+            // for FAB height (~60pt) + shadow (~20pt) + tab bar (~100pt).
+            .padding(.bottom, 200)
             .onAppear {
                 guard !hasAppeared else { return }
                 if reduceMotion {
@@ -684,17 +707,27 @@ struct DashboardView: View {
                             .stroke(.white.opacity(0.06), lineWidth: 7)
                             .frame(width: ringSize, height: ringSize)
 
-                        // Neon arc — color shifts green -> yellow -> red as spending increases
+                        // Neon arc — color shifts green -> yellow -> red as spending increases.
+                        // v3.2 audit L1: minimum visible arc of ~4° so real
+                        // spending under 1% doesn't look like a rendering glitch.
+                        // v3.2 whimsy: on no-spend "vault close" the ring
+                        // sweeps to full green; on foreground it draws from 0.
                         Circle()
-                            .trim(from: 0, to: min(spentFraction, 1.0))
+                            .trim(from: 0, to: vaultClosingAnimation
+                                  ? 1.0
+                                  : (ringDrawnIn
+                                     ? (spentFraction > 0 ? max(0.015, min(spentFraction, 1.0)) : 0)
+                                     : 0))
                             .stroke(
-                                spendingArcColor(for: spentFraction),
+                                vaultClosingAnimation ? Color.green : spendingArcColor(for: spentFraction),
                                 style: StrokeStyle(lineWidth: 6, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
                             .frame(width: ringSize, height: ringSize)
-                            .shadow(color: spendingArcColor(for: spentFraction).opacity(0.5), radius: 8)
-                            .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
+                            .shadow(color: (vaultClosingAnimation ? Color.green : spendingArcColor(for: spentFraction)).opacity(0.5), radius: 8)
+                            .animation(.spring(response: 0.6, dampingFraction: 0.75), value: spentFraction)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: vaultClosingAnimation)
+                            .animation(.easeOut(duration: 0.7), value: ringDrawnIn)
 
                         // Outer glow layer
                         Circle()
@@ -834,7 +867,10 @@ struct DashboardView: View {
 
                 if surplus > cap {
                     bufferText = "\u{221E}"
-                    bufferColor = BudgetVaultTheme.positive
+                    // v3.2 audit M12: was positive green — now white like
+                    // the other stats so it doesn't read as an accent or
+                    // tappable indicator by itself.
+                    bufferColor = .white
                 } else if surplus > 0 {
                     bufferText = "+\(surplus)d"
                     bufferColor = BudgetVaultTheme.positive
@@ -849,17 +885,17 @@ struct DashboardView: View {
         }
 
         return VStack(spacing: 2) {
-            // v3.2 audit L1: tappable buffer label → info alert explaining
-            // what buffer days are. Users didn't know what "+5d" meant.
+            // v3.2 audit L1/L2: tappable buffer label → info alert.
+            // Added small leading space before the ⓘ glyph for breathing.
             Button { showBufferInfo = true } label: {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     Text("BUFFER")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(.white.opacity(0.35))
                         .tracking(0.5)
                     Image(systemName: "info.circle")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.4))
                 }
             }
             .buttonStyle(.plain)
@@ -994,8 +1030,11 @@ struct DashboardView: View {
         .padding(BudgetVaultTheme.spacingLG)
         .frame(width: envelopeCardWidth, height: envelopeCardHeight)
         .background {
+            // v3.2 audit H2/M8: dropped the heavy category-color tint that
+            // made cards look cream/ivory. Now a thin stroke only, so the
+            // surface is consistently white across the app.
             let spendingIntensity = min(pct, 1.0)
-            let tintOpacity = 0.03 + (spendingIntensity * 0.12)
+            let tintOpacity = 0.0 + (spendingIntensity * 0.02)
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
                 .fill(BudgetVaultTheme.cardBackground)
                 .overlay {
@@ -1326,12 +1365,12 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var quickActionsRow: some View {
+        // v3.2 audit H1: removed "Log Expense" quick-action chip — it was
+        // competing with the FAB below. The FAB is the one-and-only primary
+        // action; quick actions are now secondary tools (Recurring, Insights,
+        // Move Money) only.
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: BudgetVaultTheme.spacingSM) {
-                quickActionChip(icon: "plus.circle.fill", label: "Log Expense") {
-                    showTransactionEntry = true
-                }
-
                 if isPremium {
                     quickActionChip(icon: "arrow.left.arrow.right", label: "Move Money") {
                         showMoveMoney = true
@@ -1460,6 +1499,15 @@ struct DashboardView: View {
     /// Pre-compute spent values once and cache them (0.1 performance fix)
     private func refreshCachedValues() {
         todayClosed = StreakService.hasClosedToday()
+        // v3.2 whimsy: trigger the ring draw-in animation on foreground.
+        if !ringDrawnIn {
+            Task {
+                try? await Task.sleep(for: .milliseconds(200))
+                withAnimation(.easeOut(duration: 0.7)) {
+                    ringDrawnIn = true
+                }
+            }
+        }
         let budget = currentBudget
         cachedBudget = budget
         guard let budget else {

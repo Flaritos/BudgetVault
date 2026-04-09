@@ -174,7 +174,13 @@ struct HistoryView: View {
                     }
                 }
             }
-            .toolbarBackground(.hidden, for: .navigationBar)
+            // v3.2 audit K4: show an opaque navy toolbar so the system
+            // .searchable field has a visible frosted background instead
+            // of dark-on-dark invisibility. Also force dark color scheme
+            // so the placeholder text is readable.
+            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Search notes or categories")
             .onAppear {
@@ -386,7 +392,7 @@ struct HistoryView: View {
     private var summaryCard: some View {
         HStack {
             VStack(spacing: 2) {
-                Text("SPENT")
+                Text("Spent")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
                 // v3.2 audit H2: neutral navy for normal spend totals;
@@ -400,19 +406,21 @@ struct HistoryView: View {
             Divider().frame(height: 28)
 
             VStack(spacing: 2) {
-                Text("INCOME")
+                Text("Income")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
+                // v3.2 audit: only tint income green when there's actually income.
                 Text(CurrencyFormatter.format(cents: totalIncome))
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
-                    .foregroundStyle(BudgetVaultTheme.positive)
+                    .foregroundStyle(totalIncome > 0 ? BudgetVaultTheme.positive : Color.primary)
             }
             .frame(maxWidth: .infinity)
 
             Divider().frame(height: 28)
 
             VStack(spacing: 2) {
-                Text("COUNT")
+                // v3.2 audit L13: "COUNT" reads spreadsheet-y. "Entries" is warmer.
+                Text("Entries")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
                 Text("\(cachedFilteredTransactions.count)")
@@ -514,10 +522,11 @@ struct HistoryView: View {
             VaultDialMark(size: 60)
                 .opacity(0.3)
 
-            Text("No Transactions")
+            // v3.2 whimsy: brand-voice empty state. Quiet, confident.
+            Text("The vault is quiet")
                 .font(.title3.weight(.bold))
 
-            Text("Your vault ledger is empty.\nTap + on the Home screen to log your first expense.")
+            Text("Nothing logged yet. Tap Log Expense on the Home screen to start.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

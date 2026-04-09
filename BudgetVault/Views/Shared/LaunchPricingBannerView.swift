@@ -110,7 +110,12 @@ struct LaunchPricingCardView: View {
     }
 }
 
-/// Dismissible dashboard banner for launch pricing
+/// Dismissible dashboard banner for launch pricing.
+///
+/// v3.2 audit M1/M2: removed the orange urgency gradient + "lock it in"
+/// countdown copy that was running on the HOME screen. Home should be
+/// calm; monetization lives on the Vault tab and Settings. This now
+/// surfaces a quiet privacy reinforcement instead.
 struct LaunchPricingDashboardBanner: View {
     @Environment(StoreKitManager.self) private var storeKit
     let action: () -> Void
@@ -119,34 +124,36 @@ struct LaunchPricingDashboardBanner: View {
         if storeKit.isLaunchPricing {
             Button(action: action) {
                 HStack(spacing: 10) {
-                    Image(systemName: "timer")
+                    Image(systemName: "lock.shield.fill")
                         .font(.title3)
+                        .foregroundStyle(Color(hex: "#60A5FA"))
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Launch pricing: \(storeKit.premiumProduct?.displayPrice ?? "$14.99") forever")
+                        Text("One-time \(storeKit.premiumProduct?.displayPrice ?? "$14.99"). Never a subscription.")
                             .font(.subheadline.weight(.bold))
-                        Text("Price increases July 1 — lock it in")
+                            .foregroundStyle(BudgetVaultTheme.navyDark)
+                        Text("Unlock the Vault on your terms.")
                             .font(.caption)
-                            .opacity(0.85)
+                            .foregroundStyle(.secondary)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .opacity(0.6)
+                        .foregroundStyle(.tertiary)
                 }
-                .foregroundStyle(.white)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 10)
+                .padding(.vertical, 12)
                 .background(
-                    LinearGradient(
-                        colors: [Color(hex: "#F59E0B"), Color(hex: "#D97706")],
-                        startPoint: .leading, endPoint: .trailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                .strokeBorder(Color(hex: "#60A5FA").opacity(0.3), lineWidth: 1)
+                        )
                 )
-                .shadow(color: Color(hex: "#F59E0B").opacity(0.3), radius: 8, y: 4)
+                .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
             }
             .buttonStyle(.plain)
         }

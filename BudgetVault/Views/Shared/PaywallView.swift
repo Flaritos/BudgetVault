@@ -72,44 +72,33 @@ struct PaywallView: View {
                         }
                         .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
-                        // MARK: - Competitor Comparison
-                        VStack(spacing: BudgetVaultTheme.spacingSM) {
-                            Text("Other apps charge yearly:")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-
+                        // MARK: - Own-value statement
+                        // v3.2 audit M4: removed the competitor shamefile
+                        // (YNAB/Monarch/Copilot yearly pricing table).
+                        // Confident brands state their own value; they don't
+                        // name-and-shame competitors.
+                        if let price = displayPrice {
                             VStack(spacing: BudgetVaultTheme.spacingXS) {
-                                competitorRow(name: "YNAB", price: "$109/year")
-                                competitorRow(name: "Monarch", price: "$99/year")
-                                competitorRow(name: "Copilot", price: "$70/year")
+                                Text(price)
+                                    .font(.system(size: 44, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(BudgetVaultTheme.navyDark)
+                                Text("Once. Yours forever.")
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.secondary)
                             }
-
-                            if let price = displayPrice {
-                                HStack {
-                                    Text("BudgetVault")
-                                        .font(.subheadline.bold())
-                                        .foregroundStyle(BudgetVaultTheme.electricBlue)
-                                    Spacer()
-                                    Text("\(price) once. Forever.")
-                                        .font(.subheadline.bold())
-                                        .foregroundStyle(BudgetVaultTheme.positive)
-                                }
-                                .padding(.top, 4)
-                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, BudgetVaultTheme.spacingLG)
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                            .padding(.horizontal, BudgetVaultTheme.spacingLG)
                         }
-                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-                        .padding(.vertical, BudgetVaultTheme.spacingMD)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
 
                         // MARK: - Purchase Area
                         purchaseArea
 
                         // MARK: - Footer
+                        // v3.2 audit M5: stated once, not 4×. Repetition reads insecure.
                         VStack(spacing: BudgetVaultTheme.spacingXS) {
-                            Text("Family Sharing included \u{2014} one purchase covers your whole family.")
-                            Text("No subscription. No recurring charges. Ever.")
-                            Text("All data stays on your device. Always.")
+                            Text("Family Sharing included. All data stays on your device.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -128,9 +117,23 @@ struct PaywallView: View {
                     }
                 }
             }
+            // v3.2 audit K8/H6: dismiss icon is a circular close button in
+            // the top-right, not a plain blue "Close" text on top of the
+            // blue "$14.99" CTA (accidental tap trap). Also an explicit
+            // toolbarBackground keeps the Close glyph from being drawn
+            // mid-scroll over content.
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.secondary, .quaternary)
+                    }
+                    .accessibilityLabel("Close")
                 }
             }
             .alert("Purchase Error", isPresented: .init(
@@ -295,15 +298,11 @@ struct PaywallView: View {
             Group {
                 switch storeKit.purchaseState {
                 case .idle, .error:
-                    VStack(spacing: 2) {
-                        Text("Unlock the Vault\(displayPrice.map { " for \($0)" } ?? "")")
-                            .font(.headline)
-                        if storeKit.isLaunchPricing {
-                            Text("Launch pricing — increases after July 1")
-                                .font(.caption2)
-                                .opacity(0.7)
-                        }
-                    }
+                    // v3.2 audit M2: removed "Launch pricing — increases
+                    // after July 1" countdown-style subtitle. Calm brands
+                    // don't use ticking clocks as conversion pressure.
+                    Text("Unlock the Vault\(displayPrice.map { " for \($0)" } ?? "")")
+                        .font(.headline)
                 case .loading:
                     ProgressView()
                         .tint(.white)
