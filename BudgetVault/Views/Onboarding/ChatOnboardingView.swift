@@ -541,7 +541,7 @@ struct ChatOnboardingView: View {
                         .font(.caption)
                         .foregroundStyle(unallocated > 0 ? Color(hex: "#60A5FA") : .white.opacity(0.35))
                         .padding(.top, BudgetVaultTheme.spacingXS)
-                        .padding(.bottom, 24) // v3.2 audit H6: prevent clipping behind "Looks Good" CTA
+                        .padding(.bottom, 80) // Round 5 N18: fuller clearance under the "Looks Good" CTA
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingLG)
             }

@@ -145,9 +145,10 @@ struct FinanceTabView: View {
 
     @ViewBuilder
     private var nonPremiumContent: some View {
-        // v3.2 audit H5: tab was a pure paywall with a countdown timer —
-        // dark-pattern vibe. Now shows a teaser grid of what's inside
-        // BEFORE the paywall CTA so users see the value, then decide.
+        // Round 5 N5: ScrollView now has a safeAreaInset(.bottom)
+        // that pins the pricing card + Unlock CTA above the tab bar,
+        // so the CTA is never hidden behind the floating tab bar on
+        // initial viewport. Scrollable content stays above.
         ScrollView {
             VStack(spacing: BudgetVaultTheme.spacingXL) {
                 VaultDialMark(size: 72)
@@ -188,23 +189,32 @@ struct FinanceTabView: View {
                     )
                 }
                 .padding(.horizontal)
-
-                LaunchPricingCardView()
-                    .padding(.horizontal)
-
-                Button { showPaywall = true } label: {
-                    Text(storeKit.isLaunchPricing ? "Unlock Now" : "See Premium Features")
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal)
-                // v3.2 audit K5: extra bottom padding so the CTA clears
-                // the floating tab bar safe-area on the initial viewport.
-                .padding(.bottom, 100)
+                .padding(.bottom, 40)
             }
             .padding(BudgetVaultTheme.spacingLG)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BudgetVaultTheme.navyDark)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: BudgetVaultTheme.spacingMD) {
+                LaunchPricingCardView()
+
+                Button { showPaywall = true } label: {
+                    Text(storeKit.isLaunchPricing ? "Unlock Now" : "See Premium Features")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            .padding(.top, BudgetVaultTheme.spacingMD)
+            .padding(.bottom, BudgetVaultTheme.spacingSM)
+            .background(
+                LinearGradient(
+                    colors: [BudgetVaultTheme.navyDark.opacity(0), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyDark],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .allowsHitTesting(false)
+            )
+        }
     }
 
     @ViewBuilder

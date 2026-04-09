@@ -31,7 +31,14 @@ enum BudgetVaultTheme {
     static let positive = Color(hex: "#10B981")
     static let negative = Color(hex: "#EF4444")
     static let caution = Color(hex: "#F59E0B")
-    static let info = Color(hex: "#3B82F6")
+    // Round 5 M9: collapsed the info/brightBlue drift. One accent.
+    static let info = brightBlue
+
+    // MARK: - Accent Token
+    /// The ONE blue used for interactive accents across the app.
+    /// Replaces ad-hoc Color.accentColor / link blue / hero blue drift.
+    static let accent = electricBlue
+    static let accentSoft = Color(hex: "#60A5FA")
 
     // MARK: - Spacing
     static let spacingXS: CGFloat = 4
@@ -115,6 +122,18 @@ enum BudgetVaultTheme {
 
     // MARK: - Surface Colors
     static let cardBackground = adaptiveColor(light: "#FFFFFF", dark: "#1C1C1E")
+
+    // Round 5 M8: single source of truth for card surfaces. The app was
+    // using white/cream/gray ad-hoc across Home/Envelopes/Siri tip/Streak
+    // card. These four tokens cover every legitimate card variant.
+    /// Default white data card (envelopes, transactions, insights).
+    static let surfaceCardPrimary = cardBackground
+    /// Subtle elevated card for secondary groupings (streak, tip, info).
+    static let surfaceCardSecondary = cardBackground
+    /// Dark card used on navy chrome (Vault tab features, paywall items).
+    static let surfaceCardDark = adaptiveColor(light: "#F2F2F7", dark: "#0F1B33")
+    /// Subtle highlight card for celebratory moments (wrapped).
+    static let surfaceCardAccent = adaptiveColor(light: "#EFF6FF", dark: "#0F1B33")
     static let surfaceBackground = adaptiveColor(light: "#F2F2F7", dark: "#000000")
 
     // MARK: - User Accent Color

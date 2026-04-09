@@ -10,14 +10,22 @@ struct CategoryChipView: View {
     var chipWidth: CGFloat = 56
 
     var body: some View {
+        // Round 5 N13: selected state was too subtle — just a 3pt stroke.
+        // Now fills with accent + stronger stroke + scale so tapped is OBVIOUS.
         VStack(spacing: BudgetVaultTheme.spacingXS) {
             Text(emoji)
                 .font(.title2)
                 .frame(width: chipSize, height: chipSize)
                 .background(
                     Circle()
-                        .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+                        .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
                 )
+                .background(
+                    Circle()
+                        .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 3 : 1)
+                )
+                .scaleEffect(isSelected ? 1.05 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
             Text(name)
                 .font(.caption2)
                 .lineLimit(1)

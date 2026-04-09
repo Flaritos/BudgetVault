@@ -173,7 +173,10 @@ struct DashboardView: View {
                     )
                 }
             }
-            .overlay(alignment: .bottom) {
+            // Round 5 N3/N4/N6: moved FAB from overlay to safeAreaInset
+            // so ScrollView genuinely reserves the bottom gutter. Overlay
+            // was drawing on top of scroll content regardless of padding.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 // FAB — Pill-shaped floating action button + no-spend day shortcut
                 if currentBudget != nil {
                     HStack(spacing: BudgetVaultTheme.spacingMD) {
@@ -239,7 +242,17 @@ struct DashboardView: View {
                         .accessibilityLabel("Log expense")
                         .accessibilityHint("Opens the transaction entry form")
                     }
-                    .padding(.bottom, BudgetVaultTheme.spacingLG)
+                    .padding(.bottom, BudgetVaultTheme.spacingSM)
+                    .padding(.top, BudgetVaultTheme.spacingSM)
+                    // Subtle fade from transparent to system bg so scrolled
+                    // content doesn't abruptly clip at the FAB top edge.
+                    .background(
+                        LinearGradient(
+                            colors: [Color(.systemBackground).opacity(0), Color(.systemBackground)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                        .allowsHitTesting(false)
+                    )
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -420,12 +433,10 @@ struct DashboardView: View {
                 refreshCachedValues()
             }
         }
-        // v3.2 audit K2/L12: all three transient toasts (achievement,
-        // no-spend, freeze) now anchor to the BOTTOM above the FAB, out
-        // of the way of the hero ring. A single bottom overlay with
-        // priority ordering replaces the top stack that used to collide
-        // with the daily allowance label.
-        .overlay(alignment: .bottom) {
+        // Round 5 N4/N9: toasts re-anchored to TOP (with top padding)
+        // so they don't collide with the FAB safe-area inset or scroll
+        // content. Safe area makes this sit below the dynamic island.
+        .overlay(alignment: .top) {
             if let badge = newAchievementBanner {
                 HStack(spacing: BudgetVaultTheme.spacingSM) {
                     // v3.2 audit M3: vault-themed lock glyph replaces trophy emoji.
@@ -439,8 +450,8 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(BudgetVaultTheme.navyDark.opacity(0.95), in: Capsule())
                 .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                .padding(.bottom, 180) // clear FAB
-                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                .padding(.top, 16) // toast anchored below safe area top
+                .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 .animation(reduceMotion ? .default : .spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
             }
 
@@ -457,8 +468,8 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(Color.green.opacity(0.9), in: Capsule())
                 .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
-                .padding(.bottom, 180) // clear FAB
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.top, 16) // toast anchored below safe area top
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             // Freeze toast
@@ -474,8 +485,8 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(BudgetVaultTheme.info, in: Capsule())
                 .shadow(color: BudgetVaultTheme.info.opacity(0.4), radius: 8, y: 4)
-                .padding(.bottom, 180) // clear FAB
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.top, 16) // toast anchored below safe area top
+                .transition(.move(edge: .top).combined(with: .opacity))
                 .task {
                     try? await Task.sleep(for: .seconds(3))
                     withAnimation { showFreezeToast = false }
@@ -519,13 +530,11 @@ struct DashboardView: View {
                     // Quick Actions Row
                     quickActionsRow
 
-                    // Launch pricing banner (non-premium only, dismissible)
-                    if !isPremium && !hasDissmissedLaunchBanner {
-                        LaunchPricingDashboardBanner {
-                            showPaywall = true
-                        }
-                        .padding(.horizontal)
-                    }
+                    // Round 5 N16: the "One-time $14.99" banner was
+                    // appearing on Home + Vault tab + Paywall (3× repetition
+                    // of the same anti-subscription message). Removed from
+                    // Home so the dashboard stays focused on the daily loop.
+                    // Monetization lives on the Vault tab and Paywall sheet.
 
                     // Streak progress card
                     if currentStreak > 0 {
@@ -645,12 +654,9 @@ struct DashboardView: View {
                 .shadow(color: .black.opacity(0.15), radius: 10, y: -4)
                 .padding(.top, -20) // overlap the hero gradient
             }
-            // v3.2 audit K1: significantly increased bottom padding to
-            // ensure the FAB (moon + Log Expense pill + shadow) cannot
-            // overlap envelope progress bars, insights cards, or recent
-            // transaction rows at any scroll position. 200pt accounts
-            // for FAB height (~60pt) + shadow (~20pt) + tab bar (~100pt).
-            .padding(.bottom, 200)
+            // Round 5 N3: FAB now uses safeAreaInset above, so we only
+            // need a modest extra spacer to keep the last row breathing.
+            .padding(.bottom, 24)
             .onAppear {
                 guard !hasAppeared else { return }
                 if reduceMotion {
@@ -1227,7 +1233,8 @@ struct DashboardView: View {
                 icon: "lock.open.fill",
                 title: "Unlock the Vault",
                 subtitle: "Unlimited envelopes, debt tracker, and advanced reports",
-                gradient: [Color.purple, Color.indigo]
+                // Round 5 M9: was purple→indigo, off-palette. Navy cyan stays on-brand.
+                gradient: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue]
             )
         }
         .padding(.horizontal)
@@ -1294,20 +1301,26 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var streakBadgeView: some View {
+        // Round 5 N15/M3: orange flame emoji replaced with lock.shield
+        // + cyan accent. Only warm hue was on Home — now on-palette.
         VStack(alignment: .trailing, spacing: 2) {
             HStack(spacing: 6) {
-                Text("\u{1F525}")
-                    .font(.system(size: 14))
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(hex: "#60A5FA"))
                 Text("\(currentStreak)")
                     .font(.system(size: 16, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color(hex: "#FBBF24"))
+                    .foregroundStyle(.white)
+                Text("day\(currentStreak == 1 ? "" : "s")")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.55))
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Color(hex: "#FBBF24").opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color(hex: "#FBBF24").opacity(0.3), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
             )
 
             // Freeze indicator
@@ -1328,8 +1341,10 @@ struct DashboardView: View {
         let weekDots = StreakService.thisWeekDots()
 
         HStack(spacing: 14) {
-            Text("\u{1F525}")
-                .font(.system(size: 28))
+            // Round 5 M3: was a 🔥 emoji, Duolingo tone. Now a vault shield.
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(Color(hex: "#60A5FA"))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(currentStreak)-day streak")

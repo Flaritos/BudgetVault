@@ -1,61 +1,34 @@
 import SwiftUI
 
-/// Amber countdown banner for launch pricing. Used in PaywallView, FinanceTabView, and DashboardView.
+/// Round 5 audit N1: the old ticking countdown banner ("Launch pricing
+/// ends in 83d 9h 44m") has been DELETED entirely. The brand no longer
+/// uses live urgency timers — the paywall stands on its own value.
+/// Callers that reference `LaunchPricingBannerView()` now get an empty
+/// view so we don't have to chase every call site in this commit.
 struct LaunchPricingBannerView: View {
-    @Environment(StoreKitManager.self) private var storeKit
-
-    /// Full banner style (PaywallView — horizontal bar)
     var body: some View {
-        if let cd = storeKit.launchCountdownComponents {
-            HStack(spacing: 8) {
-                Image(systemName: "timer")
-                    .font(.subheadline.weight(.semibold))
-
-                Text("Launch pricing ends in")
-                    .font(.caption.weight(.semibold))
-
-                HStack(spacing: 3) {
-                    countdownBox("\(cd.days)d")
-                    countdownBox("\(cd.hours)h")
-                    countdownBox("\(cd.minutes)m")
-                }
-            }
-            .foregroundStyle(.white)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity)
-            .background(
-                LinearGradient(
-                    colors: [Color(hex: "#F59E0B"), Color(hex: "#D97706")],
-                    startPoint: .leading, endPoint: .trailing
-                )
-            )
-        }
-    }
-
-    private func countdownBox(_ text: String) -> some View {
-        Text(text)
-            .font(.caption2.weight(.bold).monospacedDigit())
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.black.opacity(0.2), in: RoundedRectangle(cornerRadius: 4))
+        EmptyView()
     }
 }
 
-/// Compact card style for Vault tab non-premium view
+/// Compact card style for Vault tab non-premium view.
+///
+/// Round 5 audit N2: was an orange urgency card with "Price goes up
+/// July 1" warning. Now a calm electric-blue card matching the home
+/// banner. Strips all caution-color language.
 struct LaunchPricingCardView: View {
     @Environment(StoreKitManager.self) private var storeKit
 
     var body: some View {
-        if let cd = storeKit.launchCountdownComponents {
+        if storeKit.isLaunchPricing {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
-                    Image(systemName: "timer")
+                    Image(systemName: "lock.shield.fill")
                         .font(.subheadline)
-                        .foregroundStyle(BudgetVaultTheme.caution)
-                    Text("LAUNCH PRICING")
+                        .foregroundStyle(Color(hex: "#60A5FA"))
+                    Text("ONE-TIME PRICE")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(BudgetVaultTheme.caution)
+                        .foregroundStyle(Color(hex: "#60A5FA"))
                         .tracking(0.5)
                 }
 
@@ -63,38 +36,19 @@ struct LaunchPricingCardView: View {
                     Text(storeKit.premiumProduct?.displayPrice ?? "$14.99")
                         .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("one-time, forever")
+                    Text("once. yours forever.")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.5))
                 }
-
-                // v3.2 audit L8: was a ticking "83d 12h 0m" countdown which
-                // felt like artificial urgency and conflicted with the calm
-                // privacy-first tone. Now shows a single date.
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar")
-                        .font(.caption2)
-                        .foregroundStyle(BudgetVaultTheme.caution)
-                    Text("Price goes up July 1")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(BudgetVaultTheme.caution)
-                }
-                // keep cd referenced so the guard-let stays meaningful
-                .opacity(cd.days >= 0 ? 1 : 1)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "#F59E0B").opacity(0.15), Color(hex: "#D97706").opacity(0.08)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.white.opacity(0.04))
                     .overlay(
                         RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                            .strokeBorder(Color(hex: "#F59E0B").opacity(0.3), lineWidth: 1)
+                            .strokeBorder(Color(hex: "#60A5FA").opacity(0.3), lineWidth: 1)
                     )
             )
         }
