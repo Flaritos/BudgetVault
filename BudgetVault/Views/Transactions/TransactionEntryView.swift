@@ -75,9 +75,23 @@ struct TransactionEntryView: View {
                 amountDisplay
                 budgetContextHint
                 suggestedAmountButton
-                if !isIncome { quickAmountChips }
-                quickAddTemplatesRow
-                categoryPickerSection
+                if !isIncome {
+                    quickAmountChips
+                    quickAddTemplatesRow
+                    categoryPickerSection
+                } else {
+                    // Round 7 H12: Income mode previously left a ~180pt
+                    // empty gap where expense categories used to be.
+                    // Now shows a calm caption instead.
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(BudgetVaultTheme.positive)
+                        Text("Income goes into your monthly budget pool.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal)
+                }
                 dateAndNoteSection
                 Spacer()
                 NumberPadView(text: $amountText)
@@ -106,13 +120,16 @@ struct TransactionEntryView: View {
                 .padding(.horizontal)
                 .animation(.spring(response: 0.35, dampingFraction: 0.75), value: showSavedBanner)
 
-                // Save & Add Another button
+                // Round 7 R5: was a second filled blue button competing
+                // with Save. Now a quiet text link so there's exactly ONE
+                // primary CTA in the sheet.
                 Button {
                     saveAndAddAnother()
                 } label: {
                     Text("Save & Add Another")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(canSave ? Color.accentColor : Color.secondary)
                 }
-                .buttonStyle(SecondaryButtonStyle(isEnabled: canSave))
                 .disabled(!canSave)
                 .padding(.horizontal)
                 .padding(.bottom, BudgetVaultTheme.spacingSM)
@@ -456,6 +473,14 @@ struct TransactionEntryView: View {
                     Button {
                         amountText = "\(dollars)"
                         HapticManager.selection()
+                        // Round 7 R4: auto-pick the most-recently-used
+                        // category when a quick chip is tapped so Save
+                        // isn't stuck waiting for a second tap.
+                        if selectedCategory == nil, let mru = mostRecentlyUsedCategory {
+                            selectedCategory = mru
+                            manualCategorySelection = true
+                            categoryAutoSelected = true
+                        }
                     } label: {
                         // v3.2 audit H7: bumped to 44pt min tap target (WCAG).
                         Text("\(symbol)\(dollars)")
@@ -492,6 +517,13 @@ struct TransactionEntryView: View {
     }
 
     // MARK: - Computed
+
+    /// Most-recently-used expense category. Falls back to the first
+    /// visible category if there's no history yet.
+    private var mostRecentlyUsedCategory: Category? {
+        let mru = recentTransactions.first(where: { !$0.isIncome })?.category
+        return mru ?? categories.first
+    }
 
     private var canSave: Bool {
         guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else { return false }

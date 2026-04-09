@@ -19,7 +19,7 @@ struct PaywallView: View {
                     // MARK: - Navy Gradient Hero
                     heroSection
 
-                    // MARK: - Launch Pricing Countdown
+                    // MARK: - Launch Pricing Countdown (removed Round 5 — now EmptyView)
                     LaunchPricingBannerView()
 
                     // MARK: - Content on white/system background
@@ -175,7 +175,7 @@ struct PaywallView: View {
     private var heroSection: some View {
         VStack(spacing: BudgetVaultTheme.spacingMD) {
             VaultDialMark(size: 72)
-                .padding(.top, BudgetVaultTheme.spacingXL)
+                .padding(.top, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingLG)
 
             Text("Unlock the Full Vault")
                 .font(.title2.bold())
@@ -188,8 +188,12 @@ struct PaywallView: View {
         }
         .padding(.bottom, BudgetVaultTheme.spacingXL)
         .frame(maxWidth: .infinity)
-        .background(BudgetVaultTheme.brandGradient)
-        .ignoresSafeArea(edges: .top)
+        // Round 7: use a taller navy band that extends past the sheet
+        // grabber area, eliminating the white gap above the hero.
+        .background(
+            BudgetVaultTheme.brandGradient
+                .ignoresSafeArea(edges: .top)
+        )
     }
 
     // MARK: - Hero Feature Card

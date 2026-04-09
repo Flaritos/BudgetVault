@@ -501,9 +501,11 @@ struct HistoryView: View {
                             Text(cat.name)
                                 .font(.system(size: 9, weight: .medium))
                                 .foregroundStyle(isSelected ? .primary : .secondary)
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .minimumScaleFactor(0.85)
                         }
-                        .frame(width: 48)
+                        .frame(width: 58) // Round 7 H11: widened so "Entertainment"/"Savings" don't truncate
                     }
                     .accessibilityLabel(cat.name)
                     .accessibilityAddTraits(isSelected ? .isSelected : [])

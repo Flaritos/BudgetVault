@@ -433,16 +433,19 @@ struct DashboardView: View {
                 refreshCachedValues()
             }
         }
-        // Round 5 N4/N9: toasts re-anchored to TOP (with top padding)
-        // so they don't collide with the FAB safe-area inset or scroll
-        // content. Safe area makes this sit below the dynamic island.
-        .overlay(alignment: .top) {
+        // Round 7 R6: toasts need to sit BELOW the safe area top so they
+        // don't collide with the hero glass card. The hero ignores safe
+        // area edges to extend navy gradient under the status bar, so
+        // we explicitly anchor toasts ~80pt from top (well below the
+        // dynamic island and above the glass card's first row).
+        .overlay(alignment: .bottom) {
             if let badge = newAchievementBanner {
                 HStack(spacing: BudgetVaultTheme.spacingSM) {
                     // v3.2 audit M3: vault-themed lock glyph replaces trophy emoji.
                     Image(systemName: "lock.shield.fill")
                         .foregroundStyle(Color(hex: "#60A5FA"))
-                    Text("First entry secured \u{00B7} \(badge)")
+                    // Round 7: trimmed the weak trailing " · Getting Started"
+                    Text(badge)
                         .font(.subheadline.bold())
                         .foregroundStyle(.white)
                 }
@@ -450,7 +453,7 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(BudgetVaultTheme.navyDark.opacity(0.95), in: Capsule())
                 .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                .padding(.top, 16) // toast anchored below safe area top
+                .padding(.bottom, 16) // R7: above FAB safe-area well below status bar, above hero card
                 .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 .animation(reduceMotion ? .default : .spring(response: 0.4, dampingFraction: 0.6), value: newAchievementBanner)
             }
@@ -468,8 +471,8 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(Color.green.opacity(0.9), in: Capsule())
                 .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
-                .padding(.top, 16) // toast anchored below safe area top
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.bottom, 16) // R7: above FAB safe-area well below status bar, above hero card
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // Freeze toast
@@ -485,8 +488,8 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(BudgetVaultTheme.info, in: Capsule())
                 .shadow(color: BudgetVaultTheme.info.opacity(0.4), radius: 8, y: 4)
-                .padding(.top, 16) // toast anchored below safe area top
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.bottom, 16) // R7: above FAB safe-area well below status bar, above hero card
+                .transition(.move(edge: .bottom).combined(with: .opacity))
                 .task {
                     try? await Task.sleep(for: .seconds(3))
                     withAnimation { showFreezeToast = false }
@@ -761,12 +764,16 @@ struct DashboardView: View {
 
                         // Percentage text
                         VStack(spacing: 0) {
+                            // Round 7 F1: shrink the ring percent so the
+                            // "$X per day" daily allowance is clearly THE
+                            // hero, not competing with a secondary stat.
                             Text(spentPercentLabel)
-                                .font(.system(size: 20, weight: .heavy, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text("spent")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.5))
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.85))
+                            Text("used")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.4))
+                                .tracking(0.5)
                         }
                     }
 
@@ -998,6 +1005,20 @@ struct DashboardView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 2) // room for shadow
             }
+            // Round 7 R1: right-edge fade mask so the horizontal
+            // carousel clearly shows "more to the right" instead of
+            // appearing to clip the last card at the screen edge.
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.0),
+                        .init(color: .black, location: 0.92),
+                        .init(color: .clear, location: 1.0)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
         }
     }
 

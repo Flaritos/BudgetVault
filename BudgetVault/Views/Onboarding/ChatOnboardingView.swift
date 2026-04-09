@@ -92,9 +92,13 @@ struct ChatOnboardingView: View {
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.dailyReminderEnabled) private var dailyReminderEnabled = false
-    // v3.2 audit H9: privacy-first app prompts biometric lock during
-    // onboarding instead of defaulting OFF silently.
-    @AppStorage(AppStorageKeys.biometricLockEnabled) private var biometricLockEnabled = false
+    // Round 7 P4: biometric lock defaults ON for new users in a
+    // privacy-first app. Users can opt out via the toggle before
+    // tapping Start Budgeting. Existing users are unaffected because
+    // they never pass through this step after install.
+    // UI tests default it OFF so they don't hit the passcode prompt.
+    @State private var biometricLockEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uitest")
+    @AppStorage(AppStorageKeys.biometricLockEnabled) private var persistedBiometricLock = false
 
     @State private var currentStep = 0 // 0=welcome, 1=currency, 2=income, 3=envelopes, 4=unlocked
     @State private var dialRotation: Double = 0
@@ -534,17 +538,19 @@ struct ChatOnboardingView: View {
                         }
                     }
 
-                    // Unallocated percentage
-                    let totalPct = editableCategories.reduce(0.0) { $0 + $1.pct }
-                    let unallocated = max(0, 1.0 - totalPct)
-                    Text("Unallocated: \(Int(unallocated * 100))%")
-                        .font(.caption)
-                        .foregroundStyle(unallocated > 0 ? Color(hex: "#60A5FA") : .white.opacity(0.35))
-                        .padding(.top, BudgetVaultTheme.spacingXS)
-                        .padding(.bottom, 80) // Round 5 N18: fuller clearance under the "Looks Good" CTA
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingLG)
             }
+
+            // Round 7 R3: Unallocated row moved OUT of ScrollView and
+            // sits between the list and the CTA as a sticky footer so
+            // it's never clipped behind "Looks Good".
+            let totalPct = editableCategories.reduce(0.0) { $0 + $1.pct }
+            let unallocated = max(0, 1.0 - totalPct)
+            Text("Unallocated: \(Int(unallocated * 100))%")
+                .font(.caption)
+                .foregroundStyle(unallocated > 0 ? Color(hex: "#60A5FA") : .white.opacity(0.35))
+                .padding(.bottom, BudgetVaultTheme.spacingSM)
 
             Button {
                 createBudget()
@@ -759,6 +765,8 @@ struct ChatOnboardingView: View {
                 )
 
                 Button {
+                    // Round 7 P4: persist the user's Face ID choice.
+                    persistedBiometricLock = biometricLockEnabled
                     withAnimation(.smooth(duration: 0.5)) {
                         hasCompletedOnboarding = true
                     }

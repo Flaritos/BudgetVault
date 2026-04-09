@@ -20,6 +20,11 @@ enum UITestSeedService {
         resetUserDefaults()
         wipeSwiftData(container: container)
 
+        // Round 7: explicitly disable biometric lock for UI tests. Real
+        // users get Face ID default-ON from the onboarding toggle; tests
+        // can't enter a passcode prompt so we force it off here.
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.biometricLockEnabled)
+
         // -uitest-wipe-only: just clean state and exit. Used for end-to-end
         // smoke tests that drive the real onboarding flow manually.
         if args.contains("-uitest-wipe-only") {
