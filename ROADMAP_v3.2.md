@@ -1,10 +1,19 @@
 # BudgetVault v3.2 — "Close Today's Vault"
 
-**Branch:** `v3.2-daily-loop`
+**Status: 🚢 SHIPPED 2026-04-09**
+**Branch:** `v3.2-daily-loop` → tagged `v3.2`
 **Created:** 2026-04-07
+**Shipped:** 2026-04-09 (2 days, 12 commits, 8 audit rounds, 80 tests, 50+ fixes)
 **Thesis:** v3.1 shipped the emotional/brand layer. v3.2 ships the *daily loop* + *platform surfaces* + *correctness* — turning BudgetVault from an app users open into a ring users close.
 
 Derived from a 5-agent audit (Trends, Feedback, Tech, UX, Growth). See conversation context for raw reports.
+
+## Final ship state
+- ✅ Sprint 0 (hotfix), 1 (revenue/signal), 2 (daily loop), 3 (correctness), 5 (polish) — all in
+- ✅ Sprint 4 partial — XCUITest infrastructure + reconciliation field, deferred indexes/predicates to v3.2.1
+- ✅ All 5 critical blockers cleared, 25+ high/medium fixes verified
+- ✅ Archive built and validated, IPA exported, tag pushed
+- ⏳ User actions remaining: merge PR #1, upload IPA, App Store Connect metadata, submit for review
 
 ---
 
