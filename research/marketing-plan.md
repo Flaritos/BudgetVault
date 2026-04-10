@@ -4,7 +4,7 @@
 - App submitted for review (March 9, 2026)
 - Website live at budgetvault.io
 - Bundle ID: io.budgetvault.app
-- Price: Free + $9.99 one-time IAP (launch pricing, planned increase to $19.99)
+- Price: Free + $14.99 one-time IAP
 
 ---
 
@@ -42,7 +42,7 @@
 ### 1. r/ynab
 **Title:** After 3 years with YNAB, I built my own envelope budgeting app -- one-time purchase, no subscription
 
-Key points: YNAB CSV import works, same core workflow, $9.99 one-time, no cloud accounts. Honest about what it doesn't do (no bank syncing, no deep goal timelines). Offer promo codes.
+Key points: YNAB CSV import works, same core workflow, $14.99 one-time, no cloud accounts. Honest about what it doesn't do (no bank syncing, no deep goal timelines). Offer promo codes.
 
 ### 2. r/privacy
 **Title:** I built a budgeting app with zero analytics, zero tracking, and Apple's "Data Not Collected" privacy label -- here's how the architecture works
@@ -62,7 +62,7 @@ Key points: Educational post about envelope method. Mentions multiple tools (phy
 ### 5. r/frugal
 **Title:** I was paying $100/year for a budgeting app. Built my own for a one-time cost instead.
 
-Key points: Cost comparison table (YNAB $495 over 5 years vs BudgetVault $9.99). Acknowledge spreadsheets are most frugal option. Self-deprecating humor about hourly rate building it.
+Key points: Cost comparison table (YNAB $495 over 5 years vs BudgetVault $14.99). Acknowledge spreadsheets are most frugal option. Self-deprecating humor about hourly rate building it.
 
 ### 6. r/apple
 **Title:** [Self-Promotion Saturday] I'm a solo developer who spent a year building a budgeting app with SwiftUI + SwiftData -- lessons learned
@@ -86,7 +86,7 @@ Key points: Technical lessons (SwiftData + Decimal corruption, @Query rigidity, 
 
 **Tagline (60 chars):** Envelope budgeting that never leaves your device
 
-**Description:** BudgetVault is a privacy-first envelope budgeting app for iPhone. Every dollar gets a job, and every byte stays on your device. No accounts, no cloud sync required, no subscriptions. On-device ML learns your spending patterns without sending data anywhere. Free core features. One-time $9.99 premium unlock.
+**Description:** BudgetVault is a privacy-first envelope budgeting app for iPhone. Every dollar gets a job, and every byte stays on your device. No accounts, no cloud sync required, no subscriptions. On-device ML learns your spending patterns without sending data anywhere. Free core features. One-time $14.99 premium unlock.
 
 **Launch day:** Share PH link to email list + Twitter. Respond to every comment within 30 min for first 12 hours.
 
@@ -98,7 +98,7 @@ See launch-content-calendar.md for full 14-day calendar with ready-to-post tweet
 
 ### Profile Setup
 - Handle: @BudgetVaultApp
-- Bio: "Privacy-first envelope budgeting. $9.99 once, not $100/year. No accounts, no servers, no data collection. budgetvault.io"
+- Bio: "Privacy-first envelope budgeting. $14.99 once, not $100/year. No accounts, no servers, no data collection. budgetvault.io"
 - Pinned: Launch announcement
 
 ### Content Themes (rotate)
@@ -145,12 +145,12 @@ See launch-content-calendar.md for full 14-day calendar with ready-to-post tweet
 
 ## Price Increase Strategy
 
-Use the $9.99 -> $19.99 increase as a marketing event:
-1. Pre-launch: "Lock in $9.99 before it doubles"
-2. App Store description: "Introductory pricing"
+Use the $14.99 -> $24.99 increase as a marketing event:
+1. Pre-launch: "Lock in $14.99 before the price goes up"
+2. App Store description: "Current pricing"
 3. 30 days post-launch: Email "Price goes up in 7 days"
 4. Website countdown banner 7 days before
-5. After increase: "X people locked in $9.99" as social proof
+5. After increase: "X people locked in $14.99" as social proof
 
 ---
 

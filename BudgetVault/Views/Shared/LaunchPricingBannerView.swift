@@ -25,10 +25,10 @@ struct LaunchPricingCardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.shield.fill")
                         .font(.subheadline)
-                        .foregroundStyle(Color(hex: "#60A5FA"))
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
                     Text("ONE-TIME PRICE")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color(hex: "#60A5FA"))
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
                         .tracking(0.5)
                 }
 
@@ -48,7 +48,7 @@ struct LaunchPricingCardView: View {
                     .fill(Color.white.opacity(0.04))
                     .overlay(
                         RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                            .strokeBorder(Color(hex: "#60A5FA").opacity(0.3), lineWidth: 1)
+                            .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.3), lineWidth: 1)
                     )
             )
         }
@@ -80,7 +80,7 @@ struct LaunchPricingDashboardBanner: View {
                 HStack(spacing: 10) {
                     Image(systemName: "lock.shield.fill")
                         .font(.title3)
-                        .foregroundStyle(Color(hex: "#60A5FA"))
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("One-time \(storeKit.premiumProduct?.displayPrice ?? "$14.99"). Never a subscription.")
@@ -104,7 +104,7 @@ struct LaunchPricingDashboardBanner: View {
                         .fill(Color(.systemBackground))
                         .overlay(
                             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                .strokeBorder(Color(hex: "#60A5FA").opacity(0.3), lineWidth: 1)
+                                .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.3), lineWidth: 1)
                         )
                 )
                 .shadow(color: .black.opacity(0.06), radius: 6, y: 2)

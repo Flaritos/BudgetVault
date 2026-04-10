@@ -3,7 +3,7 @@
 
 **Date:** March 9, 2026
 **Account:** @BudgetVaultApp (brand new, 0 followers)
-**Context:** Privacy-first iOS budgeting app, $9.99 one-time, launching ~March 14
+**Context:** Privacy-first iOS budgeting app, $14.99 one-time, launching ~March 14
 
 ---
 
@@ -344,12 +344,12 @@ The website at budgetvault.io needs to be checked for:
 
 ### Twitter Bio Optimization
 
-Current bio: "Privacy-first envelope budgeting. $9.99 once, not $100/year. No accounts, no servers, no data collection. Built by a solo dev."
+Current bio: "Privacy-first envelope budgeting. $14.99 once, not $100/year. No accounts, no servers, no data collection. Built by a solo dev."
 
 **Problem:** No clear CTA. Add the website link in the bio AND use the profile spotlight (Professional accounts can pin a link) for the App Store link once live.
 
 **Improved bio option:**
-"Your budget stays on your device. Period. Envelope budgeting, on-device ML, $9.99 once. No subscription. No data collection. Try it free."
+"Your budget stays on your device. Period. Envelope budgeting, on-device ML, $14.99 once. No subscription. No data collection. Try it free."
 
 This leads with the value proposition ("your budget stays on your device") rather than the category label ("privacy-first envelope budgeting").
 
@@ -414,7 +414,7 @@ This is the specific daily checklist beyond the scheduled tweet. Total time comm
 - [ ] Spend 45 minutes engaging in replies on both Reddit posts
 - [ ] Write 15 thoughtful replies on Twitter (focus on #buildinpublic and #indiedev today since the scheduled tweet is a dev story)
 - [ ] Quote tweet 2-3 indie dev posts about the challenges of building without analytics
-- [ ] Create the pricing comparison image (BudgetVault $9.99 vs YNAB $495 over 5 years)
+- [ ] Create the pricing comparison image (BudgetVault $14.99 vs YNAB $495 over 5 years)
 - [ ] Follow up with any indie devs who replied to your DMs
 
 ---
@@ -513,5 +513,5 @@ Create these before Day 6 (launch):
 2. **Screen recording: Daily allowance** (15 sec) -- Log expense, watch number update
 3. **Screen recording: ML insights** (15 sec) -- Show pattern detection
 4. **Static image: Privacy label comparison** -- BudgetVault vs. competitor side by side
-5. **Static image: 5-year pricing comparison** -- BudgetVault $9.99 vs YNAB $495 table
+5. **Static image: 5-year pricing comparison** -- BudgetVault $14.99 vs YNAB $495 table
 6. **Static image: "Things we don't ask for" list** -- Formatted cleanly for sharing

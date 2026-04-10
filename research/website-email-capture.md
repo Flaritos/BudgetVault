@@ -69,5 +69,5 @@ If you want the absolute simplest approach:
 ## Email Sequence Plan
 1. **Launch day:** "BudgetVault is live on the App Store" + App Store link
 2. **Day 7:** "First week update" + early user feedback highlights
-3. **Day 25:** "Price goes from $9.99 to $19.99 in 5 days" (urgency)
-4. **Day 30:** "Last chance: $9.99 pricing ends today"
+3. **Day 25:** "Price goes from $14.99 to $24.99 in 5 days" (urgency)
+4. **Day 30:** "Last chance: $14.99 pricing ends today"

@@ -435,7 +435,10 @@ struct DebtTrackingView: View {
         for index in offsets {
             sortedDebts[index].isActive = false
         }
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            return
+        }
     }
 
     // MARK: - Helpers

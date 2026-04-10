@@ -127,7 +127,10 @@ struct RecurringExpenseFormView: View {
             .confirmationDialog("Delete this recurring expense?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     if let expense { modelContext.delete(expense) }
-                    SafeSave.save(modelContext)
+                    guard SafeSave.save(modelContext) else {
+                        modelContext.rollback()
+                        return
+                    }
                     dismiss()
                 }
             }
@@ -158,7 +161,10 @@ struct RecurringExpenseFormView: View {
             modelContext.insert(newExpense)
             expenseToSchedule = newExpense
         }
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            return
+        }
 
         // Schedule bill due reminder if enabled
         if UserDefaults.standard.bool(forKey: AppStorageKeys.billDueReminders) {

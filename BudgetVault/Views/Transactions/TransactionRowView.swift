@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TransactionRowView: View {
     let transaction: Transaction
+    var showReconciled: Bool = false
 
     @ScaledMetric(relativeTo: .body) private var emojiSize: CGFloat = 36
 
@@ -12,11 +13,11 @@ struct TransactionRowView: View {
                 .fill(categoryColor)
                 .frame(width: 3, height: 36)
 
-            // Emoji circle
+            // Emoji in tinted rounded-rect (unified with HistoryView)
             Text(emoji)
                 .font(.title3)
                 .frame(width: emojiSize, height: emojiSize)
-                .background(categoryColor.opacity(0.10), in: Circle())
+                .background(categoryColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
 
             // Content
             VStack(alignment: .leading, spacing: 2) {
@@ -38,10 +39,18 @@ struct TransactionRowView: View {
 
             Spacer()
 
-            // Amount — expenses use .primary, income uses green
-            Text(formattedAmount)
-                .font(BudgetVaultTheme.rowAmount)
-                .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : .primary)
+            // Amount + optional reconciled indicator
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formattedAmount)
+                    .font(BudgetVaultTheme.rowAmount)
+                    .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : .primary)
+                if showReconciled && transaction.isReconciled {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.caption2)
+                        .foregroundStyle(BudgetVaultTheme.positive.opacity(0.7))
+                        .accessibilityLabel("Reviewed")
+                }
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(emoji) \(displayTitle), \(formattedAmount), \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
@@ -61,7 +70,7 @@ struct TransactionRowView: View {
 
     private var categoryColor: Color {
         if transaction.isIncome { return BudgetVaultTheme.positive }
-        guard let hex = transaction.category?.color else { return .gray }
+        guard let hex = transaction.category?.color else { return Color(.systemGray4) }
         return Color(hex: hex)
     }
 

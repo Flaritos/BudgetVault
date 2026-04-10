@@ -31,19 +31,19 @@ private struct OnboardingVaultDial: View {
                 Circle()
                     .trim(from: 0, to: progress)
                     .stroke(
-                        Color(hex: "#60A5FA"),
+                        BudgetVaultTheme.accentSoft,
                         style: StrokeStyle(lineWidth: max(size * 0.04, 3), lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                     .frame(width: size * 0.82, height: size * 0.82)
-                    .shadow(color: Color(hex: "#60A5FA").opacity(0.5), radius: 8)
+                    .shadow(color: BudgetVaultTheme.accentSoft.opacity(0.5), radius: 8)
 
                 // Extra glow ring when fully unlocked
                 if progress >= 1.0 {
                     Circle()
                         .trim(from: 0, to: 1.0)
                         .stroke(
-                            Color(hex: "#93C5FD"),
+                            BudgetVaultTheme.accentSoft,
                             style: StrokeStyle(lineWidth: 2, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
@@ -109,6 +109,7 @@ struct ChatOnboardingView: View {
     @State private var showSaveError = false
     @State private var showCurrencyPicker = false
     @State private var budgetCreated = false
+    @ScaledMetric(relativeTo: .largeTitle) private var incomeDisplaySize: CGFloat = 48
 
     private let categoryLimit = 6
 
@@ -214,7 +215,7 @@ struct ChatOnboardingView: View {
                 // claim at the exact moment users decide to stay.
                 Text("No bank login. One-time price.")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Color(hex: "#60A5FA"))
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
                     .padding(.top, BudgetVaultTheme.spacingXS)
 
                 Text("4 quick steps — skip anytime")
@@ -288,7 +289,7 @@ struct ChatOnboardingView: View {
                     Image(systemName: "arrow.right")
                         .font(.caption)
                 }
-                .foregroundStyle(Color(hex: "#60A5FA"))
+                .foregroundStyle(BudgetVaultTheme.accentSoft)
             }
 
             Spacer()
@@ -335,7 +336,7 @@ struct ChatOnboardingView: View {
                     .padding(.vertical, 10)
                     .background(
                         tempCurrency == currency.code
-                            ? AnyShapeStyle(Color(hex: "#60A5FA").opacity(0.35))
+                            ? AnyShapeStyle(BudgetVaultTheme.accentSoft.opacity(0.35))
                             : AnyShapeStyle(Color.white.opacity(0.12)),
                         in: Capsule()
                     )
@@ -343,11 +344,12 @@ struct ChatOnboardingView: View {
                         Capsule()
                             .strokeBorder(
                                 tempCurrency == currency.code
-                                    ? Color(hex: "#60A5FA")
+                                    ? BudgetVaultTheme.accentSoft
                                     : Color.clear,
                                 lineWidth: 1.5
                             )
                     )
+                    .accessibilityAddTraits(tempCurrency == currency.code ? .isSelected : [])
                 }
             }
         }
@@ -382,7 +384,7 @@ struct ChatOnboardingView: View {
             // v3.2 audit M6: format with thousands separators so $5,000 matches
             // the dashboard instead of "$5000".
             Text(formattedIncomeDisplay)
-                .font(.system(size: 48, weight: .heavy, design: .rounded))
+                .font(.system(size: min(incomeDisplaySize, 64), weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, BudgetVaultTheme.spacingSM)
@@ -442,6 +444,7 @@ struct ChatOnboardingView: View {
                                         .fill(Color.white.opacity(0.08))
                                 )
                         }
+                        .accessibilityLabel(key == "\u{232B}" ? "Delete" : key)
                     }
                 }
             }
@@ -504,6 +507,12 @@ struct ChatOnboardingView: View {
                 .font(.title3.bold())
                 .foregroundStyle(.white)
 
+            Text("Divide your income into spending categories. Each category gets a portion of your monthly budget.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.5))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
             // Horizontal template scroll
             templateScroll
                 .padding(.bottom, BudgetVaultTheme.spacingXS)
@@ -549,7 +558,7 @@ struct ChatOnboardingView: View {
             let unallocated = max(0, 1.0 - totalPct)
             Text("Unallocated: \(Int(unallocated * 100))%")
                 .font(.caption)
-                .foregroundStyle(unallocated > 0 ? Color(hex: "#60A5FA") : .white.opacity(0.35))
+                .foregroundStyle(unallocated > 0 ? BudgetVaultTheme.accentSoft : .white.opacity(0.35))
                 .padding(.bottom, BudgetVaultTheme.spacingSM)
 
             Button {
@@ -597,7 +606,7 @@ struct ChatOnboardingView: View {
                         .padding(.vertical, BudgetVaultTheme.spacingMD)
                         .background(
                             selectedTemplate == template
-                                ? AnyShapeStyle(Color(hex: "#60A5FA").opacity(0.25))
+                                ? AnyShapeStyle(BudgetVaultTheme.accentSoft.opacity(0.25))
                                 : AnyShapeStyle(Color.white.opacity(0.08)),
                             in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
                         )
@@ -605,12 +614,13 @@ struct ChatOnboardingView: View {
                             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
                                 .strokeBorder(
                                     selectedTemplate == template
-                                        ? Color(hex: "#60A5FA").opacity(0.6)
+                                        ? BudgetVaultTheme.accentSoft.opacity(0.6)
                                         : Color.white.opacity(0.12),
                                     lineWidth: 1
                                 )
                         )
                     }
+                    .accessibilityAddTraits(selectedTemplate == template ? .isSelected : [])
                 }
             }
             .padding(.horizontal, BudgetVaultTheme.spacingLG)
@@ -650,6 +660,8 @@ struct ChatOnboardingView: View {
                     Image(systemName: "minus.circle.fill")
                         .font(.body)
                         .foregroundStyle(.white.opacity(0.5))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Circle())
                 }
 
                 Text("\(Int(editableCategories[index].pct * 100))%")
@@ -665,6 +677,8 @@ struct ChatOnboardingView: View {
                     Image(systemName: "plus.circle.fill")
                         .font(.body)
                         .foregroundStyle(.white.opacity(0.5))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Circle())
                 }
             }
 
@@ -729,7 +743,7 @@ struct ChatOnboardingView: View {
                     .font(.system(size: 32, weight: .heavy, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color(hex: "#93C5FD"), Color(hex: "#60A5FA")],
+                            colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.accentSoft],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -756,7 +770,7 @@ struct ChatOnboardingView: View {
                             .foregroundStyle(.white.opacity(0.85))
                     }
                 }
-                .toggleStyle(SwitchToggleStyle(tint: Color(hex: "#60A5FA")))
+                .toggleStyle(SwitchToggleStyle(tint: BudgetVaultTheme.accentSoft))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(

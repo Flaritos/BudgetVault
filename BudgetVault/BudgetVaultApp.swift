@@ -175,7 +175,7 @@ struct BudgetVaultApp: App {
         VStack(spacing: 24) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.red)
+                .foregroundStyle(BudgetVaultTheme.negative)
 
             Text("Database Error")
                 .font(.title2.bold())
@@ -193,7 +193,7 @@ struct BudgetVaultApp: App {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.red, in: RoundedRectangle(cornerRadius: 12))
+                    .background(BudgetVaultTheme.negative, in: RoundedRectangle(cornerRadius: 12))
                     .foregroundStyle(.white)
             }
             .padding(.horizontal, 40)
@@ -299,7 +299,7 @@ struct BudgetVaultApp: App {
             walkYear = nextYear
         }
 
-        SafeSave.save(context)
+        if !SafeSave.save(context) { context.rollback() }
 
         // Dedup check: merge any duplicate budgets for the same month/year (0.4)
         deduplicateBudgets(context: context)
@@ -335,7 +335,7 @@ struct BudgetVaultApp: App {
                 seen[key] = budget
             }
         }
-        SafeSave.save(context)
+        if !SafeSave.save(context) { context.rollback() }
     }
 
     // MARK: - Recurring Expenses

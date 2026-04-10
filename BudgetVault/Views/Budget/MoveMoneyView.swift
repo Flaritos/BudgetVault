@@ -184,7 +184,12 @@ struct MoveMoneyView: View {
 
         from.budgetedAmountCents -= cents
         to.budgetedAmountCents += cents
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            from.budgetedAmountCents += cents
+            to.budgetedAmountCents -= cents
+            modelContext.rollback()
+            return
+        }
         HapticManager.notification(.success)
         dismiss()
     }

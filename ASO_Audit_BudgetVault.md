@@ -420,7 +420,7 @@ Promotional text appears above the description and can be changed anytime withou
 
 **Launch period (first 30 days):**
 ```
-Launch Special: Get BudgetVault Premium for just $9.99 -- limited time introductory pricing. No subscription, ever.
+Get BudgetVault Premium for just $14.99. One-time purchase, no subscription, ever.
 ```
 
 **Post-launch, default:**
@@ -574,8 +574,8 @@ Apple allows A/B testing of icon, screenshots, and preview video against the def
 In-App Events appear on the product page and in search results, providing additional visibility.
 
 **Event 1: Launch event**
-- Title: "Launch Special: $9.99 Premium"
-- Description: "Get BudgetVault Premium at our introductory price. One-time purchase, no subscription."
+- Title: "$14.99 Premium — One-Time Purchase"
+- Description: "Get BudgetVault Premium for $14.99. One-time purchase, no subscription."
 - Badge: "Special Event"
 - Duration: First 30 days after launch
 

@@ -36,10 +36,10 @@
 | Goodbudget | $80/yr | Freemium | Unchanged. Free tier limited to 20 envelopes. |
 | True North | $49.99 | One-time | New entrant (Feb 2026). Privacy-first desktop app. Direct competitor positioning. |
 | SenticMoney | $39/yr | Subscription | New entrant. Local-first, zero-based budgeting. |
-| **BudgetVault** | **$9.99 IAP** | **One-time** | **Strongest price positioning in the market.** |
+| **BudgetVault** | **$14.99 IAP** | **One-time** | **Strongest price positioning in the market.** |
 
 ### Key Market Shift Since Previous Analysis
-YNAB's price has risen to $109/yr (with monthly billing effectively $180/yr), accelerating the migration wave. New privacy-first competitors (True North at $49.99 one-time, SenticMoney at $39/yr) have entered the market, validating the demand BudgetVault targets. The "local-first" movement from productivity tools (Obsidian, etc.) is now reaching personal finance. BudgetVault's $9.99 one-time price is now the most aggressive value proposition in the entire envelope budgeting category.
+YNAB's price has risen to $109/yr (with monthly billing effectively $180/yr), accelerating the migration wave. New privacy-first competitors (True North at $49.99 one-time, SenticMoney at $39/yr) have entered the market, validating the demand BudgetVault targets. The "local-first" movement from productivity tools (Obsidian, etc.) is now reaching personal finance. BudgetVault's $14.99 one-time price is now the most aggressive value proposition in the entire envelope budgeting category.
 
 ---
 
@@ -88,7 +88,7 @@ YNAB's pricing backlash is BudgetVault's single largest acquisition opportunity.
 | **Reports: income vs. expense over time** | Medium -- basic trend visibility | Perfect fit | Small | Low |
 
 **What YNAB power users complain about (BudgetVault advantages):**
-- Price ($109+/yr vs. BudgetVault's $9.99 one-time)
+- Price ($109+/yr vs. BudgetVault's $14.99 one-time)
 - Mobile app feels like a web wrapper, not native iOS
 - Credit card handling is confusing
 - Steep learning curve
@@ -505,7 +505,7 @@ Note: Couple/Partner Sharing is ranked #2 by impact but placed in Q4 due to impl
 
 ### BudgetVault's Current Strengths (Validated by Research)
 
-1. **Price**: $9.99 one-time is the most aggressive value proposition in the entire category. YNAB is $109/yr, Monarch is $99/yr, Copilot is $95/yr, EveryDollar is $80/yr, Goodbudget is $80/yr. Even the new privacy-first entrant True North is $49.99 one-time.
+1. **Price**: $14.99 one-time is the most aggressive value proposition in the entire category. YNAB is $109/yr, Monarch is $99/yr, Copilot is $95/yr, EveryDollar is $80/yr, Goodbudget is $80/yr. Even the new privacy-first entrant True North is $49.99 one-time.
 
 2. **Privacy**: "Data Not Collected" privacy label is a genuine differentiator. The local-first movement is growing, validated by new entrants in 2026. BudgetVault should amplify this in marketing.
 
@@ -519,7 +519,7 @@ Note: Couple/Partner Sharing is ranked #2 by impact but placed in Q4 due to impl
 
 BudgetVault's positioning should evolve from "The $20 YNAB" to:
 
-> **"The budget app that works without your bank login. $9.99. Once."**
+> **"The budget app that works without your bank login. $14.99. Once."**
 
 This directly addresses the three strongest market trends identified in this research:
 1. Subscription fatigue (every competitor charges annually)

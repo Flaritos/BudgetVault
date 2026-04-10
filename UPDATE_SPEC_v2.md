@@ -164,7 +164,7 @@ Add competitive comparison:
 ```
 YNAB: $109/year
 Monarch: $99/year
-BudgetVault: $9.99 once (forever)
+BudgetVault: $14.99 once (forever)
 ```
 
 **File:** `PaywallView.swift`

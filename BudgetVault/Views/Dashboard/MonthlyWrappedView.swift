@@ -10,6 +10,7 @@ struct MonthlyWrappedView: View {
     @State private var showSaveSuccess = false
     @State private var showPhotoPermissionDenied = false
     @State private var renderedShareImage: Image?
+    @State private var ringAppeared = false
 
     private var calendar: Calendar { Calendar.current }
 
@@ -208,13 +209,13 @@ struct MonthlyWrappedView: View {
         }
     }
 
-    // MARK: - Colors
+    // MARK: - Colors (theme tokens)
 
-    private let wrappedNavy = Color(hex: "#0B1426")
-    private let wrappedNavyMid = Color(hex: "#111D35")
-    private let wrappedPurple = Color(hex: "#6366F1")
-    private let wrappedGreen = Color(hex: "#34D399")
-    private let wrappedRed = Color(hex: "#EF4444")
+    private let wrappedNavy = BudgetVaultTheme.navyDark
+    private let wrappedNavyMid = BudgetVaultTheme.navyMid
+    private let wrappedPurple = BudgetVaultTheme.neonPurple
+    private let wrappedGreen = BudgetVaultTheme.neonGreen
+    private let wrappedRed = BudgetVaultTheme.negative
 
     // MARK: - Body
 
@@ -309,7 +310,7 @@ struct MonthlyWrappedView: View {
 
                     // Spent arc (red, at the end)
                     Circle()
-                        .trim(from: max(1.0 - spentPercent / 100.0, 0), to: 1.0)
+                        .trim(from: ringAppeared ? max(1.0 - spentPercent / 100.0, 0) : 1.0, to: 1.0)
                         .stroke(
                             wrappedRed.opacity(0.3),
                             style: StrokeStyle(lineWidth: 18, lineCap: .round)
@@ -319,7 +320,7 @@ struct MonthlyWrappedView: View {
 
                     // Saved arc (green, glowing)
                     Circle()
-                        .trim(from: 0, to: min(savedPercent / 100.0, 1.0))
+                        .trim(from: 0, to: ringAppeared ? min(savedPercent / 100.0, 1.0) : 0)
                         .stroke(
                             wrappedGreen,
                             style: StrokeStyle(lineWidth: 18, lineCap: .round)
@@ -359,6 +360,11 @@ struct MonthlyWrappedView: View {
 
                 Spacer()
                 Spacer()
+            }
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.0).delay(0.3)) {
+                ringAppeared = true
             }
         }
         .accessibilityElement(children: .combine)

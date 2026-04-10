@@ -24,7 +24,7 @@ BudgetVault v3.0 is live. The foundation is strong. The next moves determine whe
 | 2 | **Buffer Days Metric** | YNAB's most motivational metric. One computed property + one dashboard card. "Your budget could last 47 more days." | 1-2 days | Retention ⬆⬆ |
 | 3 | **Smart Quick-Add Templates** | One-tap "Coffee $5.50" chips from historical patterns. Reduces transaction entry from 15s to 3s. | 1-2 weeks | Retention ⬆⬆⬆ |
 | 4 | **Reconciliation Flow** | "What's your actual bank balance?" → auto-adjust. Prevents balance drift, the #1 long-term churn cause. Dealbreaker for YNAB switchers. | 3-5 days | Retention ⬆⬆⬆ |
-| 5 | **Price Increase to $14.99** | $9.99 undervalues the product. $14.99 is still 85% cheaper than YNAB per year. Execute with 7-day countdown marketing. | 1 day | Revenue ⬆⬆⬆ |
+| 5 | **Price Increase to $14.99** | $14.99 is still 85% cheaper than YNAB per year. Execute with 7-day countdown marketing. | 1 day | Revenue ⬆⬆⬆ |
 
 ### TIER 2: Do Next Month (Weeks 5-8)
 *Revenue unlock + viral mechanics + platform expansion*
@@ -72,7 +72,7 @@ All 5 agents independently agreed on these:
 | **Don't build a web app** | Server-side anything violates "data never leaves device." |
 | **Don't add bank sync** | Plaid/Yodlee complaints are the #1 reason users leave Monarch/YNAB. Your weakness is their weakness. |
 | **Don't add third-party analytics** | Invalidates "Data Not Collected" privacy label — the biggest differentiator. |
-| **Don't lower the price** | $9.99 is already undervalued. Move UP, not down. |
+| **Don't lower the price** | $14.99 is already undervalued. Move UP, not down. |
 
 ---
 
@@ -80,7 +80,7 @@ All 5 agents independently agreed on these:
 
 | Scenario | Downloads/Day | Conversion | Price | Monthly Net | Annual Net |
 |----------|--------------|-----------|-------|-------------|------------|
-| Current | 50 | 8% | $9.99 | $1,528 | $18,340 |
+| Current | 50 | 8% | $14.99 | $1,528 | $18,340 |
 | After Tier 1 | 100 | 10% | $14.99 | $3,822 | $45,869 |
 | After Tier 2+3 | 150 | 12% | $24.99 | $10,769 | $129,228 |
 | Optimistic | 200 | 12% | $24.99 | $15,294 | $183,527 |
@@ -93,7 +93,7 @@ All 5 agents independently agreed on these:
 
 | Phase | Message |
 |-------|---------|
-| **Now** | "The budget app that works without your bank login. $9.99. Once." |
+| **Now** | "The budget app that works without your bank login. $14.99. Once." |
 | **After partner sharing** | "Budget together, privately. $24.99 for your whole family." |
 | **At scale** | "The vault for your money. Zero tracking. Zero subscriptions. Just budgeting." |
 

@@ -13,7 +13,7 @@ Hey everyone. Long-time YNAB user here (since the YNAB4 days). I want to be upfr
 
 YNAB genuinely changed how I think about money. The envelope method clicked for me in a way nothing else did. But after the last price increase I started thinking about what I actually needed versus what I was paying for. I don't use the bank syncing. I don't need the web app. I just want to assign dollars to envelopes and track what I spend.
 
-So I built BudgetVault. It's an iOS app that does envelope budgeting with a one-time $9.99 purchase (there's a free tier too). No subscription, no accounts, everything stays on your device.
+So I built BudgetVault. It's an iOS app that does envelope budgeting with a one-time $14.99 purchase (there's a free tier too). No subscription, no accounts, everything stays on your device.
 
 A few things that might matter to people here:
 
@@ -80,7 +80,7 @@ I spent the last year building BudgetVault, a budgeting app built entirely in Sw
 
 **What it does:** Envelope budgeting. You set a monthly income, divide it into categories (rent, groceries, fun money, etc.), and track spending against those envelopes. The app has on-device ML that learns your patterns and gives you insights like daily spending allowances.
 
-**Cost:** Free to use with a $9.99 one-time purchase to unlock everything. No subscription.
+**Cost:** Free to use with a $14.99 one-time purchase to unlock everything. No subscription.
 
 It's at budgetvault.io -- happy to answer any questions about the build or the features.
 
@@ -112,7 +112,7 @@ That's it. That's the whole system.
 - **Physical envelopes.** Seriously. If you're just starting, use cash in actual envelopes for discretionary categories.
 - **Spreadsheets.** A simple Google Sheet works fine. One column per envelope, subtract as you spend.
 - **YNAB.** The gold standard app for this method. Subscription-based ($99/yr), great if you want bank syncing and deep reporting.
-- **BudgetVault.** Full disclosure -- I built this one. It's an iOS app, one-time $9.99 purchase, everything stays on your device. I built it because I wanted YNAB's workflow without the recurring cost.
+- **BudgetVault.** Full disclosure -- I built this one. It's an iOS app, one-time $14.99 purchase, everything stays on your device. I built it because I wanted YNAB's workflow without the recurring cost.
 - **Goodbudget.** Another solid option, has a free tier.
 
 The method matters more than the tool. If a notebook and pen gets you to assign every dollar a job, that's a win.
@@ -133,14 +133,14 @@ I used YNAB (You Need A Budget) for years. Great app. Envelope budgeting method 
 
 I'm a developer, so I did the very frugal thing of spending hundreds of hours building my own budgeting app instead of just paying the $99. (Yes, I'm aware of the irony. My hourly rate on this project is approximately $0.03.)
 
-The result is BudgetVault. It's on iOS, does envelope budgeting, and costs $9.99 one-time. No subscription. There's a free tier too.
+The result is BudgetVault. It's on iOS, does envelope budgeting, and costs $14.99 one-time. No subscription. There's a free tier too.
 
 **The frugal math that matters though:**
 
 | Option | Year 1 | Year 3 | Year 5 |
 |--------|--------|--------|--------|
 | YNAB | $99 | $297 | $495 |
-| BudgetVault | $9.99 | $9.99 | $9.99 |
+| BudgetVault | $14.99 | $14.99 | $14.99 |
 | Spreadsheet | $0 | $0 | $0 |
 
 I'll be honest -- a spreadsheet is the most frugal option and works fine. The app just makes it faster to log things on the go and gives you visual breakdowns without building your own charts.
@@ -179,7 +179,7 @@ Hey r/apple. I've been lurking here for years and wanted to share my experience 
 
 5. **Widgets are the best-kept secret for user retention.** My most-used feature isn't any screen in the app -- it's the home screen widget showing remaining budget.
 
-**The app itself:** Envelope budgeting (assign every dollar to a category, track spending). $9.99 one-time IAP, no subscription. Zero analytics SDKs -- Apple's "Data Not Collected" privacy label.
+**The app itself:** Envelope budgeting (assign every dollar to a category, track spending). $14.99 one-time IAP, no subscription. Zero analytics SDKs -- Apple's "Data Not Collected" privacy label.
 
 Happy to answer technical questions about any of the above.
 

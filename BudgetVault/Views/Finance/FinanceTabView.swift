@@ -6,6 +6,8 @@ struct FinanceTabView: View {
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    // TODO: migrate to AppStorageKeys (matches DashboardView)
+    @AppStorage("lastWrappedViewed") private var lastWrappedViewed = ""
     @Environment(StoreKitManager.self) private var storeKit
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
@@ -14,18 +16,19 @@ struct FinanceTabView: View {
     private var activeDebts: [DebtAccount]
 
     @State private var showPaywall = false
+    @State private var navigateToBudgetSetup = false
 
     // MARK: - Neon Accent Colors
 
-    private let neonBlue = Color(hex: "#60A5FA")
-    private let neonGreen = Color(hex: "#34D399")
-    private let neonYellow = Color(hex: "#FBBF24")
-    private let neonPurple = Color(hex: "#A78BFA")
-    private let neonOrange = Color(hex: "#FB923C")
+    private let neonBlue = BudgetVaultTheme.neonBlue
+    private let neonGreen = BudgetVaultTheme.neonGreen
+    private let neonYellow = BudgetVaultTheme.neonYellow
+    private let neonPurple = BudgetVaultTheme.neonPurple
+    private let neonOrange = BudgetVaultTheme.neonOrange
 
     private let categoryColors: [Color] = [
-        Color(hex: "#60A5FA"), Color(hex: "#34D399"), Color(hex: "#FB923C"),
-        Color(hex: "#A78BFA"), Color(hex: "#FBBF24"), Color(hex: "#F87171")
+        BudgetVaultTheme.neonBlue, BudgetVaultTheme.neonGreen, BudgetVaultTheme.neonOrange,
+        BudgetVaultTheme.neonPurple, BudgetVaultTheme.neonYellow, BudgetVaultTheme.negative
     ]
 
     // MARK: - Computed Properties
@@ -138,7 +141,11 @@ struct FinanceTabView: View {
             }
         }
         .background(BudgetVaultTheme.navyDark)
-        .navigationBarHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(isPresented: $navigateToBudgetSetup) {
+            BudgetView()
+        }
     }
 
     // MARK: - Non-Premium Content
@@ -160,7 +167,7 @@ struct FinanceTabView: View {
                         .foregroundStyle(.white)
                     Text("Premium features. Unlock once, keep forever.")
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.65))
                         .multilineTextAlignment(.center)
                 }
 
@@ -188,7 +195,6 @@ struct FinanceTabView: View {
                         blurb: "Build the budget you actually need, no limits."
                     )
                 }
-                .padding(.horizontal)
                 .padding(.bottom, 40)
             }
             .padding(BudgetVaultTheme.spacingLG)
@@ -235,7 +241,7 @@ struct FinanceTabView: View {
                     .foregroundStyle(.white)
                 Text(blurb)
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
@@ -249,6 +255,19 @@ struct FinanceTabView: View {
                         .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
                 )
         )
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 4) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9, weight: .bold))
+                Text("Premium")
+                    .font(.system(size: 9, weight: .bold))
+            }
+            .foregroundStyle(.white.opacity(0.65))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.white.opacity(0.08), in: Capsule())
+            .padding(10)
+        }
     }
 
     // MARK: - Vault Header
@@ -275,15 +294,32 @@ struct FinanceTabView: View {
                 Text("Vault")
                     .font(.title.weight(.heavy))
                     .foregroundStyle(.white)
-                Text("\(healthStatus) \u{00B7} \(daysRemaining) days left")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.4))
+
+                if healthStatus == "Set Income" {
+                    Button {
+                        navigateToBudgetSetup = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("Set Income")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(neonBlue)
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(neonBlue.opacity(0.7))
+                        }
+                    }
+                    .accessibilityHint("Opens budget setup")
+                } else {
+                    Text("\(healthStatus) \u{00B7} \(daysRemaining) days left")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.65))
+                }
             }
 
             Spacer()
         }
         .padding(.horizontal)
-        .padding(.top, 56)
+        .padding(.top, BudgetVaultTheme.spacingLG)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Vault. \(healthStatus). \(daysRemaining) days left.")
     }
@@ -321,11 +357,12 @@ struct FinanceTabView: View {
     @ViewBuilder
     private func insightRow(_ insight: Insight) -> some View {
         HStack(spacing: BudgetVaultTheme.spacingMD) {
-            // Glowing status dot
-            Circle()
-                .fill(insight.severity.neonColor)
-                .frame(width: 8, height: 8)
+            // Severity icon with glow (replaces color-only dot for a11y)
+            Image(systemName: insight.severity.vaultIconName)
+                .font(.subheadline)
+                .foregroundStyle(insight.severity.neonColor)
                 .shadow(color: insight.severity.neonColor.opacity(0.6), radius: 4)
+                .frame(width: 20)
 
             Text(insight.title)
                 .font(.subheadline.weight(.medium))
@@ -333,10 +370,6 @@ struct FinanceTabView: View {
                 .lineLimit(1)
 
             Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.15))
         }
         .padding(.horizontal, BudgetVaultTheme.spacingLG)
         .padding(.vertical, BudgetVaultTheme.spacingMD)
@@ -350,7 +383,7 @@ struct FinanceTabView: View {
         )
         .padding(.horizontal)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(insight.title)
+        .accessibilityLabel("\(insight.severity.rawValue) priority: \(insight.title)")
     }
 
     // MARK: - Tools Section
@@ -380,7 +413,7 @@ struct FinanceTabView: View {
                             .overlay(alignment: .leading) {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(LinearGradient(
-                                        colors: [Color(hex: "#60A5FA"), Color(hex: "#93C5FD")],
+                                        colors: [BudgetVaultTheme.neonBlue, BudgetVaultTheme.neonBlue.opacity(0.6)],
                                         startPoint: .leading, endPoint: .trailing
                                     ))
                                     .frame(width: geo.size.width * min(max(spentFraction, 0.1), 1.0), height: 3)
@@ -405,7 +438,7 @@ struct FinanceTabView: View {
                             .overlay(alignment: .leading) {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(LinearGradient(
-                                        colors: [Color(hex: "#34D399"), Color(hex: "#6EE7B7")],
+                                        colors: [BudgetVaultTheme.neonGreen, BudgetVaultTheme.neonGreen.opacity(0.6)],
                                         startPoint: .leading, endPoint: .trailing
                                     ))
                                     .frame(width: geo.size.width * (activeDebts.isEmpty ? 0 : 0.28), height: 3)
@@ -440,13 +473,21 @@ struct FinanceTabView: View {
                 ) {
                     MonthlyWrappedShell()
                 } miniViz: {
-                    Text("NEW")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(neonPurple.opacity(0.5))
+                    if wrappedIsNew {
+                        Text("NEW")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(neonPurple.opacity(0.5))
+                    }
                 }
             }
             .padding(.horizontal)
         }
+    }
+
+    private var wrappedIsNew: Bool {
+        guard let budget = currentBudget else { return false }
+        let key = "\(budget.year)-\(budget.month)"
+        return lastWrappedViewed != key
     }
 
     private var wrappedSubtitle: String {
@@ -484,7 +525,7 @@ struct FinanceTabView: View {
 
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(0.65))
                     .padding(.bottom, BudgetVaultTheme.spacingSM)
 
                 Spacer()
@@ -502,7 +543,7 @@ struct FinanceTabView: View {
             )
         }
         .tint(.primary)
-        .accessibilityLabel(title)
+        .accessibilityLabel("\(title), \(subtitle)")
     }
 }
 
@@ -511,10 +552,19 @@ struct FinanceTabView: View {
 extension Insight.Severity {
     var neonColor: Color {
         switch self {
-        case .success: return Color(hex: "#34D399")
-        case .warning: return Color(hex: "#FBBF24")
-        case .info: return Color(hex: "#60A5FA")
-        case .nudge: return Color(hex: "#A78BFA")
+        case .success: return BudgetVaultTheme.neonGreen
+        case .warning: return BudgetVaultTheme.neonYellow
+        case .info: return BudgetVaultTheme.neonBlue
+        case .nudge: return BudgetVaultTheme.neonPurple
+        }
+    }
+
+    var vaultIconName: String {
+        switch self {
+        case .success: return "checkmark.circle.fill"
+        case .info: return "info.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .nudge: return "lightbulb.fill"
         }
     }
 }

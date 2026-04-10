@@ -25,6 +25,8 @@ struct HistoryView: View {
     // MARK: - Cached Filter State
     @State private var cachedFilteredTransactions: [Transaction] = []
     @State private var cachedGroupedByDay: [(date: Date, transactions: [Transaction])] = []
+    @State private var totalSpent: Int64 = 0
+    @State private var totalIncome: Int64 = 0
 
     enum FilterMode: String, CaseIterable {
         case all = "All"
@@ -61,15 +63,7 @@ struct HistoryView: View {
         cachedFilteredTransactions.count > displayLimit
     }
 
-    // MARK: - Period summary
-
-    private var totalSpent: Int64 {
-        cachedFilteredTransactions.filter { !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
-    }
-
-    private var totalIncome: Int64 {
-        cachedFilteredTransactions.filter { $0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
-    }
+    // MARK: - Period summary (cached in recomputeFilteredTransactions)
 
     // MARK: - Static DateFormatter
 
@@ -85,6 +79,8 @@ struct HistoryView: View {
         guard let budget = currentBudget else {
             cachedFilteredTransactions = []
             cachedGroupedByDay = []
+            totalSpent = 0
+            totalIncome = 0
             return
         }
 
@@ -120,6 +116,8 @@ struct HistoryView: View {
         }
 
         cachedFilteredTransactions = transactions
+        totalSpent = transactions.filter { !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+        totalIncome = transactions.filter { $0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
         recomputeGroupedByDay()
     }
 
@@ -285,7 +283,7 @@ struct HistoryView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Previous month")
-                .frame(width: 44, alignment: .leading)
+                .frame(width: 88, alignment: .leading)
 
                 Spacer()
 
@@ -393,13 +391,13 @@ struct HistoryView: View {
         HStack {
             VStack(spacing: 2) {
                 Text("Spent")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
                 // v3.2 audit H2: neutral navy for normal spend totals;
                 // red (BudgetVaultTheme.negative) is reserved for overspend.
                 Text(CurrencyFormatter.format(cents: totalSpent))
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
-                    .foregroundStyle(BudgetVaultTheme.navyDark)
+                    .font(.system(.callout, design: .rounded).weight(.bold))
+                    .foregroundStyle(.primary)
             }
             .frame(maxWidth: .infinity)
 
@@ -407,11 +405,11 @@ struct HistoryView: View {
 
             VStack(spacing: 2) {
                 Text("Income")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
                 // v3.2 audit: only tint income green when there's actually income.
                 Text(CurrencyFormatter.format(cents: totalIncome))
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .font(.system(.callout, design: .rounded).weight(.bold))
                     .foregroundStyle(totalIncome > 0 ? BudgetVaultTheme.positive : Color.primary)
             }
             .frame(maxWidth: .infinity)
@@ -421,16 +419,18 @@ struct HistoryView: View {
             VStack(spacing: 2) {
                 // v3.2 audit L13: "COUNT" reads spreadsheet-y. "Entries" is warmer.
                 Text("Entries")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
                 Text("\(cachedFilteredTransactions.count)")
-                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .font(.system(.callout, design: .rounded).weight(.bold))
             }
             .frame(maxWidth: .infinity)
         }
         .padding(BudgetVaultTheme.spacingMD)
         .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Period summary: Spent \(CurrencyFormatter.format(cents: totalSpent)), Income \(CurrencyFormatter.format(cents: totalIncome)), \(cachedFilteredTransactions.count) entries")
         .padding(.horizontal)
         .padding(.top, BudgetVaultTheme.spacingSM)
     }
@@ -520,22 +520,14 @@ struct HistoryView: View {
 
     @ViewBuilder
     private var vaultEmptyState: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            VaultDialMark(size: 60)
-                .opacity(0.3)
-
-            // v3.2 whimsy: brand-voice empty state. Quiet, confident.
-            Text("The vault is quiet")
-                .font(.title3.weight(.bold))
-
-            Text("Nothing logged yet. Tap Log Expense on the Home screen to start.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        EmptyStateView(
+            icon: "clock.fill",
+            title: "Nothing Logged Yet",
+            message: "Your transaction history will appear here.",
+            actionLabel: "Log Expense"
+        ) {
+            NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-        .offset(y: -40)
     }
 
     // MARK: - Day Label
@@ -566,7 +558,10 @@ struct HistoryView: View {
             category: transaction.category
         )
         modelContext.insert(duplicate)
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            return
+        }
         HapticManager.notification(.success)
     }
 
@@ -643,7 +638,10 @@ struct HistoryView: View {
 
                                 Button {
                                     transaction.isReconciled.toggle()
-                                    try? modelContext.save()
+                                    guard SafeSave.save(modelContext) else {
+                                        modelContext.rollback()
+                                        return
+                                    }
                                     HapticManager.selection()
                                 } label: {
                                     Label(
@@ -651,7 +649,7 @@ struct HistoryView: View {
                                         systemImage: transaction.isReconciled ? "checkmark.circle.fill" : "checkmark.circle"
                                     )
                                 }
-                                .tint(.green)
+                                .tint(BudgetVaultTheme.positive)
                             }
                             .contextMenu {
                                 Button {
@@ -737,10 +735,10 @@ struct HistoryView: View {
         HStack(spacing: BudgetVaultTheme.spacingMD) {
             Image(systemName: "sun.max.fill")
                 .font(.title3)
-                .foregroundStyle(Color.orange)
+                .foregroundStyle(BudgetVaultTheme.caution)
                 .frame(width: 36, height: 36)
                 .background(
-                    Color.orange.opacity(0.12),
+                    BudgetVaultTheme.caution.opacity(0.12),
                     in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 )
 
@@ -762,6 +760,7 @@ struct HistoryView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
+                    .frame(minHeight: 44)
                     .background(Color.accentColor, in: Capsule())
             }
             .buttonStyle(.plain)
@@ -774,6 +773,7 @@ struct HistoryView: View {
         )
         .padding(.horizontal)
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("todayEmptyRow")
     }
 
@@ -820,7 +820,7 @@ struct HistoryView: View {
                 if transaction.isReconciled {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.caption2)
-                        .foregroundStyle(.green.opacity(0.7))
+                        .foregroundStyle(BudgetVaultTheme.positive.opacity(0.7))
                         .accessibilityLabel("Reviewed")
                 }
             }
@@ -846,7 +846,7 @@ struct HistoryView: View {
 
     private func transactionCategoryColor(_ transaction: Transaction) -> Color {
         if transaction.isIncome { return BudgetVaultTheme.positive }
-        guard let hex = transaction.category?.color else { return .gray }
+        guard let hex = transaction.category?.color else { return Color(.systemGray4) }
         return Color(hex: hex)
     }
 

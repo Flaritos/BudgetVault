@@ -220,7 +220,7 @@ struct InsightsView: View {
                         }
 
                         // PREMIUM: Deep Analysis (consolidated teaser 2)
-                        premiumSection("SPENDING PATTERN", dotColor: Color(hex: "#8B5CF6")) {
+                        premiumSection("SPENDING PATTERN", dotColor: BudgetVaultTheme.neonPurple) {
                             VStack(spacing: 12) {
                                 AnomalyListCard(anomalies: cachedAnomalies)
                                     .environment(\.colorScheme, .dark)
@@ -328,7 +328,7 @@ struct InsightsView: View {
                     Button("Upgrade") {
                         showPaywall = true
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(PrimaryButtonStyle())
                     .controlSize(.small)
                 }
             }
@@ -539,17 +539,28 @@ struct InsightsView: View {
     // MARK: - ML Computation (off main actor path, run once in .task)
 
     private func computeMLResults() async {
-        guard let budget = currentBudget else { return }
+        // Pick the budget matching the selected range
+        let targetBudget: Budget? = {
+            switch selectedRange {
+            case .thisMonth: return currentBudget
+            case .lastMonth: return previousBudget
+            case .threeMonths, .yearToDate: return currentBudget
+            }
+        }()
+        guard let budget = targetBudget else { return }
 
         NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
+
+        // ML predictions are only meaningful for a single complete/current period
+        let mlApplicable = (selectedRange == .thisMonth)
 
         // Gather expenses once and pass to all ML functions (0.1)
         let expenses = BudgetMLEngine.gatherExpenses(budget: budget)
 
-        cachedPrediction = BudgetMLEngine.predictMonthEndSpending(budget: budget, expenses: expenses)
-        cachedPattern = BudgetMLEngine.classifySpendingPattern(budget: budget, expenses: expenses)
-        cachedForecasts = BudgetMLEngine.forecastCategories(budget: budget)
-        cachedAnomalies = BudgetMLEngine.detectAnomalies(budget: budget)
+        cachedPrediction = mlApplicable ? BudgetMLEngine.predictMonthEndSpending(budget: budget, expenses: expenses) : nil
+        cachedPattern = mlApplicable ? BudgetMLEngine.classifySpendingPattern(budget: budget, expenses: expenses) : nil
+        cachedForecasts = mlApplicable ? BudgetMLEngine.forecastCategories(budget: budget) : []
+        cachedAnomalies = mlApplicable ? BudgetMLEngine.detectAnomalies(budget: budget) : []
         cachedInsights = InsightsEngine.generateInsights(
             budget: budget, previousBudget: previousBudget, allBudgets: allBudgets
         )
@@ -560,7 +571,7 @@ struct InsightsView: View {
     private func severityColor(_ severity: Insight.Severity) -> Color {
         switch severity {
         case .warning: BudgetVaultTheme.negative
-        case .info: .blue
+        case .info: BudgetVaultTheme.info
         case .success: BudgetVaultTheme.positive
         case .nudge: BudgetVaultTheme.caution
         }

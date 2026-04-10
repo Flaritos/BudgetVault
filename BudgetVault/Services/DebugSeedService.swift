@@ -197,7 +197,7 @@ enum DebugSeedService {
         UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
         UserDefaults.standard.set(true, forKey: AppStorageKeys.hasCompletedOnboarding)
 
-        SafeSave.save(context)
+        if !SafeSave.save(context) { context.rollback() }
     }
 
     /// Seeds 15 days of realistic transactions into the user's existing budget
@@ -300,7 +300,7 @@ enum DebugSeedService {
         UserDefaults.standard.set(12, forKey: AppStorageKeys.currentStreak)
         UserDefaults.standard.set(DateHelpers.dateString(calendar.startOfDay(for: today)), forKey: AppStorageKeys.lastLogDate)
 
-        SafeSave.save(context)
+        if !SafeSave.save(context) { context.rollback() }
     }
 
     private static func addTx(_ context: ModelContext, cat: Category, cents: Int64, note: String, date: Date) {

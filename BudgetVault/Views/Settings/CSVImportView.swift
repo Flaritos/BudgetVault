@@ -139,7 +139,7 @@ struct CSVImportView: View {
                     Text("Continue Import")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
             }
         }
     }
@@ -186,7 +186,7 @@ struct CSVImportView: View {
                     Text("Import \(parsedRows.count) Transactions")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(selectedCategories.isEmpty)
             }
         }
@@ -209,7 +209,7 @@ struct CSVImportView: View {
                     .multilineTextAlignment(.center)
             }
             Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PrimaryButtonStyle())
             Spacer()
         }
         .padding(.horizontal, 32)

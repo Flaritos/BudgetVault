@@ -18,7 +18,7 @@ BudgetVault
 
 ### Bio (157 characters)
 ```
-Privacy-first envelope budgeting. $9.99 once, not $100/year. No accounts, no servers, no data collection. Built by a solo dev.
+Privacy-first envelope budgeting. $14.99 once, not $100/year. No accounts, no servers, no data collection. Built by a solo dev.
 ```
 
 ### Location Field
@@ -94,7 +94,7 @@ Budgeting apps that charge you $100/year to track your spending have a business 
 
 They need you to KEEP budgeting poorly so you never cancel.
 
-BudgetVault is $9.99. Once. Forever. We want you to succeed and move on with your life.
+BudgetVault is $14.99. Once. Forever. We want you to succeed and move on with your life.
 
 #budgetapp #moneymanagement #nosubscription
 ```
@@ -210,7 +210,7 @@ Watch for: pricing announcements, outage reports, user complaints, feature launc
 - Add the App Store link as a **profile spotlight** (Professional accounts can pin a link)
 - Set up **Automated DM welcome message** (optional, only if it does not feel spammy):
   ```
-  Thanks for following! BudgetVault is a privacy-first envelope budgeting app. Free to try, $9.99 to unlock everything. No account needed. budgetvault.io
+  Thanks for following! BudgetVault is a privacy-first envelope budgeting app. Free to try, $14.99 to unlock everything. No account needed. budgetvault.io
   ```
 
 ### Twitter Blue / Premium

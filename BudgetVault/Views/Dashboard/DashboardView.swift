@@ -15,6 +15,7 @@ struct DashboardView: View {
     @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 130
     @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
     @ScaledMetric(relativeTo: .title) private var dialRingSize: CGFloat = 180
+    @ScaledMetric(relativeTo: .title) private var heroAmountSize: CGFloat = 36
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
@@ -30,31 +31,42 @@ struct DashboardView: View {
     @AppStorage(AppStorageKeys.morningBriefingHour) private var morningBriefingHour = 8
     @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
 
-    @State private var viewModel = DashboardViewModel()
+    // MARK: - Consolidated Sheet Enum (Finding 29)
+    enum ActiveSheet: Identifiable {
+        case transactionEntry
+        case monthlySummary
+        case paywall
+        case monthlyWrapped
+        case achievements
+        case insights
+        case moveMoney
+        case recurring
+        case streakMilestone
+        case shareCard
+        case bufferInfo
+
+        var id: String { String(describing: self) }
+    }
+
+    // DashboardViewModel is a static enum — call methods via DashboardViewModel.method()
     @State private var hasAppeared = false
-    @State private var showTransactionEntry = false
+    @State private var activeSheet: ActiveSheet?
     @State private var intentPrefillAmount: Double?
     @State private var intentPrefillCategory: String?
     @State private var intentPrefillNote: String?
     @State private var editingTransaction: Transaction?
-    @State private var showMonthlySummary = false
-    @State private var showPaywall = false
-    @State private var showMonthlyWrapped = false
-    @State private var showAchievements = false
     // Round 8: newAchievementBanner state removed with overlay banner.
-    @State private var showInsights = false
 
-    @State private var showShareCard = false
     @State private var shareCardImage: UIImage?
-    @State private var showMoveMoney = false
-    @State private var showRecurring = false
     @State private var hasCheckedAchievements = false
-    @State private var showStreakMilestone = false
     @State private var streakMilestoneValue = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
+    // TODO: migrate to AppStorageKeys
     @AppStorage("lastWrappedViewed") private var lastWrappedViewed = ""
+    // TODO: migrate to AppStorageKeys
     @AppStorage("dismissedLaunchBanner") private var hasDissmissedLaunchBanner = false
+    // TODO: migrate to AppStorageKeys
     @AppStorage("lastCelebratedMilestone") private var lastCelebratedMilestone = 0
     @State private var showFreezeToast = false
     @State private var noSpendConfirmed = false
@@ -63,7 +75,6 @@ struct DashboardView: View {
     @State private var todayClosed = false
     /// v3.2 audit B4: visible feedback for no-spend button tap.
     @State private var showNoSpendToast = false
-    @State private var showBufferInfo = false
     /// v3.2 whimsy: "vault closes" ceremony — on no-spend tap the hero
     /// ring briefly animates from its current arc to a full green circle.
     @State private var vaultClosingAnimation = false
@@ -103,7 +114,7 @@ struct DashboardView: View {
         guard let budget = currentBudget else { return false }
         let key = "\(budget.year)-\(budget.month)"
         guard lastWrappedViewed != key else { return false }
-        let fraction = viewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
+        let fraction = DashboardViewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
         return fraction >= 0.8 || previousBudget != nil
     }
 
@@ -150,7 +161,9 @@ struct DashboardView: View {
                         EmptyStateView(
                             icon: "dollarsign.circle",
                             title: "Set Your Income",
-                            message: "Set your monthly income in the Budget tab to get started."
+                            message: "Set your monthly income to get started.",
+                            actionLabel: "Set Income",
+                            action: { hasCompletedOnboarding = false }
                         )
                     } else if visibleCategories.isEmpty && recentTransactions.isEmpty {
                         EmptyStateView(
@@ -158,7 +171,7 @@ struct DashboardView: View {
                             title: "No Expenses Yet",
                             message: "Tap + to log your first expense.",
                             actionLabel: "Add Expense",
-                            action: { showTransactionEntry = true }
+                            action: { activeSheet = .transactionEntry }
                         )
                     } else {
                         dashboardContent(budget: budget)
@@ -206,17 +219,24 @@ struct DashboardView: View {
                                 withAnimation { showNoSpendToast = false }
                             }
                         } label: {
-                            Image(systemName: todayClosed ? "checkmark" : "moon.zzz.fill")
-                                .font(.body.weight(.bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 48, height: 48)
-                                .background(
-                                    todayClosed
-                                        ? Color.green.opacity(0.55)
-                                        : Color.green.opacity(0.85),
-                                    in: Circle()
-                                )
-                                .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
+                            VStack(spacing: 2) {
+                                Image(systemName: todayClosed ? "checkmark" : "moon.zzz.fill")
+                                    .font(.body.weight(.bold))
+                                    .foregroundStyle(todayClosed ? BudgetVaultTheme.positive : .white)
+                                    .frame(width: 48, height: 48)
+                                    .background(
+                                        Circle()
+                                            .fill(BudgetVaultTheme.positive.opacity(todayClosed ? 0.2 : 0.15))
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .strokeBorder(BudgetVaultTheme.positive, lineWidth: 1.5)
+                                    )
+                                    .shadow(color: BudgetVaultTheme.positive.opacity(0.4), radius: 8, y: 4)
+                                Text(todayClosed ? "Closed" : "No Spend")
+                                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .disabled(todayClosed)
                         .accessibilityLabel(todayClosed ? "Today's vault is closed" : "Mark today as no-spend day")
@@ -225,7 +245,7 @@ struct DashboardView: View {
 
                         Button {
                             HapticManager.impact(.medium)
-                            showTransactionEntry = true
+                            activeSheet = .transactionEntry
                         } label: {
                             HStack(spacing: BudgetVaultTheme.spacingSM) {
                                 Image(systemName: "plus")
@@ -244,39 +264,15 @@ struct DashboardView: View {
                     }
                     .padding(.bottom, BudgetVaultTheme.spacingSM)
                     .padding(.top, BudgetVaultTheme.spacingSM + 4)
-                    // Round 8 RR5: solid opaque background so envelope row
-                    // below the safe-area inset boundary is fully hidden,
-                    // not half-visible through a gradient fade.
-                    .background(
-                        Color(.systemBackground)
-                            .opacity(0.98)
-                            .blur(radius: 0.5)
-                    )
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .sheet(isPresented: $showTransactionEntry, onDismiss: {
-                intentPrefillAmount = nil
-                intentPrefillCategory = nil
-                intentPrefillNote = nil
-            }) {
-                if let budget = currentBudget {
-                    TransactionEntryView(
-                        budget: budget,
-                        categories: visibleCategories,
-                        prefillAmount: intentPrefillAmount,
-                        prefillCategoryName: intentPrefillCategory,
-                        prefillNote: intentPrefillNote
-                    )
-                    .presentationDragIndicator(.visible)
-                }
-            }
             .onReceive(NotificationCenter.default.publisher(for: .openTransactionEntry)) { notification in
                 intentPrefillAmount = notification.userInfo?["amount"] as? Double
                 intentPrefillCategory = notification.userInfo?["category"] as? String
                 intentPrefillNote = notification.userInfo?["note"] as? String
-                showTransactionEntry = true
+                activeSheet = .transactionEntry
             }
             .sheet(item: $editingTransaction, onDismiss: {
                 refreshCachedValues()
@@ -286,75 +282,87 @@ struct DashboardView: View {
                         .presentationDragIndicator(.visible)
                 }
             }
-            .sheet(isPresented: $showMonthlySummary) {
-                if let prev = previousBudget {
-                    MonthlySummaryView(budget: prev)
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .transactionEntry:
+                    if let budget = currentBudget {
+                        TransactionEntryView(
+                            budget: budget,
+                            categories: visibleCategories,
+                            prefillAmount: intentPrefillAmount,
+                            prefillCategoryName: intentPrefillCategory,
+                            prefillNote: intentPrefillNote
+                        )
                         .presentationDragIndicator(.visible)
-                }
-            }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
-            }
-            .sheet(isPresented: $showMonthlyWrapped, onDismiss: {
-                if let budget = currentBudget {
-                    lastWrappedViewed = "\(budget.year)-\(budget.month)"
-                }
-            }) {
-                if let budget = currentBudget {
-                    MonthlyWrappedView(budget: budget, allTransactions: allTransactions)
+                    }
+                case .monthlySummary:
+                    if let prev = previousBudget {
+                        MonthlySummaryView(budget: prev)
+                            .presentationDragIndicator(.visible)
+                    }
+                case .paywall:
+                    PaywallView()
+                case .monthlyWrapped:
+                    if let budget = currentBudget {
+                        MonthlyWrappedView(budget: budget, allTransactions: allTransactions)
+                            .presentationDragIndicator(.visible)
+                    }
+                case .achievements:
+                    AchievementGridView()
                         .presentationDragIndicator(.visible)
-                }
-            }
-            .sheet(isPresented: $showAchievements) {
-                AchievementGridView()
-                    .presentationDragIndicator(.visible)
-            }
-            .sheet(isPresented: $showInsights) {
-                NavigationStack {
-                    InsightsView()
-                }
-                .presentationDragIndicator(.visible)
-            }
-            .sheet(isPresented: $showMoveMoney) {
-                if let budget = currentBudget {
+                case .insights:
                     NavigationStack {
-                        MoveMoneyView(categories: visibleCategories, budget: budget)
+                        InsightsView()
                     }
                     .presentationDragIndicator(.visible)
-                }
-            }
-            .sheet(isPresented: $showRecurring) {
-                NavigationStack {
-                    RecurringExpenseListView()
-                }
-                .presentationDragIndicator(.visible)
-            }
-            .sheet(isPresented: $showStreakMilestone) {
-                StreakMilestoneView(milestone: streakMilestoneValue) {
-                    showStreakMilestone = false
-                }
-                .interactiveDismissDisabled()
-            }
-            .alert("Buffer Days", isPresented: $showBufferInfo) {
-                Button("Got it") {}
-            } message: {
-                Text("How many extra days your budget could last at your current pace.\n\n+5d means you're ahead of schedule. -2d means you'll run out 2 days early.\n\n∞ means your pace could last forever at this rate.")
-            }
-            .sheet(isPresented: $showShareCard) {
-                if let image = shareCardImage {
-                    ShareLink(item: Image(uiImage: image), preview: SharePreview("BudgetVault Milestone", image: Image(uiImage: image))) {
-                        VStack(spacing: BudgetVaultTheme.spacingLG) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: 320)
-                                .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL))
-
-                            Text("Share your achievement!")
-                                .font(.headline)
+                case .moveMoney:
+                    if let budget = currentBudget {
+                        NavigationStack {
+                            MoveMoneyView(categories: visibleCategories, budget: budget)
                         }
-                        .padding()
+                        .presentationDragIndicator(.visible)
                     }
+                case .recurring:
+                    NavigationStack {
+                        RecurringExpenseListView()
+                    }
+                    .presentationDragIndicator(.visible)
+                case .streakMilestone:
+                    StreakMilestoneView(milestone: streakMilestoneValue) {
+                        activeSheet = nil
+                    }
+                    .interactiveDismissDisabled()
+                case .shareCard:
+                    if let image = shareCardImage {
+                        ShareLink(item: Image(uiImage: image), preview: SharePreview("BudgetVault Milestone", image: Image(uiImage: image))) {
+                            VStack(spacing: BudgetVaultTheme.spacingLG) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxWidth: 320)
+                                    .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL))
+
+                                Text("Share your achievement!")
+                                    .font(.headline)
+                            }
+                            .padding()
+                        }
+                    }
+                case .bufferInfo:
+                    // Buffer info is presented as an alert-style sheet
+                    VStack(spacing: BudgetVaultTheme.spacingLG) {
+                        Text("Buffer Days")
+                            .font(.headline)
+                        Text("How many extra days your budget could last at your current pace.\n\n+5d means you're ahead of schedule. -2d means you'll run out 2 days early.\n\n\u{221E} means your pace could last forever at this rate.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Got it") { activeSheet = nil }
+                            .buttonStyle(PrimaryButtonStyle())
+                    }
+                    .padding()
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
                 }
             }
             .task {
@@ -408,7 +416,7 @@ struct DashboardView: View {
                         lastCelebratedMilestone = milestone
                         streakMilestoneValue = milestone
                         try? await Task.sleep(for: .seconds(0.5))
-                        showStreakMilestone = true
+                        activeSheet = .streakMilestone
                     }
 
                     ReviewPromptService.checkFirstMonthUnderBudget()
@@ -452,8 +460,8 @@ struct DashboardView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Color.green.opacity(0.9), in: Capsule())
-                .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
+                .background(BudgetVaultTheme.positive.opacity(0.9), in: Capsule())
+                .shadow(color: BudgetVaultTheme.positive.opacity(0.3), radius: 8, y: 4)
                 .padding(.bottom, 120) // R8 RR1: clear FAB safeAreaInset + tab bar well below status bar, above hero card
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -479,22 +487,49 @@ struct DashboardView: View {
                 }
             }
         }
+        .onChange(of: activeSheet) { oldSheet, newSheet in
+            // Handle cleanup when sheets dismiss
+            if newSheet == nil {
+                switch oldSheet {
+                case .transactionEntry:
+                    intentPrefillAmount = nil
+                    intentPrefillCategory = nil
+                    intentPrefillNote = nil
+                case .monthlyWrapped:
+                    if let budget = currentBudget {
+                        lastWrappedViewed = "\(budget.year)-\(budget.month)"
+                    }
+                default:
+                    break
+                }
+            }
+        }
+        .onChange(of: showNoSpendToast) { _, showing in
+            if showing {
+                UIAccessibility.post(notification: .announcement, argument: "Today's vault is closed. Streak saved.")
+            }
+        }
+        .onChange(of: showFreezeToast) { _, showing in
+            if showing {
+                UIAccessibility.post(notification: .announcement, argument: "Streak freeze activated.")
+            }
+        }
     }
 
     // MARK: - Dashboard Content
 
     @ViewBuilder
     private func dashboardContent(budget: Budget) -> some View {
-        let dailyAllowanceCents = viewModel.dailyAllowanceCents(
+        let dailyAllowanceCents = DashboardViewModel.dailyAllowanceCents(
             remainingCents: budget.remainingCents,
             periodStart: budget.periodStart,
             nextPeriodStart: budget.nextPeriodStart
         )
-        let dayProgressFrac = viewModel.dayProgressFraction(
+        let dayProgressFrac = DashboardViewModel.dayProgressFraction(
             periodStart: budget.periodStart,
             nextPeriodStart: budget.nextPeriodStart
         )
-        let dayProgressText = viewModel.budgetDayProgress(
+        let dayProgressText = DashboardViewModel.budgetDayProgress(
             periodStart: budget.periodStart,
             nextPeriodStart: budget.nextPeriodStart
         )
@@ -535,12 +570,12 @@ struct DashboardView: View {
                     // Monthly summary banner
                     if showSummaryBanner, let prev = previousBudget {
                         Button {
-                            showMonthlySummary = true
+                            activeSheet = .monthlySummary
                             lastSummaryViewed = "\(prev.year)-\(prev.month)"
                         } label: {
                             HStack {
                                 Image(systemName: "star.circle.fill")
-                                    .foregroundStyle(.yellow)
+                                    .foregroundStyle(BudgetVaultTheme.caution)
                                 Text("Your \(DateHelpers.monthYearString(month: prev.month, year: prev.year)) summary is ready!")
                                     .font(.subheadline)
                                 Spacer()
@@ -558,12 +593,12 @@ struct DashboardView: View {
                     // Monthly Wrapped card (available to all users near end of period)
                     if showWrappedCard {
                         Button {
-                            showMonthlyWrapped = true
+                            activeSheet = .monthlyWrapped
                         } label: {
                             HStack(spacing: BudgetVaultTheme.spacingSM) {
                                 Image(systemName: "star.circle.fill")
                                     .font(.title3)
-                                    .foregroundStyle(Color(hex: "#A78BFA"))
+                                    .foregroundStyle(BudgetVaultTheme.neonPurple)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Your Monthly Wrapped is ready!")
                                         .font(.subheadline.bold())
@@ -579,14 +614,14 @@ struct DashboardView: View {
                             .padding(BudgetVaultTheme.spacingMD)
                             .background(
                                 LinearGradient(
-                                    colors: [Color(hex: "#A78BFA").opacity(0.08), Color(hex: "#6366F1").opacity(0.04)],
+                                    colors: [BudgetVaultTheme.neonPurple.opacity(0.08), BudgetVaultTheme.neonPurple.opacity(0.04)],
                                     startPoint: .leading, endPoint: .trailing
                                 ),
                                 in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                    .strokeBorder(Color(hex: "#A78BFA").opacity(0.15), lineWidth: 1)
+                                    .strokeBorder(BudgetVaultTheme.neonPurple.opacity(0.15), lineWidth: 1)
                             )
                         }
                         .tint(.primary)
@@ -719,19 +754,19 @@ struct DashboardView: View {
                                      ? (spentFraction > 0 ? max(0.015, min(spentFraction, 1.0)) : 0)
                                      : 0))
                             .stroke(
-                                vaultClosingAnimation ? Color.green : spendingArcColor(for: spentFraction),
+                                vaultClosingAnimation ? BudgetVaultTheme.positive : spendingArcColor(for: spentFraction),
                                 style: StrokeStyle(lineWidth: 6, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
                             .frame(width: ringSize, height: ringSize)
-                            .shadow(color: (vaultClosingAnimation ? Color.green : spendingArcColor(for: spentFraction)).opacity(0.5), radius: 8)
+                            .shadow(color: (vaultClosingAnimation ? BudgetVaultTheme.positive : spendingArcColor(for: spentFraction)).opacity(0.5), radius: 8)
                             .animation(.spring(response: 0.6, dampingFraction: 0.75), value: spentFraction)
                             .animation(.spring(response: 0.5, dampingFraction: 0.8), value: vaultClosingAnimation)
                             .animation(.easeOut(duration: 0.7), value: ringDrawnIn)
 
                         // Outer glow layer
                         Circle()
-                            .trim(from: 0, to: min(spentFraction, 1.0))
+                            .trim(from: 0, to: ringDrawnIn ? min(spentFraction, 1.0) : 0)
                             .stroke(
                                 spendingArcColor(for: spentFraction).opacity(0.7),
                                 style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
@@ -740,6 +775,7 @@ struct DashboardView: View {
                             .frame(width: ringSize, height: ringSize)
                             .blur(radius: 6)
                             .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
+                            .animation(.easeOut(duration: 0.7), value: ringDrawnIn)
 
                         // Vault tick marks
                         VaultDialMark(size: ringSize + 10)
@@ -747,14 +783,11 @@ struct DashboardView: View {
 
                         // Percentage text
                         VStack(spacing: 0) {
-                            // Round 7 F1: shrink the ring percent so the
-                            // "$X per day" daily allowance is clearly THE
-                            // hero, not competing with a secondary stat.
                             Text(spentPercentLabel)
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(.subheadline, design: .rounded).weight(.bold))
                                 .foregroundStyle(.white.opacity(0.85))
                             Text("used")
-                                .font(.system(size: 8, weight: .medium))
+                                .font(.system(.caption2, design: .rounded).weight(.medium))
                                 .foregroundStyle(.white.opacity(0.4))
                                 .tracking(0.5)
                         }
@@ -763,12 +796,12 @@ struct DashboardView: View {
                     // Amount + info
                     VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingXS) {
                         Text("DAILY ALLOWANCE")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.caption2.weight(.bold))
                             .foregroundStyle(.white.opacity(0.4))
                             .tracking(1.5)
 
                         Text(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))
-                            .font(.system(size: 36, weight: .heavy, design: .rounded))
+                            .font(.system(size: heroAmountSize, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
                             .shadow(color: spendingArcColor(for: spentFraction).opacity(0.3), radius: 16)
                             .contentTransition(.numericText())
@@ -785,7 +818,10 @@ struct DashboardView: View {
                             Circle()
                                 .fill(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
                                 .frame(width: 6, height: 6)
-                            Text(spentFraction < 0.75 ? "On Track" : spentFraction < 0.9 ? "Watch It" : "Over")
+                            Image(systemName: spentFraction < 0.75 ? "checkmark.circle.fill" : spentFraction < 0.9 ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
+                            Text(spentFraction < 0.75 ? "On Track" : spentFraction < 0.9 ? "Watch It" : "Over Budget")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
                         }
@@ -848,11 +884,11 @@ struct DashboardView: View {
     private func statItem(label: String, value: String) -> some View {
         VStack(spacing: 2) {
             Text(label)
-                .font(.system(size: 9, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(.white.opacity(0.35))
                 .tracking(0.5)
             Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.system(.callout, design: .rounded).weight(.bold))
                 .foregroundStyle(.white)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
@@ -907,20 +943,22 @@ struct DashboardView: View {
         return VStack(spacing: 2) {
             // v3.2 audit L1/L2: tappable buffer label → info alert.
             // Added small leading space before the ⓘ glyph for breathing.
-            Button { showBufferInfo = true } label: {
+            Button { activeSheet = .bufferInfo } label: {
                 HStack(spacing: 4) {
                     Text("BUFFER")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(.white.opacity(0.35))
                         .tracking(0.5)
                     Image(systemName: "info.circle")
-                        .font(.system(size: 9))
+                        .font(.system(size: 12))
                         .foregroundStyle(.white.opacity(0.4))
                 }
             }
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             Text(bufferText)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.system(.callout, design: .rounded).weight(.bold))
                 .foregroundStyle(bufferColor)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
@@ -988,6 +1026,7 @@ struct DashboardView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 2) // room for shadow
             }
+            .accessibilityHint("Swipe left or right to see more envelopes")
             // Round 7 R1: right-edge fade mask so the horizontal
             // carousel clearly shows "more to the right" instead of
             // appearing to clip the last card at the screen edge.
@@ -995,7 +1034,7 @@ struct DashboardView: View {
                 LinearGradient(
                     stops: [
                         .init(color: .black, location: 0.0),
-                        .init(color: .black, location: 0.80),
+                        .init(color: .black, location: 0.92),
                         .init(color: .clear, location: 1.0)
                     ],
                     startPoint: .leading,
@@ -1048,6 +1087,10 @@ struct DashboardView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
+            Text("\(Int(pct * 100))% spent")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+
             // Progress bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -1094,9 +1137,9 @@ struct DashboardView: View {
         if let topInsight = cachedInsights.first {
             Button {
                 if isPremium {
-                    showInsights = true
+                    activeSheet = .insights
                 } else {
-                    showPaywall = true
+                    activeSheet = .paywall
                 }
             } label: {
                 HStack(spacing: BudgetVaultTheme.spacingMD) {
@@ -1246,7 +1289,7 @@ struct DashboardView: View {
 
     private func premiumFeatureCard(icon: String, title: String, subtitle: String, gradient: [Color]) -> some View {
         Button {
-            showPaywall = true
+            activeSheet = .paywall
         } label: {
             HStack(spacing: BudgetVaultTheme.spacingMD) {
                 Image(systemName: icon)
@@ -1292,9 +1335,7 @@ struct DashboardView: View {
             Text(title)
                 .font(.headline)
 
-            Rectangle()
-                .fill(Color.accentColor.opacity(0.15))
-                .frame(height: 1)
+            Spacer()
 
             action()
         }
@@ -1311,7 +1352,7 @@ struct DashboardView: View {
             HStack(spacing: 6) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color(hex: "#60A5FA"))
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
                 Text("\(currentStreak)")
                     .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
@@ -1348,7 +1389,7 @@ struct DashboardView: View {
             // Round 5 M3: was a 🔥 emoji, Duolingo tone. Now a vault shield.
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 24))
-                .foregroundStyle(Color(hex: "#60A5FA"))
+                .foregroundStyle(BudgetVaultTheme.accentSoft)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(currentStreak)-day streak")
@@ -1362,12 +1403,14 @@ struct DashboardView: View {
 
                 // Weekly dots
                 HStack(spacing: 3) {
+                    let dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
                     ForEach(0..<7, id: \.self) { i in
                         Circle()
-                            .fill(weekDots[i] == .logged ? Color(hex: "#FBBF24") :
+                            .fill(weekDots[i] == .logged ? BudgetVaultTheme.positive :
                                   weekDots[i] == .frozen ? BudgetVaultTheme.info :
                                   Color(.systemGray5))
                             .frame(width: 8, height: 8)
+                            .accessibilityLabel("\(dayNames[i]): \(weekDots[i] == .logged ? "logged" : weekDots[i] == .frozen ? "freeze used" : "not logged")")
                     }
                 }
                 .padding(.top, 2)
@@ -1383,7 +1426,7 @@ struct DashboardView: View {
                 .fill(Color(.systemBackground))
                 .overlay(alignment: .leading) {
                     Rectangle()
-                        .fill(Color(hex: "#FBBF24"))
+                        .fill(BudgetVaultTheme.accentSoft)
                         .frame(width: 3)
                         .clipShape(RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
                 }
@@ -1416,16 +1459,16 @@ struct DashboardView: View {
             HStack(spacing: BudgetVaultTheme.spacingSM) {
                 if isPremium {
                     quickActionChip(icon: "arrow.left.arrow.right", label: "Move Money") {
-                        showMoveMoney = true
+                        activeSheet = .moveMoney
                     }
 
                     quickActionChip(icon: "chart.xyaxis.line", label: "Insights") {
-                        showInsights = true
+                        activeSheet = .insights
                     }
                 }
 
                 quickActionChip(icon: "repeat", label: "Recurring") {
-                    showRecurring = true
+                    activeSheet = .recurring
                 }
             }
             .padding(.horizontal)
@@ -1442,6 +1485,7 @@ struct DashboardView: View {
             }
             .padding(.horizontal, BudgetVaultTheme.spacingMD)
             .padding(.vertical, BudgetVaultTheme.spacingSM)
+            .frame(minHeight: 44)
             .background(Color.accentColor.opacity(0.1), in: Capsule())
             .foregroundStyle(Color.accentColor)
         }
@@ -1466,6 +1510,8 @@ struct DashboardView: View {
                     Image(systemName: "xmark")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Dismiss catch-up card")
             }
@@ -1493,7 +1539,7 @@ struct DashboardView: View {
             }
 
             Button {
-                showTransactionEntry = true
+                activeSheet = .transactionEntry
             } label: {
                 HStack {
                     Image(systemName: "plus.circle.fill")
@@ -1578,7 +1624,7 @@ struct DashboardView: View {
     /// refreshes. No-op on iOS < 16.2 or if the user has disabled activities.
     private func refreshLiveActivity(budget: Budget) {
         let remainingCents = budget.remainingCents
-        let dailyAllowance = viewModel.dailyAllowanceCents(
+        let dailyAllowance = DashboardViewModel.dailyAllowanceCents(
             remainingCents: remainingCents,
             periodStart: budget.periodStart,
             nextPeriodStart: budget.nextPeriodStart
@@ -1666,7 +1712,7 @@ struct DashboardView: View {
         shareCardImage = card.renderImage()
         Task {
             try? await Task.sleep(for: .seconds(4))
-            await MainActor.run { showShareCard = true }
+            await MainActor.run { activeSheet = .shareCard }
         }
     }
 

@@ -67,7 +67,7 @@ final class CloudSyncService {
             }
         }
         if didMerge {
-            SafeSave.save(context)
+            if !SafeSave.save(context) { context.rollback() }
         }
     }
 

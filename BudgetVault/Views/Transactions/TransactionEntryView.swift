@@ -46,7 +46,7 @@ struct TransactionEntryView: View {
             VStack(spacing: 0) {
                 // Brand accent stripe
                 LinearGradient(
-                    colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.electricBlue],
+                    colors: [Color.accentColor.opacity(0.8), Color.accentColor],
                     startPoint: .leading, endPoint: .trailing
                 )
                 .frame(height: 4)
@@ -72,28 +72,33 @@ struct TransactionEntryView: View {
     private var formContent: some View {
             VStack(spacing: BudgetVaultTheme.spacingLG) {
                 typePicker
-                amountDisplay
-                budgetContextHint
-                suggestedAmountButton
-                if !isIncome {
-                    quickAmountChips
-                    quickAddTemplatesRow
-                    categoryPickerSection
-                } else {
-                    // Round 7 H12: Income mode previously left a ~180pt
-                    // empty gap where expense categories used to be.
-                    // Now shows a calm caption instead.
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .foregroundStyle(BudgetVaultTheme.positive)
-                        Text("Income goes into your monthly budget pool.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                // Scrollable middle section for small phone support
+                ScrollView {
+                    VStack(spacing: BudgetVaultTheme.spacingLG) {
+                        amountDisplay
+                        budgetContextHint
+                        suggestedAmountButton
+                        if !isIncome {
+                            quickAmountChips
+                            quickAddTemplatesRow
+                            categoryPickerSection
+                        } else {
+                            // Round 7 H12: Income mode previously left a ~180pt
+                            // empty gap where expense categories used to be.
+                            // Now shows a calm caption instead.
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .foregroundStyle(BudgetVaultTheme.positive)
+                                Text("Income goes into your monthly budget pool.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal)
+                        }
+                        dateAndNoteSection
                     }
-                    .padding(.horizontal)
                 }
-                dateAndNoteSection
-                Spacer()
+                // Pinned bottom: number pad + save actions
                 NumberPadView(text: $amountText)
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
                 savedBanner
@@ -145,6 +150,11 @@ struct TransactionEntryView: View {
             } message: {
                 Text("Your transaction could not be saved. Please try again.")
             }
+            .onChange(of: showSavedBanner) { _, showing in
+                if showing {
+                    UIAccessibility.post(notification: .announcement, argument: "Transaction saved")
+                }
+            }
     }
 
     private var typePicker: some View {
@@ -161,7 +171,7 @@ struct TransactionEntryView: View {
     private var amountDisplay: some View {
         let foreground: Color = amountText.isEmpty
             ? Color.secondary
-            : (isIncome ? BudgetVaultTheme.positive : BudgetVaultTheme.navyDark)
+            : (isIncome ? BudgetVaultTheme.positive : .primary)
         ZStack {
             if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
                 Text(CurrencyFormatter.displayAmount(text: suggestedAmount))
@@ -245,7 +255,7 @@ struct TransactionEntryView: View {
     @ViewBuilder
     private var categoryPickerSection: some View {
         if !isIncome && categories.isEmpty {
-            Text("Create a category in the Budget tab first.")
+            Text("Create a category in Settings first.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal)
@@ -259,24 +269,32 @@ struct TransactionEntryView: View {
                             categoryAutoSelected = false
                             HapticManager.selection()
                         } label: {
-                            ZStack(alignment: .topTrailing) {
-                                CategoryChipView(
-                                    emoji: category.emoji,
-                                    name: category.name,
-                                    isSelected: selectedCategory?.id == category.id,
-                                    chipSize: chipSize,
-                                    chipWidth: chipWidth
-                                )
-                                if categoryAutoSelected && selectedCategory?.id == category.id {
-                                    Image(systemName: "sparkle")
-                                        .font(.system(size: 10))
-                                        .foregroundStyle(Color.accentColor)
-                                        .offset(x: 2, y: -2)
+                            let isAutoSuggested = categoryAutoSelected && selectedCategory?.id == category.id
+                            VStack(spacing: 2) {
+                                ZStack(alignment: .topTrailing) {
+                                    CategoryChipView(
+                                        emoji: category.emoji,
+                                        name: category.name,
+                                        isSelected: selectedCategory?.id == category.id,
+                                        chipSize: chipSize,
+                                        chipWidth: chipWidth
+                                    )
+                                    if isAutoSuggested {
+                                        Image(systemName: "sparkle")
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(Color.accentColor)
+                                            .offset(x: 2, y: -2)
+                                    }
+                                }
+                                if isAutoSuggested {
+                                    Text("Suggested")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
                         .tint(.primary) // v3.2 M3: prevent button tint bleed into chip label
-                        .accessibilityLabel(category.name)
+                        .accessibilityLabel(categoryAutoSelected && selectedCategory?.id == category.id ? "Suggested: \(category.name)" : category.name)
                         .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
                     }
                 }
@@ -426,7 +444,7 @@ struct TransactionEntryView: View {
             .padding(.vertical, 10)
             .background(
                 LinearGradient(
-                    colors: [BudgetVaultTheme.positive, Color(hex: "#059669")],
+                    colors: [BudgetVaultTheme.positive, BudgetVaultTheme.positive.opacity(0.7)],
                     startPoint: .leading, endPoint: .trailing
                 ),
                 in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
@@ -461,14 +479,25 @@ struct TransactionEntryView: View {
 
     // MARK: - Quick Amount Chips
 
+    /// Zero-decimal currencies store 1 yen = 100 internal cents,
+    /// so quick-amount chips need 100x larger cent values to show
+    /// sensible round numbers (500, 1000, 2000, 5000 yen).
+    private static let zeroDecimalCurrencies: Set<String> = ["JPY", "KRW", "VND", "CLP", "ISK", "UGX"]
+
+    private var quickAmounts: [Int64] {
+        if Self.zeroDecimalCurrencies.contains(selectedCurrency) {
+            return [50_000, 100_000, 200_000, 500_000] // 500, 1000, 2000, 5000 in whole units
+        }
+        return [500, 1000, 2000, 5000] // $5, $10, $20, $50 in cents
+    }
+
     @ViewBuilder
     private var quickAmountChips: some View {
         let symbol = CurrencyFormatter.currencySymbol(for: selectedCurrency)
-        let amounts: [Int64] = [500, 1000, 2000, 5000] // $5, $10, $20, $50 in cents
 
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: BudgetVaultTheme.spacingSM) {
-                ForEach(amounts, id: \.self) { cents in
+                ForEach(quickAmounts, id: \.self) { cents in
                     let dollars = cents / 100
                     Button {
                         amountText = "\(dollars)"
@@ -582,8 +611,12 @@ struct TransactionEntryView: View {
 
     // MARK: - Actions
 
-    private func saveTransaction() {
-        guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else { return }
+    /// Shared save logic: creates transaction, persists, records learning,
+    /// updates streak/widget/notifications. Returns the saved cents on
+    /// success, or nil on failure.
+    @discardableResult
+    private func performSave() -> Int64? {
+        guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else { return nil }
 
         let transaction = Transaction(
             amountCents: cents,
@@ -596,7 +629,7 @@ struct TransactionEntryView: View {
         guard SafeSave.save(modelContext) else {
             modelContext.rollback()
             showSaveError = true
-            return
+            return nil
         }
 
         // Record category learning
@@ -613,39 +646,16 @@ struct TransactionEntryView: View {
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.lastActiveDate)
         NotificationService.scheduleReengagementNotifications()
 
+        return cents
+    }
+
+    private func saveTransaction() {
+        guard performSave() != nil else { return }
         dismiss()
     }
 
     private func saveAndAddAnother() {
-        guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else { return }
-
-        let transaction = Transaction(
-            amountCents: cents,
-            note: note,
-            date: date,
-            isIncome: isIncome,
-            category: isIncome ? nil : selectedCategory
-        )
-        modelContext.insert(transaction)
-        guard SafeSave.save(modelContext) else {
-            modelContext.rollback()
-            showSaveError = true
-            return
-        }
-
-        // Record category learning
-        if !isIncome, let category = selectedCategory {
-            categoryLearning.recordMapping(note: note, categoryName: category.name)
-        }
-
-        HapticManager.notification(.success)
-        StreakService.recordLogEntry()
-        WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay))
-        UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
-
-        // Update last active date and reschedule re-engagement notifications
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.lastActiveDate)
-        NotificationService.scheduleReengagementNotifications()
+        guard let cents = performSave() else { return }
 
         // Capture saved info for banner display
         lastSavedAmount = CurrencyFormatter.format(cents: cents)

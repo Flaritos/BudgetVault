@@ -171,7 +171,7 @@ enum CSVImporter {
             txCount += 1
         }
 
-        SafeSave.save(context)
+        if !SafeSave.save(context) { context.rollback() }
         return (txCount, monthsCreated.count)
     }
 
