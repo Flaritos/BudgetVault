@@ -80,6 +80,7 @@ struct SpendingHeatmapView: View {
     }
 
     private let dayLabels = ["S", "M", "T", "W", "T", "F", "S"]
+    private let dayFullNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
@@ -106,6 +107,7 @@ struct SpendingHeatmapView: View {
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity)
+                                .accessibilityLabel(dayFullNames[i])
                         }
                     }
 
@@ -131,9 +133,13 @@ struct SpendingHeatmapView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         legendCell(intensity: .none)
+                            .accessibilityLabel("No spending")
                         legendCell(intensity: .light)
+                            .accessibilityLabel("Low spending")
                         legendCell(intensity: .medium)
+                            .accessibilityLabel("Medium spending")
                         legendCell(intensity: .heavy)
+                            .accessibilityLabel("High spending")
                         Text("More")
                             .font(.caption2)
                             .foregroundStyle(.secondary)

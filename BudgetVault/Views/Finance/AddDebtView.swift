@@ -109,7 +109,10 @@ struct AddDebtView: View {
             dueDay: dueDay
         )
         modelContext.insert(debt)
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            return
+        }
         HapticManager.notification(.success)
         dismiss()
     }

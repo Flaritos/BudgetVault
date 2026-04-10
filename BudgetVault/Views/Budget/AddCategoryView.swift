@@ -134,7 +134,10 @@ struct AddCategoryView: View {
         )
         category.budget = budget
         modelContext.insert(category)
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            modelContext.rollback()
+            return
+        }
         HapticManager.notification(.success)
         dismiss()
     }

@@ -11,7 +11,7 @@
     "key": "day2_antisub",
     "date": "2026-03-10",
     "time": "12:30",
-    "text": "I used to pay $14/month for a budgeting app. It was good. But budgeting is a skill — once you learn it, why keep paying?\n\nSo I built BudgetVault. $9.99. Once. Learn the envelope method, build the habit, move on.\n\n#budgetapp #personalfinance #moneytips",
+    "text": "I used to pay $14/month for a budgeting app. It was good. But budgeting is a skill — once you learn it, why keep paying?\n\nSo I built BudgetVault. $14.99. Once. Learn the envelope method, build the habit, move on.\n\n#budgetapp #personalfinance #moneytips",
     "media": null,
     "reply_to_key": null
   },
@@ -47,7 +47,7 @@
     "media": null,
     "reply_to_key": null,
     "manual": true,
-    "actual_text": "BudgetVault launches tomorrow.\n\n2 years of work. Here's the pitch:\n\n— Envelope budgeting on your device\n— On-device ML insights\n— $9.99 once. No subscription.\n— No account. No data collection.\n\nLink tomorrow at 9 AM EST.\n\n#applaunch #ios #budgetvault"
+    "actual_text": "BudgetVault launches tomorrow.\n\n2 years of work. Here's the pitch:\n\n— Envelope budgeting on your device\n— On-device ML insights\n— $14.99 once. No subscription.\n— No account. No data collection.\n\nLink tomorrow at 9 AM EST.\n\n#applaunch #ios #budgetvault"
   },
   {
     "key": "day6_launch",
@@ -57,7 +57,7 @@
     "media": null,
     "reply_to_key": null,
     "manual": true,
-    "actual_text": "BudgetVault is live on the App Store.\n\nFree to download. $9.99 once to unlock everything.\n\nNo account. No subscription. No data ever leaves your iPhone.\n\n2 years of work. Here it is.\n\n#budgetvault #applaunch #budgetapp"
+    "actual_text": "BudgetVault is live on the App Store.\n\nFree to download. $14.99 once to unlock everything.\n\nNo account. No subscription. No data ever leaves your iPhone.\n\n2 years of work. Here it is.\n\n#budgetvault #applaunch #budgetapp"
   },
   {
     "key": "day6b_link",
@@ -77,7 +77,7 @@
     "media": null,
     "reply_to_key": "day6_launch",
     "manual": true,
-    "actual_text": "What makes it different:\n\nI didn't want to run servers. I didn't want your data. I didn't want to charge you every month.\n\nEverything runs on your phone. $9.99 once. Apple verified: \"Data Not Collected.\"\n\nThat's it."
+    "actual_text": "What makes it different:\n\nI didn't want to run servers. I didn't want your data. I didn't want to charge you every month.\n\nEverything runs on your phone. $14.99 once. Apple verified: \"Data Not Collected.\"\n\nThat's it."
   },
   {
     "key": "day7_comparison",
@@ -123,7 +123,7 @@
     "key": "day10b_price",
     "date": "2026-03-18",
     "time": "18:00",
-    "text": "BudgetVault is $9.99 right now. That's the launch price.\n\nIt's going up once I ship the next round of features.\n\nIf you've been thinking about it, now is the time.\n\n#budgetapp #personalfinance #iosapp",
+    "text": "BudgetVault is $14.99 right now. That's the current price.\n\nIt's going up once I ship the next round of features.\n\nIf you've been thinking about it, now is the time.\n\n#budgetapp #personalfinance #iosapp",
     "media": null,
     "reply_to_key": null
   },

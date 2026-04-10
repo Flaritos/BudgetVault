@@ -35,10 +35,14 @@ enum BudgetVaultTheme {
     static let info = brightBlue
 
     // MARK: - Accent Token
-    /// The ONE blue used for interactive accents across the app.
-    /// Replaces ad-hoc Color.accentColor / link blue / hero blue drift.
-    static let accent = electricBlue
     static let accentSoft = Color(hex: "#60A5FA")
+
+    // MARK: - Neon Accents
+    static let neonBlue = accentSoft               // alias for #60A5FA
+    static let neonGreen = Color(hex: "#34D399")
+    static let neonPurple = Color(hex: "#A78BFA")
+    static let neonOrange = Color(hex: "#FB923C")
+    static let neonYellow = Color(hex: "#FBBF24")
 
     // MARK: - Spacing
     static let spacingXS: CGFloat = 4
@@ -82,17 +86,20 @@ enum BudgetVaultTheme {
         return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
-    // MARK: - Typography
-    static let heroAmount = Font.system(size: 54, weight: .heavy, design: .rounded)
-    static let amountEntry = Font.system(size: 48, weight: .bold, design: .rounded)
-    static let wrappedHero = Font.system(size: 44, weight: .bold, design: .rounded)
-    static let priceDisplay = Font.system(size: 36, weight: .bold, design: .rounded)
-    static let brandTitle = Font.system(size: 32, weight: .bold, design: .rounded)
-    static let statistic = Font.system(size: 28, weight: .bold, design: .rounded)
-    static let cardAmount = Font.system(size: 20, weight: .bold, design: .rounded)
-    static let rowAmount = Font.system(size: 16, weight: .semibold, design: .rounded)
-    static let sectionIcon = Font.system(size: 64)
-    static let iconLarge = Font.system(size: 48)
+    // MARK: - Typography (Dynamic Type)
+    // All tokens use semantic TextStyles so they scale with Dynamic Type.
+    // For custom sizes beyond what TextStyle offers, views should use
+    // @ScaledMetric locally (e.g. @ScaledMetric(relativeTo: .largeTitle) var size: CGFloat = 54).
+    static let heroAmount = Font.system(.largeTitle, design: .rounded).weight(.heavy)
+    static let amountEntry = Font.system(.largeTitle, design: .rounded).weight(.bold)
+    static let wrappedHero = Font.system(.largeTitle, design: .rounded).weight(.bold)
+    static let priceDisplay = Font.system(.title, design: .rounded).weight(.bold)
+    static let brandTitle = Font.system(.title, design: .rounded).weight(.bold)
+    static let statistic = Font.system(.title2, design: .rounded).weight(.bold)
+    static let cardAmount = Font.system(.title3, design: .rounded).weight(.bold)
+    static let rowAmount = Font.system(.callout, design: .rounded).weight(.semibold)
+    static let sectionIcon = Font.system(.largeTitle, design: .default)
+    static let iconLarge = Font.system(.largeTitle, design: .default)
 
     // MARK: - Hero Spacing
     static let spacingHero: CGFloat = 40

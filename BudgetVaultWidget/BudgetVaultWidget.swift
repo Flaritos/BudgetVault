@@ -97,9 +97,9 @@ struct SmallBudgetWidgetView: View {
     let entry: BudgetEntry
 
     private var ringColor: Color {
-        if entry.data.percentRemaining > 0.5 { return .green }
-        if entry.data.percentRemaining > 0.25 { return .yellow }
-        return .red
+        if entry.data.percentRemaining > 0.5 { return WidgetTheme.positive }
+        if entry.data.percentRemaining > 0.25 { return WidgetTheme.caution }
+        return WidgetTheme.negative
     }
 
     var body: some View {
@@ -138,11 +138,11 @@ struct SmallBudgetWidgetView: View {
                             .font(.system(size: 9))
                         Text("\(entry.data.currentStreak)")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.orange)
+                            .foregroundStyle(WidgetTheme.neonOrange)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
-                    .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                    .background(WidgetTheme.neonOrange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
                 }
             }
 
@@ -169,9 +169,9 @@ struct MediumBudgetWidgetView: View {
     let entry: BudgetEntry
 
     private var ringColor: Color {
-        if entry.data.percentRemaining > 0.5 { return .green }
-        if entry.data.percentRemaining > 0.25 { return .yellow }
-        return .red
+        if entry.data.percentRemaining > 0.5 { return WidgetTheme.positive }
+        if entry.data.percentRemaining > 0.25 { return WidgetTheme.caution }
+        return WidgetTheme.negative
     }
 
     var body: some View {
@@ -213,11 +213,11 @@ struct MediumBudgetWidgetView: View {
                             .font(.system(size: 9))
                         Text("\(entry.data.currentStreak)-day streak")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.orange)
+                            .foregroundStyle(WidgetTheme.neonOrange)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
-                    .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
+                    .background(WidgetTheme.neonOrange.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
                 }
 
                 Spacer(minLength: 2)
@@ -256,7 +256,7 @@ struct MediumBudgetWidgetView: View {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.gray.opacity(0.2))
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(pct > 0.9 ? Color.red : pct > 0.75 ? Color.yellow : Color.green)
+                    .fill(pct > 0.9 ? WidgetTheme.negative : pct > 0.75 ? WidgetTheme.caution : WidgetTheme.positive)
                     .frame(width: geo.size.width * pct)
             }
         }

@@ -80,8 +80,8 @@ struct PaywallView: View {
                         if let price = displayPrice {
                             VStack(spacing: BudgetVaultTheme.spacingXS) {
                                 Text(price)
-                                    .font(.system(size: 44, weight: .heavy, design: .rounded))
-                                    .foregroundStyle(BudgetVaultTheme.navyDark)
+                                    .font(.system(.largeTitle, design: .rounded).weight(.heavy))
+                                    .foregroundStyle(.primary)
                                 Text("Once. Yours forever.")
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(.secondary)
@@ -131,7 +131,7 @@ struct PaywallView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.secondary, .quaternary)
+                            .foregroundStyle(.white.opacity(0.7), .white.opacity(0.15))
                     }
                     .accessibilityLabel("Close")
                 }
@@ -191,7 +191,7 @@ struct PaywallView: View {
         // Round 7: use a taller navy band that extends past the sheet
         // grabber area, eliminating the white gap above the hero.
         .background(
-            BudgetVaultTheme.brandGradient
+            LinearGradient(colors: [BudgetVaultTheme.navyDark.opacity(0.95), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea(edges: .top)
         )
     }
@@ -239,21 +239,6 @@ struct PaywallView: View {
                 .font(.caption)
         }
         .accessibilityElement(children: .combine)
-    }
-
-    // MARK: - Competitor Row
-
-    private func competitorRow(name: String, price: String) -> some View {
-        HStack {
-            Text(name)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(price)
-                .font(.subheadline)
-                .strikethrough()
-                .foregroundStyle(.secondary)
-        }
     }
 
     // MARK: - Purchase Area
@@ -379,5 +364,6 @@ struct PaywallView: View {
             Text(text)
                 .font(.subheadline)
         }
+        .accessibilityElement(children: .combine)
     }
 }

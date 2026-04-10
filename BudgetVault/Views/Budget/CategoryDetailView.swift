@@ -51,7 +51,10 @@ struct CategoryDetailView: View {
                         get: { category.rollOverUnspent },
                         set: { newValue in
                             category.rollOverUnspent = newValue
-                            SafeSave.save(modelContext)
+                            guard SafeSave.save(modelContext) else {
+                                modelContext.rollback()
+                                return
+                            }
                         }
                     ))
 
@@ -81,7 +84,7 @@ struct CategoryDetailView: View {
             // Transactions
             Section("Transactions") {
                 if transactions.isEmpty {
-                    Text("No expenses in \(category.name) this month.")
+                    Text("No expenses in \(category.name) this period.")
                         .foregroundStyle(.secondary)
                         .font(.subheadline)
                 } else {

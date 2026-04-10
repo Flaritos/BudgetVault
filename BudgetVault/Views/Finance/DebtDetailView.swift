@@ -41,7 +41,11 @@ struct DebtDetailView: View {
                     if debt.currentBalanceCents <= 0 {
                         Button {
                             debt.isActive = false
-                            SafeSave.save(modelContext)
+                            if !SafeSave.save(modelContext) {
+                                debt.isActive = true
+                                modelContext.rollback()
+                                return
+                            }
                             dismiss()
                         } label: {
                             Label("Mark as Paid Off", systemImage: "checkmark.circle")
@@ -306,6 +310,9 @@ struct DebtDetailView: View {
     private func logPayment() {
         guard let cents = MoneyHelpers.parseCurrencyString(paymentAmountText), cents > 0 else { return }
 
+        let oldBalance = debt.currentBalanceCents
+        let oldIsActive = debt.isActive
+
         let payment = DebtPayment(amountCents: cents, note: paymentNote.trimmingCharacters(in: .whitespaces))
         payment.debtAccount = debt
         modelContext.insert(payment)
@@ -316,7 +323,12 @@ struct DebtDetailView: View {
             debt.isActive = false
         }
 
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            debt.currentBalanceCents = oldBalance
+            debt.isActive = oldIsActive
+            modelContext.rollback()
+            return
+        }
         HapticManager.notification(.success)
 
         paymentAmountText = ""
@@ -325,6 +337,8 @@ struct DebtDetailView: View {
     }
 
     private func deletePayments(at offsets: IndexSet) {
+        let oldBalance = debt.currentBalanceCents
+        let oldIsActive = debt.isActive
         for index in offsets {
             let payment = sortedPayments[index]
             // Restore the balance
@@ -332,7 +346,11 @@ struct DebtDetailView: View {
             debt.isActive = true
             modelContext.delete(payment)
         }
-        SafeSave.save(modelContext)
+        if !SafeSave.save(modelContext) {
+            debt.currentBalanceCents = oldBalance
+            debt.isActive = oldIsActive
+            modelContext.rollback()
+        }
     }
 }
 
@@ -441,6 +459,13 @@ private struct EditDebtForm: View {
     }
 
     private func saveEdits() {
+        let oldName = debt.name
+        let oldEmoji = debt.emoji
+        let oldRate = debt.interestRate
+        let oldMinPayment = debt.minimumPaymentCents
+        let oldDueDay = debt.dueDay
+        let oldBalance = debt.currentBalanceCents
+
         debt.name = name.trimmingCharacters(in: .whitespaces)
         debt.emoji = emoji
         debt.interestRate = Double(interestRateText) ?? 0
@@ -449,7 +474,16 @@ private struct EditDebtForm: View {
         if let cents = MoneyHelpers.parseCurrencyString(currentBalanceText) {
             debt.currentBalanceCents = cents
         }
-        SafeSave.save(modelContext)
+        guard SafeSave.save(modelContext) else {
+            debt.name = oldName
+            debt.emoji = oldEmoji
+            debt.interestRate = oldRate
+            debt.minimumPaymentCents = oldMinPayment
+            debt.dueDay = oldDueDay
+            debt.currentBalanceCents = oldBalance
+            modelContext.rollback()
+            return
+        }
         HapticManager.notification(.success)
         onDismiss()
     }

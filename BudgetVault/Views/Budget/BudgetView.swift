@@ -219,7 +219,11 @@ struct BudgetView: View {
         }
         .padding(.top, BudgetVaultTheme.spacingSM)
         .background {
-            BudgetVaultTheme.brandGradient
+            LinearGradient(
+                colors: [BudgetVaultTheme.navyDark.opacity(0.95), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
+                startPoint: .top,
+                endPoint: .bottom
+            )
                 .ignoresSafeArea(edges: .top)
         }
     }
@@ -320,6 +324,7 @@ struct BudgetView: View {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 9, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.3))
+                                .accessibilityHidden(true)
                         }
                     }
                 }
@@ -457,6 +462,7 @@ struct BudgetView: View {
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.quaternary)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, BudgetVaultTheme.spacingLG)
         .padding(.vertical, BudgetVaultTheme.spacingSM)
@@ -471,8 +477,12 @@ struct BudgetView: View {
             Toggle("Roll over unspent", isOn: Binding(
                 get: { category.rollOverUnspent },
                 set: { newVal in
+                    let oldVal = category.rollOverUnspent
                     category.rollOverUnspent = newVal
-                    SafeSave.save(modelContext)
+                    if !SafeSave.save(modelContext) {
+                        category.rollOverUnspent = oldVal
+                        modelContext.rollback()
+                    }
                 }
             ))
             .toggleStyle(.switch)
@@ -485,12 +495,14 @@ struct BudgetView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.forward.circle")
                         .font(.caption)
+                        .accessibilityHidden(true)
                     Text("Roll over unspent")
                         .font(.caption)
                     Spacer()
                     Image(systemName: "lock.fill")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
                 .foregroundStyle(.secondary)
             }
@@ -605,8 +617,12 @@ struct BudgetView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if let cents = MoneyHelpers.parseCurrencyString(incomeText), let budget = viewingBudget {
+                            let oldIncome = budget.totalIncomeCents
                             budget.totalIncomeCents = cents
-                            SafeSave.save(modelContext)
+                            if !SafeSave.save(modelContext) {
+                                budget.totalIncomeCents = oldIncome
+                                modelContext.rollback()
+                            }
                         }
                         showIncomeEditor = false
                     }
@@ -671,6 +687,12 @@ struct BudgetView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        let oldBudgeted = category.budgetedAmountCents
+                        let oldGoalType = category.goalType
+                        let oldGoalAmount = category.goalAmountCents
+                        let oldGoalDate = category.goalDate
+                        let oldRollOver = category.rollOverUnspent
+
                         if let cents = MoneyHelpers.parseCurrencyString(categoryAmountText) {
                             category.budgetedAmountCents = cents
                         }
@@ -684,7 +706,14 @@ struct BudgetView: View {
                             category.goalAmountCents = nil
                             category.goalDate = nil
                         }
-                        SafeSave.save(modelContext)
+                        if !SafeSave.save(modelContext) {
+                            category.budgetedAmountCents = oldBudgeted
+                            category.goalType = oldGoalType
+                            category.goalAmountCents = oldGoalAmount
+                            category.goalDate = oldGoalDate
+                            category.rollOverUnspent = oldRollOver
+                            modelContext.rollback()
+                        }
                         editingCategoryAmount = nil
                     }
                 }
@@ -718,11 +747,19 @@ struct BudgetView: View {
 
     private func moveCategories(from source: IndexSet, to destination: Int) {
         var cats = visibleCategories
+        let oldOrders = cats.map { $0.sortOrder }
         cats.move(fromOffsets: source, toOffset: destination)
         for (i, cat) in cats.enumerated() {
             cat.sortOrder = i
         }
-        SafeSave.save(modelContext)
+        if !SafeSave.save(modelContext) {
+            // Restore original sort orders
+            let original = visibleCategories
+            for (i, cat) in original.enumerated() where i < oldOrders.count {
+                cat.sortOrder = oldOrders[i]
+            }
+            modelContext.rollback()
+        }
     }
 
     /// Pre-compute spent values for all categories (0.1 performance fix)

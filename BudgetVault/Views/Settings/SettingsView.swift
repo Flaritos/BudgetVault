@@ -129,8 +129,9 @@ struct SettingsView: View {
                     exportURL = url
                     showExportShare = true
                 } catch {
-                    // If export fails, go straight to final confirm
-                    showDeleteAllFinalConfirm = true
+                    // If export fails, show error — do NOT proceed to deletion
+                    exportErrorMessage = error.localizedDescription
+                    showExportError = true
                 }
             }
             Button("Continue Without Exporting", role: .destructive) {
@@ -249,6 +250,7 @@ struct SettingsView: View {
                         .foregroundStyle(.tertiary)
                 }
             }
+            .accessibilityValue(accentColorName)
 
             Picker("Budget Reset Day", selection: $resetDay) {
                 ForEach(1...28, id: \.self) { day in
@@ -328,7 +330,7 @@ struct SettingsView: View {
                 showDeleteAllConfirm = true
             } label: {
                 Label("Delete All Data", systemImage: "trash.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(BudgetVaultTheme.negative)
             }
         }
     }
@@ -340,14 +342,11 @@ struct SettingsView: View {
             Toggle("Daily Reminder", isOn: $dailyReminderEnabled)
                 .onChange(of: dailyReminderEnabled) { _, enabled in
                     if enabled {
-                        checkNotificationPermission()
-                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                            DispatchQueue.main.async {
-                                if granted {
-                                    NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
-                                } else {
-                                    dailyReminderEnabled = false
-                                }
+                        requestNotificationPermission { granted in
+                            if granted {
+                                NotificationService.scheduleDailyReminder(hour: dailyReminderHour)
+                            } else {
+                                dailyReminderEnabled = false
                             }
                         }
                     } else {
@@ -369,14 +368,11 @@ struct SettingsView: View {
             Toggle("Weekly Summary", isOn: $weeklyDigestEnabled)
                 .onChange(of: weeklyDigestEnabled) { _, enabled in
                     if enabled {
-                        checkNotificationPermission()
-                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                            DispatchQueue.main.async {
-                                if granted {
-                                    NotificationService.scheduleWeeklySummary()
-                                } else {
-                                    weeklyDigestEnabled = false
-                                }
+                        requestNotificationPermission { granted in
+                            if granted {
+                                NotificationService.scheduleWeeklySummary()
+                            } else {
+                                weeklyDigestEnabled = false
                             }
                         }
                     } else {
@@ -387,12 +383,9 @@ struct SettingsView: View {
             Toggle("Bill Due Reminders", isOn: $billDueReminders)
                 .onChange(of: billDueReminders) { _, enabled in
                     if enabled {
-                        checkNotificationPermission()
-                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                        requestNotificationPermission { granted in
                             if !granted {
-                                DispatchQueue.main.async {
-                                    billDueReminders = false
-                                }
+                                billDueReminders = false
                             }
                         }
                     }
@@ -401,12 +394,9 @@ struct SettingsView: View {
             Toggle("Morning Briefing", isOn: $morningBriefingEnabled)
                 .onChange(of: morningBriefingEnabled) { _, enabled in
                     if enabled {
-                        checkNotificationPermission()
-                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                        requestNotificationPermission { granted in
                             if !granted {
-                                DispatchQueue.main.async {
-                                    morningBriefingEnabled = false
-                                }
+                                morningBriefingEnabled = false
                             }
                             // Will be scheduled with real data from dashboard .task
                         }
@@ -483,7 +473,7 @@ struct SettingsView: View {
                 } label: {
                     HStack {
                         Image(systemName: "heart.fill")
-                            .foregroundStyle(.pink)
+                            .foregroundStyle(BudgetVaultTheme.negative)
                         Text("Leave a Tip")
                         Spacer()
                         Text(storeKit.tipProduct?.displayPrice ?? "")
@@ -568,7 +558,9 @@ struct SettingsView: View {
                 Label("Send Feedback", systemImage: "bubble.left.and.bubble.right.fill")
             }
 
-            Text("Your data never leaves this device.")
+            Text(iCloudSyncEnabled
+                 ? "Your data syncs securely via iCloud."
+                 : "Your data never leaves this device.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -583,6 +575,23 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    /// Maps the stored accent hex to a human-readable color name for accessibility.
+    private var accentColorName: String {
+        BudgetVaultTheme.accentColorOptions
+            .first(where: { $0.hex == accentColorHex })?
+            .name ?? "Custom accent color"
+    }
+
+    /// Requests notification authorization and calls `completion` on the main thread with the result.
+    private func requestNotificationPermission(completion: @escaping (Bool) -> Void) {
+        checkNotificationPermission()
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            DispatchQueue.main.async {
+                completion(granted)
+            }
+        }
+    }
 
     private func checkNotificationPermission() {
         Task {
@@ -611,7 +620,7 @@ struct SettingsView: View {
         for type in types {
             try? modelContext.delete(model: type)
         }
-        try? modelContext.save()
+        guard SafeSave.save(modelContext) else { modelContext.rollback(); return }
 
         // Reset UserDefaults — enumerate all keys and remove any that match app prefixes
         // This catches dynamic keys like "lastCategoryAlert-*" and "underBudget_*_*"
@@ -741,7 +750,7 @@ struct BudgetTemplateSheetView: View {
             added += 1
         }
 
-        try? modelContext.save()
+        guard SafeSave.save(modelContext) else { modelContext.rollback(); return }
         appliedTemplateName = template.name
         showAppliedAlert = true
     }

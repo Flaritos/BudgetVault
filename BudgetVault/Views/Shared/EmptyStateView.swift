@@ -7,12 +7,14 @@ struct EmptyStateView: View {
     var actionLabel: String? = nil
     var action: (() -> Void)? = nil
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: BudgetVaultTheme.spacingMD) {
             Image(systemName: icon)
                 .font(BudgetVaultTheme.iconLarge)
                 .foregroundStyle(.secondary)
-                .symbolEffect(.pulse)
+                .symbolEffect(.pulse, options: reduceMotion ? .nonRepeating : .repeating)
             Text(title)
                 .font(.title3.bold())
             Text(message)
@@ -22,7 +24,7 @@ struct EmptyStateView: View {
 
             if let actionLabel, let action {
                 Button(actionLabel, action: action)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(PrimaryButtonStyle())
                     .padding(.top, 4)
             }
         }

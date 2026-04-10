@@ -57,7 +57,7 @@ Budgeting apps that charge you $100/year to track your spending have a business 
 
 They need you to KEEP budgeting poorly so you never cancel.
 
-BudgetVault is $9.99. Once. Forever. We want you to succeed and move on with your life.
+BudgetVault is $14.99. Once. Forever. We want you to succeed and move on with your life.
 ```
 
 **Hashtags:** #budgetapp #moneymanagement #nosubscription
@@ -164,7 +164,7 @@ Launching soon at budgetvault.io
 ```
 Tomorrow we launch BudgetVault on the App Store.
 
-Free to download. $9.99 one-time to unlock everything. No account. No subscription. No data collection.
+Free to download. $14.99 one-time to unlock everything. No account. No subscription. No data collection.
 
 Just a budgeting app that respects you.
 
@@ -207,7 +207,7 @@ Quick thread on what makes BudgetVault different:
 
 1/ Envelope budgeting -- the method that actually works
 2/ On-device ML insights -- no cloud, no APIs
-3/ $9.99 once, not $100/year
+3/ $14.99 once, not $100/year
 4/ Apple privacy label: "Data Not Collected"
 5/ Works offline, forever
 
@@ -291,7 +291,7 @@ Thank you for trusting what we built.
 ```
 If you've been paying $14.99/month for a budget app, you've spent $180/year to be told you spend too much on coffee.
 
-BudgetVault: $9.99. Once. Forever.
+BudgetVault: $14.99. Once. Forever.
 
 And we'll never tell you to stop buying coffee. Life's too short.
 ```
@@ -377,7 +377,7 @@ Week 2 plan: listening to feedback and shipping updates fast.
 - [ ] 15-second screen recording of ML insights screen
 - [ ] App Store privacy nutrition label screenshot
 - [ ] Profile banner updated with launch messaging
-- [ ] Bio updated: "Privacy-first envelope budgeting. $9.99 once, not $100/year. No accounts, no servers, no data collection. budgetvault.io"
+- [ ] Bio updated: "Privacy-first envelope budgeting. $14.99 once, not $100/year. No accounts, no servers, no data collection. budgetvault.io"
 
 ### Platform Cross-Posting Adaptation
 These tweets are written for X/Twitter. To adapt for other platforms:

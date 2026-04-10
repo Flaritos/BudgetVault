@@ -69,7 +69,7 @@ enum RecurringExpenseScheduler {
         }
 
         if transactionsCreated > 0 {
-            SafeSave.save(context)
+            if !SafeSave.save(context) { context.rollback() }
         }
 
         return transactionsCreated

@@ -102,6 +102,8 @@ struct TransactionEditView: View {
             NumberPadView(text: $amountText)
                 .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
+            saveHelperText
+
             Button {
                 saveChanges()
             } label: {
@@ -149,6 +151,43 @@ struct TransactionEditView: View {
                     }
                 }
                 .padding(.horizontal)
+            }
+            // Match TransactionEntryView: right-edge fade mask so horizontal
+            // overflow is discoverable instead of silently cut off.
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.0),
+                        .init(color: .black, location: 0.9),
+                        .init(color: .clear, location: 1.0)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+        }
+    }
+
+    /// Tells the user exactly why Save is disabled, matching TransactionEntryView.
+    @ViewBuilder
+    private var saveHelperText: some View {
+        if !canSave {
+            let msg: String = {
+                if (MoneyHelpers.parseCurrencyString(amountText) ?? 0) == 0 {
+                    return "Enter an amount to continue"
+                }
+                if !isIncome && selectedCategory == nil {
+                    return "Pick a category to save"
+                }
+                return ""
+            }()
+            if !msg.isEmpty {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 4)
+                    .transition(.opacity)
             }
         }
     }

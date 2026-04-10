@@ -4,7 +4,7 @@
 
 **Tagline:** Your budget. Locked down. Private.
 **Wraps/Improves:** YNAB ($99/yr), Monarch Money ($99/yr), Goodbudget
-**Monetization:** One-time purchase — launch at $9.99 introductory (30 days), then $19.99
+**Monetization:** One-time purchase — $14.99
 **Minimum iOS:** 17.0
 
 > **Revision Notes (v4):** Final polish from third review. Key v4 changes: periodEnd off-by-one fixed (use `date < nextPeriodStart` instead of `date <= periodEnd`), multi-month gap rollover cascades through intermediate months, resetDay sourced from @AppStorage with Budget.resetDay as frozen snapshot, streak documented as known multi-device limitation, launch pricing has hardcoded expiration date, "Savings" category replaced with "Other" to avoid transaction-type confusion, notification permission request defined, widget premium gating added, CSV import assigns to correct budgets, category archive/restore path added, recurring auto-posting batched with cap, privacy policy added to pre-launch checklist, StoreKit error states defined, income transactions handle nil category emoji.
@@ -417,7 +417,7 @@ Logic (runs on main actor, BATCHED with cap):
 - "Unlock BudgetVault Premium" heading.
 - Feature highlights with SF Symbol checkmarks: AI Insights, Unlimited Categories (vs 6 free), Unlimited Recurring Expenses (vs 3), Full CSV Import/Export, Custom App Icons, Historical Charts, Streak Freeze.
 - **Price:** "$19.99" large + "one-time" beneath. Below: "Compare to leading budget apps at $99/year" (generic, no brand names).
-- **Launch pricing banner:** "Launch Special: $9.99 — limited time" — controlled by a hardcoded `launchPricingEndDate = Date(timeIntervalSince1970: XXXXX)` constant (set to 30 days after App Store approval). If `Date() > launchPricingEndDate`, hide the banner and show $19.99. Do NOT rely on @AppStorage alone — it has no timer and could run forever, which is deceptive per App Store rules. The actual price change happens in App Store Connect; the banner is cosmetic.
+- Price is $14.99 one-time (no launch pricing banner needed — launch pricing period is over).
 - Full-width "Purchase" button. **States:** idle → loading (ProgressView) → success (checkmark + dismiss) → error (alert with retry). Handle `Product.PurchaseResult.pending`, `.userCancelled`, and `StoreKitError` cases explicitly.
 - "Restore Purchases" text button.
 - "Family Sharing included — one purchase covers your whole family." footer.
@@ -745,7 +745,7 @@ Build StoreKit 2 IAP, the real PaywallView, and SettingsView for BudgetVault. Th
    - App icon, "Unlock BudgetVault Premium"
    - Feature list with SF Symbol checks: AI Insights, Unlimited Categories (vs 6), Unlimited Recurring (vs 3), Full CSV, Custom Icons, Historical Charts, Streak Freeze
    - "$19.99 one-time" large. "Compare to leading budget apps at $99/year" (NO competitor brand names)
-   - Launch banner: "Launch Special: $9.99" (controlled by @AppStorage("isLaunchPricing") — set true initially, flip after 30 days or remotely)
+   - Price is $14.99 one-time (launch pricing period is over)
    - "Family Sharing included" footer
    - "No subscription. No recurring charges. Ever."
    - Full-width Purchase button, Restore link
@@ -982,10 +982,10 @@ Final comprehensive audit of BudgetVault.
 - **Subtitle:** Private Budgeting, No Subscription
 - **Keywords:** budget, budgeting, expense tracker, no bank, privacy, envelope, YNAB alternative, money, finance, spending
 - **Category:** Finance
-- **Price:** Free (with $9.99 launch / $19.99 one-time IAP, Family Sharing enabled)
+- **Price:** Free (with $14.99 one-time IAP, Family Sharing enabled)
 - **Screenshot Strategy:**
   1. Privacy hero: Shield + "Your money is nobody's business."
-  2. **Price comparison: "$9.99 once vs $99/year"** (slot 2 — this sells)
+  2. **Price comparison: "$14.99 once vs $99/year"** (slot 2 — this sells)
   3. Dashboard with envelope cards
   4. Quick entry number pad
   5. Charts & insights
@@ -1009,5 +1009,5 @@ Final comprehensive audit of BudgetVault.
 - [ ] Submit to r/ynab, r/personalfinance, r/frugal when live
 - [ ] Apply for Apple "Apps We Love" featuring
 - [ ] Enable Family Sharing for IAP in App Store Connect
-- [ ] Set up introductory pricing ($9.99 for first 30 days)
+- [x] Price set to $14.99 one-time
 - [ ] Prepare TestFlight beta with 50-100 users for reviews velocity on launch day

@@ -199,6 +199,7 @@ struct StreakMilestoneView: View {
                             in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
                         )
                 }
+                .accessibilityHint("Dismisses this celebration")
                 .padding(.horizontal, BudgetVaultTheme.spacing2XL)
                 .padding(.bottom, BudgetVaultTheme.spacingPage)
             }

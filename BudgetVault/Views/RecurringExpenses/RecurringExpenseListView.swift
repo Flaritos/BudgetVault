@@ -98,7 +98,10 @@ struct RecurringExpenseListView: View {
                         .swipeActions(edge: .trailing) {
                             Button("Deactivate") {
                                 expense.isActive = false
-                                SafeSave.save(modelContext)
+                                guard SafeSave.save(modelContext) else {
+                                    modelContext.rollback()
+                                    return
+                                }
                             }
                             .tint(BudgetVaultTheme.caution)
                         }
@@ -131,7 +134,10 @@ struct RecurringExpenseListView: View {
                                     showPaywall = true
                                 } else {
                                     expense.isActive = true
-                                    SafeSave.save(modelContext)
+                                    guard SafeSave.save(modelContext) else {
+                                        modelContext.rollback()
+                                        return
+                                    }
                                 }
                             }
                             .tint(BudgetVaultTheme.positive)
