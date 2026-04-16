@@ -210,26 +210,6 @@ enum NotificationService {
         center.add(request)
     }
 
-    /// Legacy method for backward compatibility when no data is available.
-    static func scheduleWeeklySummary() {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
-
-        let content = UNMutableNotificationContent()
-        content.title = "Weekly Summary"
-        content.body = "Your weekly spending summary is ready. Open BudgetVault to see how you did!"
-        content.sound = .default
-
-        // Sunday at 6pm
-        var components = DateComponents()
-        components.weekday = 1 // Sunday
-        components.hour = 18
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-
-        let request = UNNotificationRequest(identifier: "weeklySummary", content: content, trigger: trigger)
-        center.add(request)
-    }
-
     static func cancelWeeklySummary() {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["weeklySummary"])
     }
