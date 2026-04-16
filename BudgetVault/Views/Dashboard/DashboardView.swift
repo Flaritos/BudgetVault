@@ -1642,15 +1642,17 @@ struct DashboardView: View {
             totalDays: totalDays,
             currencyCode: selectedCurrency
         )
-        BudgetLiveActivityService.start(
-            remainingCents: remainingCents,
-            dailyAllowanceCents: dailyAllowance,
-            spentFraction: max(0, min(1, spentFraction)),
-            dayOfPeriod: dayOfPeriod,
-            totalDays: totalDays,
-            currencyCode: selectedCurrency,
-            periodEndDate: budget.nextPeriodStart
-        )
+        Task {
+            await BudgetLiveActivityService.start(
+                remainingCents: remainingCents,
+                dailyAllowanceCents: dailyAllowance,
+                spentFraction: max(0, min(1, spentFraction)),
+                dayOfPeriod: dayOfPeriod,
+                totalDays: totalDays,
+                currencyCode: selectedCurrency,
+                periodEndDate: budget.nextPeriodStart
+            )
+        }
     }
 
     /// Look up cached spent value for a category, falling back to live computation

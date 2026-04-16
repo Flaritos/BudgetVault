@@ -44,7 +44,8 @@ enum BudgetLiveActivityService {
     }
 
     /// Start a new Live Activity for the current budget period. Safe to call
-    /// repeatedly — does nothing if one is already running.
+    /// repeatedly — no-op if a non-stale activity is already running; ends
+    /// any stale activity (periodEndDate in the past) before starting fresh.
     static func start(
         remainingCents: Int64,
         dailyAllowanceCents: Int64,
@@ -53,17 +54,12 @@ enum BudgetLiveActivityService {
         totalDays: Int,
         currencyCode: String,
         periodEndDate: Date
-    ) {
+    ) async {
         guard areActivitiesEnabled else { return }
-        // v3.3 P0 fix: if a previous activity outlived its period (force-quit,
-        // device sleep across midnight), end it before short-circuiting.
-        if let existing = Activity<BudgetActivityAttributes>.activities.first {
-            if isPeriodEndStale(existing.attributes.periodEndDate) {
-                Task { await existing.end(nil, dismissalPolicy: .immediate) }
-            } else {
-                return
-            }
-        }
+        // v3.3 P0 fix: end any stale activity (periodEndDate in the past) before
+        // requesting a new one — race-free via async/await rather than fire-and-forget.
+        await endStaleActivities()
+        if currentActivity != nil { return }
 
         let attributes = BudgetActivityAttributes(periodEndDate: periodEndDate)
         let state = BudgetActivityAttributes.ContentState(
