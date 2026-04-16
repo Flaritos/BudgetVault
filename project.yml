@@ -96,6 +96,7 @@ targets:
     platform: iOS
     sources:
       - BudgetVaultWidget
+      - path: BudgetVault/Models/BudgetActivityAttributes.swift
     info:
       path: BudgetVaultWidget/Info.plist
       properties:
