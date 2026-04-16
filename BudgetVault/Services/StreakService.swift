@@ -4,6 +4,16 @@ enum StreakService {
 
     private static let calendar = Calendar.current
 
+    /// ISO-8601 week key in `YYYY-WNN` format. Used as the freeze
+    /// refill epoch — at most one freeze per distinct key value.
+    static func currentISOWeekKey(for date: Date = Date()) -> String {
+        var cal = Calendar(identifier: .iso8601)
+        cal.firstWeekday = 2 // Monday — matches ISO 8601
+        let week = cal.component(.weekOfYear, from: date)
+        let year = cal.component(.yearForWeekOfYear, from: date)
+        return String(format: "%04d-W%02d", year, week)
+    }
+
     /// Call on every scenePhase .active to handle freeze logic and Monday reset.
     static func processOnForeground() {
         let today = calendar.startOfDay(for: Date())
@@ -12,13 +22,22 @@ enum StreakService {
         var streak = UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
         var freezes = UserDefaults.standard.integer(forKey: AppStorageKeys.streakFreezesRemaining)
 
-        // Reset freeze to 1 every Monday — free for everyone
-        let weekday = calendar.component(.weekday, from: today)
+        // v3.3 P0 fix: previous implementation could grant unbounded freezes
+        // if the user never opened the app on Monday. New rule: at most one
+        // freeze is available per ISO week, keyed by `YYYY-WNN`. Refilled
+        // exactly once when the week key changes.
+        let weekKey = Self.currentISOWeekKey()
         let lastFreezeReset = UserDefaults.standard.string(forKey: AppStorageKeys.lastFreezeReset) ?? ""
-        if weekday == 2 && lastFreezeReset != todayStr { // Monday
+        if lastFreezeReset != weekKey {
             freezes = 1
             UserDefaults.standard.set(freezes, forKey: AppStorageKeys.streakFreezesRemaining)
-            UserDefaults.standard.set(todayStr, forKey: AppStorageKeys.lastFreezeReset)
+            UserDefaults.standard.set(weekKey, forKey: AppStorageKeys.lastFreezeReset)
+        } else {
+            // Same ISO week — clamp to at most 1 even if a stale value lingered.
+            if freezes > 1 {
+                freezes = 1
+                UserDefaults.standard.set(freezes, forKey: AppStorageKeys.streakFreezesRemaining)
+            }
         }
 
         // Check if yesterday was missed and we can use a freeze

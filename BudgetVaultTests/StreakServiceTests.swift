@@ -98,4 +98,42 @@ final class StreakServiceTests: XCTestCase {
         UserDefaults.standard.set(15, forKey: AppStorageKeys.currentStreak)
         XCTAssertNil(StreakService.checkMilestone())
     }
+
+    // MARK: - Freeze accumulation (v3.3 P0 fix)
+
+    /// Audit finding: prior implementation reset `freezes = 1` only when
+    /// the user opened the app on a Monday. A user who opens daily
+    /// Tue–Sun for weeks could accumulate the original Monday freeze.
+    /// New rule: at most one freeze available per ISO week.
+    func testFreezeAvailable_neverExceedsOnePerWeek() {
+        UserDefaults.standard.set(5, forKey: AppStorageKeys.streakFreezesRemaining)
+        StreakService.processOnForeground()
+        // Should clamp to at most 1 — anything else is the bug.
+        let freezes = UserDefaults.standard.integer(forKey: AppStorageKeys.streakFreezesRemaining)
+        XCTAssertLessThanOrEqual(freezes, 1)
+    }
+
+    func testFreezeAvailable_whenWeekKeyMissing_grants1() {
+        UserDefaults.standard.removeObject(forKey: AppStorageKeys.lastFreezeReset)
+        UserDefaults.standard.set(0, forKey: AppStorageKeys.streakFreezesRemaining)
+        StreakService.processOnForeground()
+        XCTAssertEqual(UserDefaults.standard.integer(forKey: AppStorageKeys.streakFreezesRemaining), 1)
+    }
+
+    func testFreezeAvailable_whenAlreadyUsedThisWeek_returnsZero() {
+        // Simulate "we already granted+used the freeze this ISO week"
+        let isoWeek = StreakService.currentISOWeekKey()
+        UserDefaults.standard.set(isoWeek, forKey: AppStorageKeys.lastFreezeReset)
+        UserDefaults.standard.set(0, forKey: AppStorageKeys.streakFreezesRemaining)
+        StreakService.processOnForeground()
+        XCTAssertEqual(UserDefaults.standard.integer(forKey: AppStorageKeys.streakFreezesRemaining), 0)
+    }
+
+    func testFreezeAvailable_newWeekRefillsToOne() {
+        // Stamp last reset with a clearly-old key
+        UserDefaults.standard.set("2020-W01", forKey: AppStorageKeys.lastFreezeReset)
+        UserDefaults.standard.set(0, forKey: AppStorageKeys.streakFreezesRemaining)
+        StreakService.processOnForeground()
+        XCTAssertEqual(UserDefaults.standard.integer(forKey: AppStorageKeys.streakFreezesRemaining), 1)
+    }
 }
