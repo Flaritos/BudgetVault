@@ -26,6 +26,23 @@ enum BudgetLiveActivityService {
         Activity<BudgetActivityAttributes>.activities.first
     }
 
+    /// Pure predicate for unit testing the stale-period guard.
+    /// Returns `true` when the period end has already passed and the
+    /// activity should be ended before requesting a new one.
+    static func isPeriodEndStale(_ periodEndDate: Date, now: Date = Date()) -> Bool {
+        periodEndDate < now
+    }
+
+    /// End any running activity whose `periodEndDate` is in the past.
+    /// Safe to call repeatedly. Awaitable so the caller can sequence
+    /// `start` after the cleanup completes.
+    static func endStaleActivities(now: Date = Date()) async {
+        for activity in Activity<BudgetActivityAttributes>.activities
+            where isPeriodEndStale(activity.attributes.periodEndDate, now: now) {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
     /// Start a new Live Activity for the current budget period. Safe to call
     /// repeatedly — does nothing if one is already running.
     static func start(
@@ -38,7 +55,15 @@ enum BudgetLiveActivityService {
         periodEndDate: Date
     ) {
         guard areActivitiesEnabled else { return }
-        if currentActivity != nil { return }
+        // v3.3 P0 fix: if a previous activity outlived its period (force-quit,
+        // device sleep across midnight), end it before short-circuiting.
+        if let existing = Activity<BudgetActivityAttributes>.activities.first {
+            if isPeriodEndStale(existing.attributes.periodEndDate) {
+                Task { await existing.end(nil, dismissalPolicy: .immediate) }
+            } else {
+                return
+            }
+        }
 
         let attributes = BudgetActivityAttributes(periodEndDate: periodEndDate)
         let state = BudgetActivityAttributes.ContentState(
