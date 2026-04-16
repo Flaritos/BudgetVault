@@ -1,5 +1,8 @@
 import StoreKit
 import SwiftUI
+import os
+
+private let storeKitLog = Logger(subsystem: "io.budgetvault.app", category: "storekit")
 
 private typealias StoreTransaction = StoreKit.Transaction
 
@@ -85,7 +88,7 @@ final class StoreKitManager {
                 productLoadError = "Unable to load products. Check your connection."
             }
         } catch {
-            print("Failed to load products: \(error)")
+            storeKitLog.error("Failed to load products: \(error.localizedDescription, privacy: .private)")
             productLoadError = "Unable to load products. Check your connection."
         }
     }
