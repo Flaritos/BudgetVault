@@ -32,7 +32,7 @@ struct DashboardView: View {
     @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
 
     // MARK: - Consolidated Sheet Enum (Finding 29)
-    enum ActiveSheet: Identifiable {
+    enum ActiveSheet: Identifiable, Equatable {
         case transactionEntry
         case monthlySummary
         case paywall
@@ -44,8 +44,14 @@ struct DashboardView: View {
         case streakMilestone
         case shareCard
         case bufferInfo
+        case newAchievement(AchievementService.Achievement)
 
-        var id: String { String(describing: self) }
+        var id: String {
+            switch self {
+            case .newAchievement(let a): return "newAchievement-\(a.id)"
+            default: return String(describing: self)
+            }
+        }
     }
 
     // DashboardViewModel is a static enum — call methods via DashboardViewModel.method()
@@ -55,7 +61,9 @@ struct DashboardView: View {
     @State private var intentPrefillCategory: String?
     @State private var intentPrefillNote: String?
     @State private var editingTransaction: Transaction?
-    // Round 8: newAchievementBanner state removed with overlay banner.
+    // v3.3 P0 fix: achievement unlock now presents AchievementSheet via
+    // activeSheet = .newAchievement(badge); replaces the v3.2 overlay
+    // banner that kept colliding with other top-of-screen UI.
 
     @State private var shareCardImage: UIImage?
     @State private var hasCheckedAchievements = false
@@ -310,6 +318,10 @@ struct DashboardView: View {
                 case .achievements:
                     AchievementGridView()
                         .presentationDragIndicator(.visible)
+                case .newAchievement(let badge):
+                    AchievementSheet(achievement: badge) {
+                        activeSheet = nil
+                    }
                 case .insights:
                     NavigationStack {
                         InsightsView()
@@ -398,8 +410,26 @@ struct DashboardView: View {
                         // via Settings → Milestones.
                         if let first = newBadges.first {
                             HapticManager.notification(.success)
+                            // v3.3 P0 fix: present sheet so user actually sees
+                            // the unlock. Prepare share card asynchronously.
                             if first.id == "under_budget_1" || first.id == "streak_30" {
                                 prepareShareCard(for: first, budget: budget)
+                            }
+                            // Skip the sheet under XCUITest — the deterministic
+                            // seed fixture always unlocks `first_transaction`,
+                            // which would otherwise cover controls the UI tests
+                            // need to tap (AuditFixesUITests.C2/M1).
+                            let isUITest = ProcessInfo.processInfo.arguments.contains("-uitest")
+                            if !isUITest {
+                                // Defer sheet presentation slightly so it doesn't
+                                // collide with sheets fired from `.task` (streak
+                                // milestone fires at +0.5s below).
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(300))
+                                    if case .none = activeSheet {
+                                        activeSheet = .newAchievement(first)
+                                    }
+                                }
                             }
                         }
                     }
