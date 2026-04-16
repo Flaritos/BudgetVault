@@ -1,5 +1,6 @@
 import XCTest
 @testable import BudgetVault
+import BudgetVaultShared
 
 /// Tests for the streak state machine — trust-critical because streaks
 /// drive retention and the app has zero tolerance for silently losing a

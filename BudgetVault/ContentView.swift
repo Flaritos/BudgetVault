@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import BudgetVaultShared
 
 struct ContentView: View {
     @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false

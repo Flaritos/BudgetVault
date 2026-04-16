@@ -1,4 +1,5 @@
 import Foundation
+import BudgetVaultShared
 
 struct Insight: Identifiable {
     let id = UUID()

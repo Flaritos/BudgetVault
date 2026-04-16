@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import SwiftData
+import BudgetVaultShared
 
 /// Deterministic seeding for XCUITest runs. Triggered by the `-uitest 1`
 /// launch argument in `BudgetVaultApp.init`. Keeps test runs hermetic so

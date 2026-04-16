@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import BudgetVaultShared
 
 struct FinanceTabView: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1

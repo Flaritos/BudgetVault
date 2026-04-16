@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import BudgetVaultShared
 
 struct MonthlySummaryView: View {
     let budget: Budget

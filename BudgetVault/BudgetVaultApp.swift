@@ -4,6 +4,7 @@ import UserNotifications
 import BackgroundTasks
 import TipKit
 import WidgetKit
+import BudgetVaultShared
 
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(

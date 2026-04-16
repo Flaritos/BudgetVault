@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import BudgetVaultShared
 
 struct TransactionEntryView: View {
     @Environment(\.modelContext) private var modelContext

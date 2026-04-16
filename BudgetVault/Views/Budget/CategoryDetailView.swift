@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import BudgetVaultShared
 
 struct CategoryDetailView: View {
     let category: Category

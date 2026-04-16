@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UserNotifications
+import BudgetVaultShared
 
 // MARK: - Onboarding Vault Dial
 

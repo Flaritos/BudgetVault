@@ -1,4 +1,5 @@
 import SwiftUI
+import BudgetVaultShared
 
 // MARK: - Spending Prediction Card
 

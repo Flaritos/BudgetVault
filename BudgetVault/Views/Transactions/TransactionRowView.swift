@@ -1,4 +1,5 @@
 import SwiftUI
+import BudgetVaultShared
 
 struct TransactionRowView: View {
     let transaction: Transaction

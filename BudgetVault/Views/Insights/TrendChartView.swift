@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import BudgetVaultShared
 
 struct TrendChartView: View {
     let budget: Budget

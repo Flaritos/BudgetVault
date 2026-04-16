@@ -1,4 +1,5 @@
 import SwiftUI
+import BudgetVaultShared
 
 struct MainTabView: View {
     @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"

@@ -1,6 +1,7 @@
 import StoreKit
 import SwiftUI
 import os
+import BudgetVaultShared
 
 private let storeKitLog = Logger(subsystem: "io.budgetvault.app", category: "storekit")
 

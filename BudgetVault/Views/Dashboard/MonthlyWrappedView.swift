@@ -1,5 +1,6 @@
 import SwiftUI
 import Photos
+import BudgetVaultShared
 
 struct MonthlyWrappedView: View {
     let budget: Budget

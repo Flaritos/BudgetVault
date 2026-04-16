@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import TipKit
+import BudgetVaultShared
 
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext

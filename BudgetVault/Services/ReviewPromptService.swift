@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import BudgetVaultShared
 
 enum ReviewPromptService {
     static func requestIfAppropriate() {

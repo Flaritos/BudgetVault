@@ -1,5 +1,6 @@
 import AppIntents
 import SwiftUI
+import BudgetVaultShared
 
 struct AddExpenseIntent: AppIntent {
     static var title: LocalizedStringResource = "Add Expense"

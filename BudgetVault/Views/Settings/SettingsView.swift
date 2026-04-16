@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import StoreKit
 import TipKit
+import BudgetVaultShared
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext

@@ -1,4 +1,5 @@
 import SwiftUI
+import BudgetVaultShared
 
 // MARK: - Currency Chip Picker
 
