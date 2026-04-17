@@ -48,4 +48,7 @@ public enum AppStorageKeys {
     public static let morningBriefingEnabled = "morningBriefingEnabled"
     public static let morningBriefingHour = "morningBriefingHour"
     public static let catchUpDismissedDate = "catchUpDismissedDate"
+
+    // MARK: - Local Metrics (on-device-only counters, never sent over network)
+    public static let wrappedSharesAllTime = "wrappedSharesAllTime"
 }
