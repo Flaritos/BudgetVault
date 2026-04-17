@@ -28,6 +28,10 @@
 	<string>BudgetVault uses Face ID to protect your financial data.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>BudgetVault needs access to save your monthly wrapped card to your photo library.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
