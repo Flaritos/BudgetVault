@@ -163,6 +163,9 @@ struct ChatOnboardingView: View {
     @State private var showSaveError = false
     @State private var showCurrencyPicker = false
     @State private var budgetCreated = false
+    // Welcome dial spin-to-advance state — rotates 720° on "Get started" tap.
+    @State private var welcomeDialRotation: Double = 0
+    @State private var welcomeAdvancing = false
     @ScaledMetric(relativeTo: .largeTitle) private var incomeDisplaySize: CGFloat = 48
     @FocusState private var vaultNameFocused: Bool
 
@@ -267,12 +270,17 @@ struct ChatOnboardingView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // Giant hero dial — rendered from the HTML ground-truth PNG.
-                // drop-shadow(0 20px 40px rgba(0,0,0,0.6)) → .shadow(radius: 40, y: 20)
-                Image("VaultDialHeroLocked")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 260, height: 260)
+                // Giant hero dial — layered PNG assets (bezel + chamber,
+                // ticks + numerals, pointer + boss + lock) so only the
+                // FACE rotates on the "Get started" ceremony, matching how
+                // a real bank vault dial behaves — pointer stays fixed at
+                // 12 o'clock while the numbered wheel spins under it.
+                // Respects Reduce Motion (skips the spin for accessibility).
+                VaultDial(
+                    size: .hero,
+                    state: .locked,
+                    faceRotationDegrees: welcomeDialRotation
+                )
                     .shadow(color: .black.opacity(0.6), radius: 40, x: 0, y: 20)
                     .padding(.bottom, 32)
 
@@ -311,7 +319,7 @@ struct ChatOnboardingView: View {
                 VStack(spacing: 8) {
                     // cta-primary: linear-gradient(180deg, #60A5FA 0%, #2563EB 55%, #1e40af 100%),
                     // 17px padding, 12px radius, 15pt weight 600 text, 1px #1e3a8a border.
-                    Button { advanceToNextStep() } label: {
+                    Button { spinDialThenAdvance() } label: {
                         Text("Get started")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color(hex: "#E8EDF5"))
@@ -1529,6 +1537,34 @@ struct ChatOnboardingView: View {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
         withAnimation(.easeInOut(duration: 0.3)) {
             currentStep = next
+        }
+    }
+
+    /// Welcome → Pledge ceremony: spin the dial 720° (two full rotations),
+    /// then advance. Respects Reduce Motion by skipping the spin.
+    /// Guard against double-taps with `welcomeAdvancing`.
+    private func spinDialThenAdvance() {
+        guard !welcomeAdvancing else { return }
+        welcomeAdvancing = true
+
+        if reduceMotion {
+            advanceToNextStep()
+            welcomeAdvancing = false
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 1.2)) {
+            welcomeDialRotation += 720
+        }
+        HapticManager.impact(.light)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            advanceToNextStep()
+            // Reset flag so if user comes back (via back nav) and taps again,
+            // the animation fires fresh.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                welcomeAdvancing = false
+            }
         }
     }
 
