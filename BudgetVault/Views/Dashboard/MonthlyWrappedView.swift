@@ -311,7 +311,7 @@ struct MonthlyWrappedView: View {
                 Text("YOUR \(monthName) STORY")
                     .font(.caption.weight(.bold))
                     .tracking(4)
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.7))
 
                 // Donut ring
                 ZStack {
@@ -346,7 +346,7 @@ struct MonthlyWrappedView: View {
                         Text("SAVED")
                             .font(.caption2.weight(.semibold))
                             .tracking(2)
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.7))
 
                         Text(CurrencyFormatter.format(cents: savedCents))
                             .font(.system(size: 42, weight: .bold, design: .rounded))
@@ -366,7 +366,7 @@ struct MonthlyWrappedView: View {
 
                     Text("The vault held strong. Let's see where it went \u{2192}")
                         .font(.callout.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
@@ -401,7 +401,7 @@ struct MonthlyWrappedView: View {
                     Text("WHERE IT WENT")
                         .font(.caption.weight(.bold))
                         .tracking(4)
-                        .foregroundStyle(.white.opacity(0.25))
+                        .foregroundStyle(.white.opacity(0.7))
 
                     if let cat = topCategory {
                         VStack(spacing: BudgetVaultTheme.spacingMD) {
@@ -423,7 +423,7 @@ struct MonthlyWrappedView: View {
 
                             Text(String(format: "That's %.0f%% of everything you spent.", topCategoryPercent))
                                 .font(.callout)
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(.white.opacity(0.7))
                         }
                     }
 
@@ -499,7 +499,7 @@ struct MonthlyWrappedView: View {
                 Text("YOUR SPENDING TYPE")
                     .font(.caption.weight(.bold))
                     .tracking(4)
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.7))
 
                 // Giant emoji with glow
                 Text(personality.emoji)
@@ -567,7 +567,7 @@ struct MonthlyWrappedView: View {
                     Text("BY THE NUMBERS")
                         .font(.caption.weight(.bold))
                         .tracking(4)
-                        .foregroundStyle(.white.opacity(0.25))
+                        .foregroundStyle(.white.opacity(0.7))
                         .padding(.bottom, BudgetVaultTheme.spacing2XL)
 
                     // Transaction count
@@ -640,7 +640,7 @@ struct MonthlyWrappedView: View {
                 if let detail {
                     Text(detail)
                         .font(.callout)
-                        .foregroundStyle(.white.opacity(0.4))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
             }
 
@@ -774,7 +774,7 @@ struct MonthlyWrappedView: View {
             // Month/Year
             Text(monthYearString)
                 .font(.headline)
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.7))
 
             // Hero saved amount
             VStack(spacing: 4) {
@@ -784,7 +784,7 @@ struct MonthlyWrappedView: View {
 
                 Text("saved this month")
                     .font(.callout)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.7))
             }
 
             // Stats row
@@ -828,7 +828,7 @@ struct MonthlyWrappedView: View {
             // Footer
             Text("budgetvault.io")
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(.white.opacity(0.7))
         }
     }
 
