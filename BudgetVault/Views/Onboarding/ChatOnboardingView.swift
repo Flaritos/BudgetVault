@@ -152,7 +152,9 @@ struct ChatOnboardingView: View {
     @AppStorage(AppStorageKeys.vaultName) private var vaultName = ""
 
     @State private var currentStep: OnboardingStep = .welcome
-    @State private var chosePath: OnboardingPath = .thorough
+    // Default to .quick — the Quick start card is visually labeled
+    // "Recommended" per HTML design; the default selection must match.
+    @State private var chosePath: OnboardingPath = .quick
     @State private var dialRotation: Double = 0
     @State private var tempCurrency = "USD"
     @State private var incomeText = ""
@@ -344,7 +346,8 @@ struct ChatOnboardingView: View {
                     }
                     .accessibilityIdentifier("welcomeSkipButton")
                 }
-                .padding(.horizontal, 24)
+                // No inner horizontal padding — the outer .horizontal 32 is
+                // the only padding layer (matches HTML screen-content exactly).
                 .padding(.bottom, 40)
             }
             .padding(.horizontal, 32) // HTML screen-content: padding: 0 32px
@@ -606,21 +609,30 @@ struct ChatOnboardingView: View {
                         .padding(.bottom, 28)
 
                     // Titanium engraving plate + invisible TextField for input.
-                    ZStack {
-                        EngravingPlate(text: vaultName.isEmpty ? "Emma's Vault" : vaultName,
-                                       characterLimit: 24,
-                                       showCounter: true)
-                        TextField("", text: $vaultName)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(.clear)
-                            .tint(BudgetVaultTheme.titanium800)
-                            .focused($vaultNameFocused)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                            .onChange(of: vaultName) { _, newValue in
-                                if newValue.count > 24 { vaultName = String(newValue.prefix(24)) }
-                            }
+                    // Placeholder "Emma's Vault" shows at 35% opacity so user
+                    // sees it's a suggestion. Counter stacked below reflects
+                    // real vaultName length (0 when empty, not placeholder length).
+                    VStack(spacing: 8) {
+                        ZStack {
+                            EngravingPlate(text: vaultName.isEmpty ? "Emma's Vault" : vaultName,
+                                           characterLimit: 24,
+                                           showCounter: false)  // we render our own below
+                                .opacity(vaultName.isEmpty ? 0.35 : 1.0)
+                            TextField("", text: $vaultName)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundStyle(.clear)
+                                .tint(BudgetVaultTheme.titanium800)
+                                .focused($vaultNameFocused)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                                .onChange(of: vaultName) { _, newValue in
+                                    if newValue.count > 24 { vaultName = String(newValue.prefix(24)) }
+                                }
+                        }
+                        Text("\(vaultName.count) / 24")
+                            .font(BudgetVaultTheme.flipDigitFont(size: 12))
+                            .foregroundStyle(BudgetVaultTheme.titanium600.opacity(0.75))
                     }
                     .padding(.bottom, 28)
 
@@ -826,10 +838,12 @@ struct ChatOnboardingView: View {
         }
     }
 
-    /// Quick start card — blue gradient fill with 2px electric border,
-    /// "RECOMMENDED" notch protruding from the top-left, "30 SEC" label top-right.
+    /// Quick start card — blue gradient fill with 2px electric border
+    /// when selected (default), thinner + dimmer when user picks Thorough.
+    /// "RECOMMENDED" notch protrudes top-left; "30 SEC" label top-right.
     private var quickStartCard: some View {
-        Button { chosePath = .quick } label: {
+        let isSelected = chosePath == .quick
+        return Button { chosePath = .quick } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Quick start")
@@ -861,10 +875,14 @@ struct ChatOnboardingView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(hex: "#2563EB"), lineWidth: 2)
+                    .strokeBorder(
+                        isSelected ? Color(hex: "#2563EB") : BudgetVaultTheme.titanium700,
+                        lineWidth: isSelected ? 2 : 1
+                    )
             )
-            .shadow(color: Color(hex: "#2563EB").opacity(0.2), radius: 14, y: 4)
-            .shadow(color: Color(hex: "#2563EB").opacity(0.08), radius: 24, x: 0, y: 0)
+            .shadow(color: isSelected ? Color(hex: "#2563EB").opacity(0.2) : .clear, radius: 14, y: 4)
+            .shadow(color: isSelected ? Color(hex: "#2563EB").opacity(0.08) : .clear, radius: 24, x: 0, y: 0)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
             .overlay(alignment: .topLeading) {
                 // "RECOMMENDED" tab — HTML positions it top: -8px, left: 16px.
                 Text("Recommended")
@@ -885,15 +903,18 @@ struct ChatOnboardingView: View {
         .accessibilityAddTraits(chosePath == .quick ? .isSelected : [])
     }
 
-    /// Thorough setup card — darker navy gradient, titanium hairline border.
+    /// Thorough setup card — darker navy gradient. Static titanium
+    /// hairline when unselected; 2pt electric-blue border + full-opacity
+    /// title when selected (user-feedback parity with Quick card).
     private var thoroughSetupCard: some View {
-        Button { chosePath = .thorough } label: {
+        let isSelected = chosePath == .thorough
+        return Button { chosePath = .thorough } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Thorough setup")
                         .font(.system(size: 20, weight: .bold))
                         .tracking(-0.2)
-                        .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                        .foregroundStyle(Color(hex: "#E8EDF5").opacity(isSelected ? 1.0 : 0.68))
                     Spacer()
                     Text("2 Min")
                         .font(.system(size: 9, weight: .semibold))
@@ -904,7 +925,7 @@ struct ChatOnboardingView: View {
                 Text("Face ID, income, envelopes, and allocation. Seven more steps. Any step still skippable.")
                     .font(.system(size: 13))
                     .lineSpacing(7.15)
-                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(isSelected ? 0.68 : 0.42))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(20)
@@ -917,13 +938,15 @@ struct ChatOnboardingView: View {
                         endPoint: UnitPoint(x: 0.85, y: 1)
                     ))
             )
-            // Per HTML: thorough card keeps a static titanium hairline
-            // border regardless of selection. The CTA label ("Quick start"
-            // vs "Walk me through everything") is the selection feedback.
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
+                    .strokeBorder(
+                        isSelected ? Color(hex: "#2563EB") : BudgetVaultTheme.titanium700,
+                        lineWidth: isSelected ? 2 : 1
+                    )
             )
+            .shadow(color: isSelected ? Color(hex: "#2563EB").opacity(0.2) : .clear, radius: 14, y: 4)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(chosePath == .thorough ? .isSelected : [])
