@@ -165,6 +165,76 @@ enum BudgetVaultTheme {
         ("Slate", "#64748B"),
         ("Crimson", "#DC2626"),
     ]
+
+    // MARK: - Titanium Scale (vault objects only)
+    // Brushed cool metal, used exclusively on physical vault objects:
+    // dial bezels, bolts, engraving plates, keypad keys, FAB.
+    // Never use as a text background or primary UI surface.
+    static let titanium100 = Color(hex: "#E4E8EE")
+    static let titanium200 = Color(hex: "#C8CFDA")
+    static let titanium300 = Color(hex: "#A8B2C2")
+    static let titanium400 = Color(hex: "#828D9E")
+    static let titanium500 = Color(hex: "#5E6A7C")
+    static let titanium600 = Color(hex: "#434D5E")
+    static let titanium700 = Color(hex: "#2E3645")
+    static let titanium800 = Color(hex: "#1D2330")
+    static let titanium900 = Color(hex: "#0F141E")
+
+    static let titaniumBrushed = LinearGradient(
+        colors: [titanium200, titanium400, titanium600],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+
+    static let titaniumBezel = RadialGradient(
+        colors: [titanium100, titanium300, titanium600, titanium800],
+        center: .center,
+        startRadius: 0,
+        endRadius: 100
+    )
+
+    // MARK: - Chamber Surfaces (vault interiors)
+    // Deep recessed backgrounds for flip-digit displays, inside dial faces,
+    // and the chamber card recesses on Home / Vault tab.
+    static let chamberBlack = Color(hex: "#050912")
+    static let chamberDeep = Color(hex: "#0A0F1C")
+
+    static let chamberBackground = LinearGradient(
+        colors: [Color(hex: "#0F1A30"), Color(hex: "#070E1F")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    // MARK: - Wax Seal (no-spend day ritual only)
+    // Used only on the History screen to mark no-spend days. Do not use elsewhere.
+    static let waxSealRed = Color(hex: "#8B1A1A")
+    static let waxSealHighlight = Color(hex: "#D93838")
+    static let waxSealShadow = Color(hex: "#4A0E0E")
+
+    // MARK: - Ledger Paper (History screen only)
+    // The History screen uses a cream-paper background to visually distinguish
+    // from the other dark-navy screens (the "bound volume" feel).
+    static let ledgerPaperLight = Color(hex: "#F4EFE4")
+    static let ledgerPaperDark = Color(hex: "#E6DEC8")
+    static let ledgerInk = Color(hex: "#1A1308")
+    static let ledgerInkSecondary = Color(hex: "#5E4C2E")
+    static let ledgerRule = Color(hex: "#8A764C")
+
+    // MARK: - Engraved Label Typography
+    // Uppercase SF Pro with heavy letterspacing — the visual equivalent
+    // of a stamped metal label. Do NOT use a condensed display font.
+    // Call-site: combine with `.textCase(.uppercase)` and `.tracking(2.4)`.
+    static func engravedLabel(size: CGFloat = 11) -> Font {
+        .system(size: size, weight: .semibold).leading(.tight)
+    }
+
+    // MARK: - Mono Numeric Display
+    // JetBrains Mono (per HTML reference) is not available on iOS by default.
+    // Use SF Mono via `.monospaced` design — provides the technical feel
+    // for flip-digit displays without a font-bundling dependency.
+    static func flipDigitFont(size: CGFloat) -> Font {
+        .system(size: size, weight: .medium, design: .monospaced)
+    }
 }
 
 // MARK: - Color Extension
