@@ -233,6 +233,26 @@ struct MonthlyWrappedView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea()
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Wrapped slides")
+            .accessibilityValue("Slide \(currentPage + 1) of 5")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment:
+                    if currentPage < 4 {
+                        currentPage += 1
+                        UIAccessibility.post(notification: .pageScrolled,
+                                             argument: "Slide \(currentPage + 1) of 5")
+                    }
+                case .decrement:
+                    if currentPage > 0 {
+                        currentPage -= 1
+                        UIAccessibility.post(notification: .pageScrolled,
+                                             argument: "Slide \(currentPage + 1) of 5")
+                    }
+                @unknown default: break
+                }
+            }
 
             pageDots
         }
