@@ -239,65 +239,113 @@ struct ChatOnboardingView: View {
         }
     }
 
-    // MARK: - Step 0: Welcome (VaultRevamp §7.1)
+    // MARK: - Step 0: Welcome (VaultRevamp §7.1) — HTML 1:1
 
+    /// HTML ground truth: VaultRevamp.html lines 1004-1144.
+    /// - Background: radial-gradient (ellipse at 50% 30%) from #14234a → #0F1B33 → #070E1F
+    /// - Giant 260x260 dial PNG (VaultDialHeroLocked), drop-shadow(0 20px 40px rgba(0,0,0,0.6))
+    /// - 4 retracted bolts (no engaged)
+    /// - .label "Welcome" (11pt, weight 600, tracking 0.22em, titanium300)
+    /// - <h1> 34pt / weight 700 / letter-spacing -0.03em / line-height 1.1 / #E8EDF5
+    /// - .label-sm (9pt / weight 600 / tracking 0.24em / titanium400) subtitle
+    /// - Bottom-area: cta-primary "Get started" + cta-ghost "I'll set up later"
     private var welcomeStep: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            Spacer()
+        ZStack {
+            // Screen background — radial gradient per HTML .screen rule.
+            RadialGradient(
+                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                center: UnitPoint(x: 0.5, y: 0.3),
+                startRadius: 0,
+                endRadius: 600
+            )
+            .ignoresSafeArea()
 
-            VaultDial(size: .hero, state: .locked)
-                .shadow(color: .black.opacity(0.4), radius: 30, y: 10)
+            VStack(spacing: 0) {
+                Spacer()
 
-            BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
-                .padding(.top, BudgetVaultTheme.spacingMD)
+                // Giant hero dial — rendered from the HTML ground-truth PNG.
+                // drop-shadow(0 20px 40px rgba(0,0,0,0.6)) → .shadow(radius: 40, y: 20)
+                Image("VaultDialHeroLocked")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 260, height: 260)
+                    .shadow(color: .black.opacity(0.6), radius: 40, x: 0, y: 20)
+                    .padding(.bottom, 32)
 
-            Text("Welcome")
-                .font(BudgetVaultTheme.engravedLabel(size: 11))
-                .textCase(.uppercase)
-                .tracking(2.4)
-                .foregroundStyle(.white.opacity(0.55))
+                // Retracted bolt row (4) — all titanium, no engaged.
+                BoltRow(count: 4, engaged: 0, size: .medium)
+                    .padding(.bottom, 32)
 
-            VStack(spacing: BudgetVaultTheme.spacingXS) {
-                // Spec §7.1 — three equal-weight lines (NOT weight-split)
-                Text("Your budget.")
-                Text("Your device.")
-                Text("No one else.")
-            }
-            .font(.system(size: 32, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
-            .multilineTextAlignment(.center)
+                // .label "WELCOME" — 11pt / weight 600 / tracking 2.42px / titanium300
+                Text("Welcome")
+                    .font(.system(size: 11, weight: .semibold))
+                    .textCase(.uppercase)
+                    .tracking(2.42)   // 0.22em × 11pt
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                    .padding(.bottom, 14)
 
-            Text("$14.99 · One time · Yours forever")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white.opacity(0.45))
-                .padding(.top, BudgetVaultTheme.spacingXS)
+                // Headline: 34pt / weight 700 / tracking -0.03em / line-height 1.1
+                // Three equal-weight lines, center-aligned.
+                (Text("Your budget.\n") + Text("Your device.\n") + Text("No one else."))
+                    .font(.system(size: 34, weight: .bold))
+                    .tracking(-1.02)    // -0.03em × 34pt
+                    .lineSpacing(3.4)   // (1.1 - 1) × 34pt
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 14)
 
-            Spacer()
+                // .label-sm subtitle — 9pt / weight 600 / tracking 0.24em / text-3
+                Text("$14.99 · One time · Yours forever")
+                    .font(.system(size: 9, weight: .semibold))
+                    .textCase(.uppercase)
+                    .tracking(2.16)   // 0.24em × 9pt
+                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
 
-            VStack(spacing: BudgetVaultTheme.spacingSM) {
-                Button {
-                    advanceToNextStep()
-                } label: {
-                    Text("Get started")
-                        .font(.headline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-                        .foregroundStyle(.white)
+                Spacer()
+
+                // Bottom area — cta-primary + cta-ghost.
+                VStack(spacing: 8) {
+                    // cta-primary: linear-gradient(180deg, #60A5FA 0%, #2563EB 55%, #1e40af 100%),
+                    // 17px padding, 12px radius, 15pt weight 600 text, 1px #1e3a8a border.
+                    Button { advanceToNextStep() } label: {
+                        Text("Get started")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color(hex: "#E8EDF5"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 17)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(hex: "#60A5FA"),
+                                        Color(hex: "#2563EB"),
+                                        Color(hex: "#1E40AF"),
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                            )
+                            .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, x: 0, y: 2)
+                    }
+
+                    // cta-ghost: transparent, 13pt weight 500, color text-3.
+                    Button { skipOnboarding() } label: {
+                        Text("I'll set up later")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .accessibilityIdentifier("welcomeSkipButton")
                 }
-
-                Button {
-                    skipOnboarding()
-                } label: {
-                    Text("I'll set up later")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .padding(.vertical, 10)
-                }
-                .accessibilityIdentifier("welcomeSkipButton")
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
+            .padding(.horizontal, 32) // HTML screen-content: padding: 0 32px
         }
     }
 
