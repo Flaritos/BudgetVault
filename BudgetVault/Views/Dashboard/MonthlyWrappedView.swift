@@ -732,6 +732,7 @@ struct MonthlyWrappedView: View {
                     .accessibilityHint("Opens the share sheet")
                     .simultaneousGesture(TapGesture().onEnded {
                         LocalMetricsService.increment(.wrappedShareTaps)
+                        // TODO(plan-04-aso): wire ReviewPromptService on wrapped-shared event
                         let count = UserDefaults.standard.integer(forKey: AppStorageKeys.wrappedSharesAllTime)
                         UserDefaults.standard.set(count + 1, forKey: AppStorageKeys.wrappedSharesAllTime)
                         HapticManager.impact(.light)
