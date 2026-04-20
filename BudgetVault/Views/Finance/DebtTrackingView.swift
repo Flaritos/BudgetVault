@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import BudgetVaultShared
 
 struct DebtTrackingView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false

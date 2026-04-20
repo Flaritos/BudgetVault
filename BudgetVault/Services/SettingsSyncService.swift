@@ -1,4 +1,5 @@
 import Foundation
+import BudgetVaultShared
 
 /// Syncs key user settings across devices via NSUbiquitousKeyValueStore (iCloud KVS).
 /// Listens for external changes and writes local changes on mutation.

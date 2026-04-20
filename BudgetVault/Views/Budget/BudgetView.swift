@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import TipKit
+import BudgetVaultShared
 
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext

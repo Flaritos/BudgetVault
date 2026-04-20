@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import TipKit
+import BudgetVaultShared
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
@@ -32,7 +33,7 @@ struct DashboardView: View {
     @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
 
     // MARK: - Consolidated Sheet Enum (Finding 29)
-    enum ActiveSheet: Identifiable {
+    enum ActiveSheet: Identifiable, Equatable {
         case transactionEntry
         case monthlySummary
         case paywall
@@ -44,8 +45,14 @@ struct DashboardView: View {
         case streakMilestone
         case shareCard
         case bufferInfo
+        case newAchievement(AchievementService.Achievement)
 
-        var id: String { String(describing: self) }
+        var id: String {
+            switch self {
+            case .newAchievement(let a): return "newAchievement-\(a.id)"
+            default: return String(describing: self)
+            }
+        }
     }
 
     // DashboardViewModel is a static enum — call methods via DashboardViewModel.method()
@@ -55,10 +62,11 @@ struct DashboardView: View {
     @State private var intentPrefillCategory: String?
     @State private var intentPrefillNote: String?
     @State private var editingTransaction: Transaction?
-    // Round 8: newAchievementBanner state removed with overlay banner.
+    // v3.3 P0 fix: achievement unlock now presents AchievementSheet via
+    // activeSheet = .newAchievement(badge); replaces the v3.2 overlay
+    // banner that kept colliding with other top-of-screen UI.
 
     @State private var shareCardImage: UIImage?
-    @State private var hasCheckedAchievements = false
     @State private var streakMilestoneValue = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
@@ -310,6 +318,10 @@ struct DashboardView: View {
                 case .achievements:
                     AchievementGridView()
                         .presentationDragIndicator(.visible)
+                case .newAchievement(let badge):
+                    AchievementSheet(achievement: badge) {
+                        activeSheet = nil
+                    }
                 case .insights:
                     NavigationStack {
                         InsightsView()
@@ -369,6 +381,16 @@ struct DashboardView: View {
                 refreshCachedValues()
                 lastActiveDate = Date().timeIntervalSince1970
 
+                #if DEBUG
+                // v3.3.0 Plan 3 / Task 19: XCUITest auto-opens Wrapped for a11y
+                // contract testing. Gated on the `-uiTestSeedWrapped` launch arg
+                // so it never runs in production or standard smoke tests.
+                if UITestSeedService.shouldAutoOpenWrapped(), currentBudget != nil {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    await MainActor.run { activeSheet = .monthlyWrapped }
+                }
+                #endif
+
                 if let budget = currentBudget {
                     NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
 
@@ -386,23 +408,14 @@ struct DashboardView: View {
                         currencyCode: selectedCurrency
                     )
 
-                    if !hasCheckedAchievements {
-                        hasCheckedAchievements = true
-
-                        let newBadges = AchievementService.checkAchievements(
-                            budget: budget,
-                            transactions: allTransactions
-                        )
-                        // Round 8: achievement overlay banner removed — fire
-                        // only a success haptic; users discover new badges
-                        // via Settings → Milestones.
-                        if let first = newBadges.first {
-                            HapticManager.notification(.success)
-                            if first.id == "under_budget_1" || first.id == "streak_30" {
-                                prepareShareCard(for: first, budget: budget)
-                            }
-                        }
-                    }
+                    // v3.3.0: Re-check achievements via checkForNewAchievements()
+                    // which also runs on .onChange(of: allTransactions.count) below.
+                    // Prior one-shot `hasCheckedAchievements` guard fired on first
+                    // render with empty tx list and never re-fired, so
+                    // first_transaction never presented the sheet (MobAI smoke test
+                    // 2026-04-17). AchievementService is idempotent via
+                    // alreadyUnlocked keys guard, so repeat calls are safe.
+                    checkForNewAchievements(budget: budget)
 
                     // Streak freeze toast
                     if UserDefaults.standard.bool(forKey: "streakFreezeJustUsed") {
@@ -436,6 +449,13 @@ struct DashboardView: View {
             }
             .onChange(of: allTransactions.count) { _, _ in
                 refreshCachedValues()
+                // v3.3.0: re-run achievement check when a transaction is logged.
+                // `.task` fires once with empty tx list on initial render; this
+                // ensures first_transaction (and other tx-triggered badges) get
+                // a chance to present their sheet within the same session.
+                if let budget = currentBudget {
+                    checkForNewAchievements(budget: budget)
+                }
             }
         }
         // Round 7 R6: toasts need to sit BELOW the safe area top so they
@@ -1642,15 +1662,17 @@ struct DashboardView: View {
             totalDays: totalDays,
             currencyCode: selectedCurrency
         )
-        BudgetLiveActivityService.start(
-            remainingCents: remainingCents,
-            dailyAllowanceCents: dailyAllowance,
-            spentFraction: max(0, min(1, spentFraction)),
-            dayOfPeriod: dayOfPeriod,
-            totalDays: totalDays,
-            currencyCode: selectedCurrency,
-            periodEndDate: budget.nextPeriodStart
-        )
+        Task {
+            await BudgetLiveActivityService.start(
+                remainingCents: remainingCents,
+                dailyAllowanceCents: dailyAllowance,
+                spentFraction: max(0, min(1, spentFraction)),
+                dayOfPeriod: dayOfPeriod,
+                totalDays: totalDays,
+                currencyCode: selectedCurrency,
+                periodEndDate: budget.nextPeriodStart
+            )
+        }
     }
 
     /// Look up cached spent value for a category, falling back to live computation
@@ -1713,6 +1735,43 @@ struct DashboardView: View {
         Task {
             try? await Task.sleep(for: .seconds(4))
             await MainActor.run { activeSheet = .shareCard }
+        }
+    }
+
+    /// v3.3.0: Check for newly-unlocked achievements and present the
+    /// AchievementSheet for the first one. Called from `.task` (initial
+    /// appearance) AND `.onChange(of: allTransactions.count)` (when the
+    /// user logs a transaction). AchievementService is idempotent via
+    /// `alreadyUnlocked.keys.contains(...)` guards, so repeat calls are
+    /// safe — already-unlocked badges won't re-fire the sheet.
+    private func checkForNewAchievements(budget: Budget) {
+        let newBadges = AchievementService.checkAchievements(
+            budget: budget,
+            transactions: allTransactions
+        )
+        if let first = newBadges.first {
+            HapticManager.notification(.success)
+            // v3.3 P0 fix: present sheet so user actually sees the unlock.
+            // Prepare share card asynchronously.
+            if first.id == "under_budget_1" || first.id == "streak_30" {
+                prepareShareCard(for: first, budget: budget)
+            }
+            // Skip the sheet under XCUITest — the deterministic seed
+            // fixture always unlocks `first_transaction`, which would
+            // otherwise cover controls the UI tests need to tap
+            // (AuditFixesUITests.C2/M1).
+            let isUITest = ProcessInfo.processInfo.arguments.contains("-uitest")
+            if !isUITest {
+                // Defer sheet presentation slightly so it doesn't collide
+                // with sheets fired from `.task` (streak milestone fires
+                // at +0.5s).
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    if case .none = activeSheet {
+                        activeSheet = .newAchievement(first)
+                    }
+                }
+            }
         }
     }
 

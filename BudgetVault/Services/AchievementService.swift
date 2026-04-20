@@ -1,4 +1,5 @@
 import Foundation
+import BudgetVaultShared
 
 enum AchievementService {
 
@@ -113,17 +114,22 @@ enum AchievementService {
         }
 
         // -- Saving Achievements --
-        if remainingCents >= 10000 && !alreadyUnlocked.keys.contains("saved_100") { // $100 = 10000 cents
-            unlock("saved_100")
-            newlyUnlocked.append(achievement(for: "saved_100"))
-        }
-        if remainingCents >= 50000 && !alreadyUnlocked.keys.contains("saved_500") {
-            unlock("saved_500")
-            newlyUnlocked.append(achievement(for: "saved_500"))
-        }
-        if remainingCents >= 100000 && !alreadyUnlocked.keys.contains("saved_1000") {
-            unlock("saved_1000")
-            newlyUnlocked.append(achievement(for: "saved_1000"))
+        // v3.3 P0 fix: previously these unlocked mid-month before any
+        // saving had occurred. Gate behind isCompletedMonth like the
+        // under_budget_* block above.
+        if isCompletedMonth {
+            if remainingCents >= 10000 && !alreadyUnlocked.keys.contains("saved_100") { // $100 = 10000 cents
+                unlock("saved_100")
+                newlyUnlocked.append(achievement(for: "saved_100"))
+            }
+            if remainingCents >= 50000 && !alreadyUnlocked.keys.contains("saved_500") {
+                unlock("saved_500")
+                newlyUnlocked.append(achievement(for: "saved_500"))
+            }
+            if remainingCents >= 100000 && !alreadyUnlocked.keys.contains("saved_1000") {
+                unlock("saved_1000")
+                newlyUnlocked.append(achievement(for: "saved_1000"))
+            }
         }
 
         // -- All Categories Under Budget --

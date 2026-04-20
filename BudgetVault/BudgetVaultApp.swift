@@ -4,6 +4,7 @@ import UserNotifications
 import BackgroundTasks
 import TipKit
 import WidgetKit
+import BudgetVaultShared
 
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
@@ -105,7 +106,10 @@ struct BudgetVaultApp: App {
             // UI test seeding. Launch argument "-uitest 1" wipes UserDefaults,
             // seeds a deterministic fixture budget, skips onboarding, and
             // (optionally) marks today as closed via "-uitest-closed 1".
-            if let container, ProcessInfo.processInfo.arguments.contains("-uitest") {
+            // v3.3.0: "-uiTestSeedWrapped 1" also seeds + auto-opens
+            // MonthlyWrappedView for the accessibility XCUITest (Plan 3 / Task 19).
+            let args = ProcessInfo.processInfo.arguments
+            if let container, args.contains("-uitest") || args.contains("-uiTestSeedWrapped") {
                 UITestSeedService.applyLaunchArguments(container: container)
             }
             #endif

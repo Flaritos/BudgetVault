@@ -1,4 +1,5 @@
 import SwiftUI
+import BudgetVaultShared
 
 struct SpendingHeatmapView: View {
     let budget: Budget

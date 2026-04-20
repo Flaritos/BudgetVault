@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import BudgetVaultShared
 
 struct RecurringExpenseFormView: View {
     @Environment(\.modelContext) private var modelContext

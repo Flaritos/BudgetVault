@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import SwiftData
+import BudgetVaultShared
 
 enum DebugSeedService {
 
@@ -222,8 +223,8 @@ enum DebugSeedService {
         let today = Date()
 
         func dayAgo(_ days: Int, hour: Int = 12) -> Date {
-            calendar.date(byAdding: .day, value: -days, to: calendar.startOfDay(for: today))!
-                .addingTimeInterval(TimeInterval(hour * 3600))
+            let base = calendar.date(byAdding: .day, value: -days, to: calendar.startOfDay(for: today)) ?? today
+            return base.addingTimeInterval(TimeInterval(hour * 3600))
         }
 
         // Map categories by name for easy access

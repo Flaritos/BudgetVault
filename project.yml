@@ -6,6 +6,10 @@ options:
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
 
+packages:
+  BudgetVaultShared:
+    path: BudgetVaultShared
+
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -39,7 +43,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app
-        MARKETING_VERSION: "3.2.1"
+        MARKETING_VERSION: "3.3.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: BudgetVault/BudgetVault.entitlements
@@ -60,11 +64,14 @@ targets:
         UIRequiresFullScreen: true
         NSFaceIDUsageDescription: "BudgetVault uses Face ID to protect your financial data."
         NSPhotoLibraryAddUsageDescription: "BudgetVault needs access to save your monthly wrapped card to your photo library."
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
         BGTaskSchedulerPermittedIdentifiers:
           - io.budgetvault.app.refresh
 
     dependencies:
       - target: BudgetVaultWidgetExtension
+      - package: BudgetVaultShared
 
   BudgetVaultTests:
     type: bundle.unit-test
@@ -73,6 +80,7 @@ targets:
       - BudgetVaultTests
     dependencies:
       - target: BudgetVault
+      - package: BudgetVaultShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.tests
@@ -96,6 +104,7 @@ targets:
     platform: iOS
     sources:
       - BudgetVaultWidget
+      - path: BudgetVault/Models/BudgetActivityAttributes.swift
     info:
       path: BudgetVaultWidget/Info.plist
       properties:
@@ -104,10 +113,12 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    dependencies:
+      - package: BudgetVaultShared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.budgetvault.app.widget
-        MARKETING_VERSION: "3.2.1"
+        MARKETING_VERSION: "3.3.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: BudgetVaultWidget/BudgetVaultWidget.entitlements

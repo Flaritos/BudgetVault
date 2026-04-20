@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import SwiftData
+import BudgetVaultShared
 
 /// Deterministic seeding for XCUITest runs. Triggered by the `-uitest 1`
 /// launch argument in `BudgetVaultApp.init`. Keeps test runs hermetic so
@@ -50,6 +51,15 @@ enum UITestSeedService {
             UserDefaults.standard.set(todayStr, forKey: AppStorageKeys.lastLogDate)
             UserDefaults.standard.set(1, forKey: AppStorageKeys.currentStreak)
         }
+    }
+
+    /// v3.3.0 Plan 3 / Task 19: when set, DashboardView auto-presents
+    /// MonthlyWrappedView via `activeSheet = .monthlyWrapped` on first `.task`
+    /// so XCUITest can exercise the Wrapped accessibility contract without
+    /// simulating the real calendar-driven trigger. Paired with `-uitest`
+    /// to ensure a deterministic budget + transactions fixture exists.
+    static func shouldAutoOpenWrapped() -> Bool {
+        ProcessInfo.processInfo.arguments.contains("-uiTestSeedWrapped")
     }
 
     // MARK: - Reset

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import BudgetVaultShared
 
 struct CSVImportView: View {
     @Environment(\.modelContext) private var modelContext

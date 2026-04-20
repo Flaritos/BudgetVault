@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import BudgetVaultShared
 
 struct InsightsView: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1

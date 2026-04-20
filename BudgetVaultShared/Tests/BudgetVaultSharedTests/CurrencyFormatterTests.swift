@@ -1,5 +1,5 @@
 import XCTest
-@testable import BudgetVault
+@testable import BudgetVaultShared
 
 final class CurrencyFormatterTests: XCTestCase {
 

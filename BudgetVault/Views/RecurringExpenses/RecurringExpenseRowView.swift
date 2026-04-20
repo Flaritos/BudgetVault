@@ -1,4 +1,5 @@
 import SwiftUI
+import BudgetVaultShared
 
 struct RecurringExpenseRowView: View {
     let expense: RecurringExpense

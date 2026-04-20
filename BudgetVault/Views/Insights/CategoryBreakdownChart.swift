@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import BudgetVaultShared
 
 struct CategoryBreakdownChart: View {
     let budget: Budget

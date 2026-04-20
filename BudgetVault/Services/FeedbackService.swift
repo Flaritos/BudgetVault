@@ -85,7 +85,9 @@ enum FeedbackService {
         let entries = loadAll()
         let header = "BudgetVault Feedback Export\n" +
                      "Generated: \(ISO8601DateFormatter().string(from: Date()))\n" +
-                     "Entries: \(entries.count)\n\n"
+                     "Entries: \(entries.count)\n\n" +
+                     "--- On-device counters (no network) ---\n" +
+                     LocalMetricsService.payloadString() + "\n\n"
 
         let body = header + entries.map { entry in
             "[\(ISO8601DateFormatter().string(from: entry.createdAt))] \(entry.category.rawValue)\n" +

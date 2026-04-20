@@ -1,5 +1,6 @@
 import SwiftUI
 import Photos
+import BudgetVaultShared
 
 struct MonthlyWrappedView: View {
     let budget: Budget
@@ -9,8 +10,10 @@ struct MonthlyWrappedView: View {
     @State private var currentPage = 0
     @State private var showSaveSuccess = false
     @State private var showPhotoPermissionDenied = false
-    @State private var renderedShareImage: Image?
     @State private var ringAppeared = false
+    @State private var shareImage: Image?
+    @State private var sharePNGData: Data?
+    @State private var shareImageGenerationStarted = false
 
     private var calendar: Calendar { Calendar.current }
 
@@ -230,21 +233,46 @@ struct MonthlyWrappedView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea()
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Wrapped slides")
+            .accessibilityValue("Slide \(currentPage + 1) of 5")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment:
+                    if currentPage < 4 {
+                        currentPage += 1
+                        UIAccessibility.post(notification: .pageScrolled,
+                                             argument: "Slide \(currentPage + 1) of 5")
+                    }
+                case .decrement:
+                    if currentPage > 0 {
+                        currentPage -= 1
+                        UIAccessibility.post(notification: .pageScrolled,
+                                             argument: "Slide \(currentPage + 1) of 5")
+                    }
+                @unknown default: break
+                }
+            }
 
             pageDots
         }
         .overlay(alignment: .topTrailing) {
-            Button { dismiss() } label: {
+            Button {
+                dismiss()
+            } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .background(.white.opacity(0.15), in: Circle())
             }
+            .accessibilityLabel("Close")
+            .accessibilityHint("Closes your wrapped recap")
             .padding(.top, 56)
-            .padding(.trailing, 20)
+            .padding(.trailing, 16)
         }
         .preferredColorScheme(.dark)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .alert("Image Saved", isPresented: $showSaveSuccess) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -273,13 +301,18 @@ struct MonthlyWrappedView: View {
                         .frame(width: 24, height: 8)
                 } else {
                     Circle()
-                        .fill(.white.opacity(0.25))
+                        .fill(.white.opacity(0.7))
                         .frame(width: 8, height: 8)
                 }
             }
         }
+        .frame(minWidth: 44, minHeight: 44)
+        .contentShape(Rectangle())
         .animation(.easeInOut(duration: 0.2), value: currentPage)
         .padding(.bottom, 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page indicator")
+        .accessibilityValue("Slide \(currentPage + 1) of 5")
     }
 
     // MARK: - Slide 1: Story Intro
@@ -299,7 +332,7 @@ struct MonthlyWrappedView: View {
                 Text("YOUR \(monthName) STORY")
                     .font(.caption.weight(.bold))
                     .tracking(4)
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.7))
 
                 // Donut ring
                 ZStack {
@@ -334,7 +367,7 @@ struct MonthlyWrappedView: View {
                         Text("SAVED")
                             .font(.caption2.weight(.semibold))
                             .tracking(2)
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.7))
 
                         Text(CurrencyFormatter.format(cents: savedCents))
                             .font(.system(size: 42, weight: .bold, design: .rounded))
@@ -354,7 +387,7 @@ struct MonthlyWrappedView: View {
 
                     Text("The vault held strong. Let's see where it went \u{2192}")
                         .font(.callout.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
@@ -389,7 +422,7 @@ struct MonthlyWrappedView: View {
                     Text("WHERE IT WENT")
                         .font(.caption.weight(.bold))
                         .tracking(4)
-                        .foregroundStyle(.white.opacity(0.25))
+                        .foregroundStyle(.white.opacity(0.7))
 
                     if let cat = topCategory {
                         VStack(spacing: BudgetVaultTheme.spacingMD) {
@@ -411,7 +444,7 @@ struct MonthlyWrappedView: View {
 
                             Text(String(format: "That's %.0f%% of everything you spent.", topCategoryPercent))
                                 .font(.callout)
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(.white.opacity(0.7))
                         }
                     }
 
@@ -487,7 +520,7 @@ struct MonthlyWrappedView: View {
                 Text("YOUR SPENDING TYPE")
                     .font(.caption.weight(.bold))
                     .tracking(4)
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(.white.opacity(0.7))
 
                 // Giant emoji with glow
                 Text(personality.emoji)
@@ -555,7 +588,7 @@ struct MonthlyWrappedView: View {
                     Text("BY THE NUMBERS")
                         .font(.caption.weight(.bold))
                         .tracking(4)
-                        .foregroundStyle(.white.opacity(0.25))
+                        .foregroundStyle(.white.opacity(0.7))
                         .padding(.bottom, BudgetVaultTheme.spacing2XL)
 
                     // Transaction count
@@ -628,7 +661,7 @@ struct MonthlyWrappedView: View {
                 if let detail {
                     Text(detail)
                         .font(.callout)
-                        .foregroundStyle(.white.opacity(0.4))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
             }
 
@@ -659,7 +692,7 @@ struct MonthlyWrappedView: View {
             VStack(spacing: BudgetVaultTheme.spacingXL) {
                 Spacer()
 
-                // The visual share card
+                // In-sheet preview (downscaled 1080×1920 card)
                 shareCardContent
                     .padding(BudgetVaultTheme.spacingXL)
                     .background(
@@ -679,24 +712,42 @@ struct MonthlyWrappedView: View {
                     .shadow(color: wrappedPurple.opacity(0.2), radius: 30, y: 10)
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
-                // Share button
-                if let image = renderedShareImage {
-                    ShareLink(item: image, preview: SharePreview("My \(monthYearString) Recap", image: image)) {
+                // Share button — auto-presents once the 1080×1920 PNG is ready.
+                if let image = shareImage {
+                    ShareLink(
+                        item: image,
+                        subject: Text("My \(monthYearString) Recap"),
+                        message: Text(shareCaption),
+                        preview: SharePreview("My \(monthYearString) Recap", image: image)
+                    ) {
                         Label("Share", systemImage: "square.and.arrow.up")
                             .font(.headline.weight(.semibold))
                             .foregroundStyle(wrappedNavy)
                             .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
                             .padding(.vertical, BudgetVaultTheme.spacingMD)
                             .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
                     }
+                    .accessibilityLabel("Share your \(monthYearString) wrapped")
+                    .accessibilityHint("Opens the share sheet")
+                    .simultaneousGesture(TapGesture().onEnded {
+                        LocalMetricsService.increment(.wrappedShareTaps)
+                        // TODO(plan-04-aso): wire ReviewPromptService on wrapped-shared event
+                        let count = UserDefaults.standard.integer(forKey: AppStorageKeys.wrappedSharesAllTime)
+                        UserDefaults.standard.set(count + 1, forKey: AppStorageKeys.wrappedSharesAllTime)
+                        HapticManager.impact(.light)
+                        UIAccessibility.post(notification: .announcement, argument: "Sharing your wrapped")
+                    })
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
                 } else {
                     ProgressView()
                         .tint(.white)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                        .accessibilityLabel("Preparing share image")
                 }
 
-                // Save Image button
+                // Save Image button (manual photos save)
                 Button {
                     saveImage()
                 } label: {
@@ -704,6 +755,7 @@ struct MonthlyWrappedView: View {
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
+                        .frame(minHeight: 44)
                         .padding(.vertical, BudgetVaultTheme.spacingMD)
                         .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
                         .overlay(
@@ -711,17 +763,23 @@ struct MonthlyWrappedView: View {
                                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
                         )
                 }
+                .accessibilityHint("Saves the wrapped card to your photo library")
                 .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 Spacer()
                 Spacer()
             }
         }
-        .onAppear {
-            if renderedShareImage == nil {
-                renderedShareImage = renderShareCardImage()
-            }
+        .task {
+            await generateShareArtifactIfNeeded()
         }
+    }
+
+    /// Pre-filled caption per spec 5.10 — quotes the saved amount and
+    /// includes `budgetvault.io` for branded SEO + free attribution.
+    private var shareCaption: String {
+        let saved = CurrencyFormatter.format(cents: savedCents)
+        return "I budgeted \(saved) this month without giving any app my bank login.\n\nbudgetvault.io"
     }
 
     // MARK: - Share Card Content
@@ -740,7 +798,7 @@ struct MonthlyWrappedView: View {
             // Month/Year
             Text(monthYearString)
                 .font(.headline)
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.7))
 
             // Hero saved amount
             VStack(spacing: 4) {
@@ -750,7 +808,7 @@ struct MonthlyWrappedView: View {
 
                 Text("saved this month")
                     .font(.callout)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.7))
             }
 
             // Stats row
@@ -760,16 +818,7 @@ struct MonthlyWrappedView: View {
                         .font(.title2)
                     Text(personalityType.name)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-
-                VStack(spacing: 2) {
-                    Text("\(currentStreak)")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
-                    Text("day streak")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
 
                 VStack(spacing: 2) {
@@ -778,7 +827,7 @@ struct MonthlyWrappedView: View {
                         .foregroundStyle(wrappedGreen)
                     Text("saved")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
 
                 VStack(spacing: 2) {
@@ -787,14 +836,26 @@ struct MonthlyWrappedView: View {
                         .foregroundStyle(.white)
                     Text("entries")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
             }
+
+            // Rotating brag pill (spec 5.10)
+            Text(BragStatRotator.currentBragStat(
+                streakDays: currentStreak,
+                txCount: periodTransactions.count,
+                zeroSpendDays: zeroSpendDays
+            ))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(.white.opacity(0.10), in: Capsule())
 
             // Footer
             Text("budgetvault.io")
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(.white.opacity(0.7))
         }
     }
 
@@ -802,27 +863,104 @@ struct MonthlyWrappedView: View {
 
     @MainActor
     private func renderShareCardImage() -> Image {
-        let cardView = shareCardContent
-            .padding(BudgetVaultTheme.spacingXL)
-            .frame(width: 360)
-            .background(
-                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
-                    .fill(
-                        LinearGradient(
-                            colors: [wrappedNavyMid, wrappedPurple.opacity(0.3), wrappedNavy],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+        // Legacy synchronous path retained for in-sheet preview only;
+        // off-screen 1080x1920 render is in generateShareArtifactIfNeeded().
+        let card = MonthlyWrappedShareCard(
+            variant: .finalCTA,
+            monthName: monthName, monthYear: monthYearString,
+            savedCents: savedCents, savedPercent: savedPercent, spentPercent: spentPercent,
+            totalIncomeCents: budget.totalIncomeCents, totalSpentCents: totalSpentCents,
+            topCategoryName: topCategory?.name ?? "—",
+            topCategoryEmoji: topCategory?.emoji ?? "\u{1F4B0}",
+            topCategoryCents: topCategorySpent, topCategoryPercent: topCategoryPercent,
+            transactionCount: periodTransactions.count,
+            avgDailyCents: averageDailySpendCents,
+            zeroSpendDays: zeroSpendDays,
+            streakDays: currentStreak,
+            personalityName: personalityType.name,
+            personalityEmoji: personalityType.emoji,
+            bragStat: BragStatRotator.currentBragStat(
+                streakDays: currentStreak,
+                txCount: periodTransactions.count,
+                zeroSpendDays: zeroSpendDays
             )
-            .environment(\.colorScheme, .dark)
+        )
+        .scaleEffect(0.33)
+        .frame(width: 360, height: 640)
 
-        let renderer = ImageRenderer(content: cardView)
+        let renderer = ImageRenderer(content: card)
         renderer.scale = 3
         if let uiImage = renderer.uiImage {
             return Image(uiImage: uiImage)
         }
         return Image(systemName: "square")
+    }
+
+    /// Renders the full 1080×1920 share artifact OFF the main thread.
+    /// Spec 5.9: fixes the 200–800ms UI block flagged by the Performance
+    /// audit. Sets `shareImage` + `sharePNGData` when complete.
+    private func generateShareArtifactIfNeeded() async {
+        guard !shareImageGenerationStarted else { return }
+        shareImageGenerationStarted = true
+
+        // Capture facts on main, render on background.
+        let snapshot = (
+            monthName: monthName,
+            monthYear: monthYearString,
+            savedCents: savedCents,
+            savedPercent: savedPercent,
+            spentPercent: spentPercent,
+            totalIncomeCents: budget.totalIncomeCents,
+            totalSpentCents: totalSpentCents,
+            topCategoryName: topCategory?.name ?? "—",
+            topCategoryEmoji: topCategory?.emoji ?? "\u{1F4B0}",
+            topCategoryCents: topCategorySpent,
+            topCategoryPercent: topCategoryPercent,
+            transactionCount: periodTransactions.count,
+            avgDailyCents: averageDailySpendCents,
+            zeroSpendDays: zeroSpendDays,
+            streakDays: currentStreak,
+            personalityName: personalityType.name,
+            personalityEmoji: personalityType.emoji,
+            bragStat: BragStatRotator.currentBragStat(
+                streakDays: currentStreak,
+                txCount: periodTransactions.count,
+                zeroSpendDays: zeroSpendDays
+            )
+        )
+
+        let pngData: Data? = await Task.detached(priority: .userInitiated) { @MainActor in
+            let card = MonthlyWrappedShareCard(
+                variant: .finalCTA,
+                monthName: snapshot.monthName, monthYear: snapshot.monthYear,
+                savedCents: snapshot.savedCents, savedPercent: snapshot.savedPercent,
+                spentPercent: snapshot.spentPercent,
+                totalIncomeCents: snapshot.totalIncomeCents,
+                totalSpentCents: snapshot.totalSpentCents,
+                topCategoryName: snapshot.topCategoryName,
+                topCategoryEmoji: snapshot.topCategoryEmoji,
+                topCategoryCents: snapshot.topCategoryCents,
+                topCategoryPercent: snapshot.topCategoryPercent,
+                transactionCount: snapshot.transactionCount,
+                avgDailyCents: snapshot.avgDailyCents,
+                zeroSpendDays: snapshot.zeroSpendDays,
+                streakDays: snapshot.streakDays,
+                personalityName: snapshot.personalityName,
+                personalityEmoji: snapshot.personalityEmoji,
+                bragStat: snapshot.bragStat
+            )
+            let renderer = ImageRenderer(content: card)
+            renderer.scale = 1
+            renderer.proposedSize = .init(CGSize(width: 1080, height: 1920))
+            return renderer.uiImage?.pngData()
+        }.value
+
+        if let data = pngData, let ui = UIImage(data: data) {
+            await MainActor.run {
+                self.sharePNGData = data
+                self.shareImage = Image(uiImage: ui)
+            }
+        }
     }
 
     @MainActor
@@ -850,6 +988,8 @@ struct MonthlyWrappedView: View {
                     if let uiImage = renderer.uiImage {
                         UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
                         showSaveSuccess = true
+                        HapticManager.impact(.light)
+                        UIAccessibility.post(notification: .announcement, argument: "Wrapped image saved to Photos")
                     }
                 } else {
                     showPhotoPermissionDenied = true

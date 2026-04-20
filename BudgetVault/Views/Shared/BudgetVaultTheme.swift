@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import BudgetVaultShared
 
 enum BudgetVaultTheme {
     // MARK: - Brand Colors

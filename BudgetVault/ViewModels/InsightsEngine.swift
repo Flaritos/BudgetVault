@@ -1,4 +1,5 @@
 import Foundation
+import BudgetVaultShared
 
 struct Insight: Identifiable {
     let id = UUID()
@@ -94,7 +95,7 @@ enum InsightsEngine {
                 .filter {
                     !$0.isIncome &&
                     $0.date >= prev.periodStart &&
-                    $0.date < min(calendar.date(byAdding: .day, value: daysSoFar, to: prev.periodStart)!, prev.nextPeriodStart)
+                    $0.date < min(calendar.date(byAdding: .day, value: daysSoFar, to: prev.periodStart) ?? prev.nextPeriodStart, prev.nextPeriodStart)
                 }
                 .reduce(Int64(0)) { $0 + $1.amountCents }
 
