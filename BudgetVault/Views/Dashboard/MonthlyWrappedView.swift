@@ -733,6 +733,8 @@ struct MonthlyWrappedView: View {
                         LocalMetricsService.increment(.wrappedShareTaps)
                         let count = UserDefaults.standard.integer(forKey: AppStorageKeys.wrappedSharesAllTime)
                         UserDefaults.standard.set(count + 1, forKey: AppStorageKeys.wrappedSharesAllTime)
+                        HapticManager.impact(.light)
+                        UIAccessibility.post(notification: .announcement, argument: "Sharing your wrapped")
                     })
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
                 } else {
@@ -981,6 +983,8 @@ struct MonthlyWrappedView: View {
                     if let uiImage = renderer.uiImage {
                         UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
                         showSaveSuccess = true
+                        HapticManager.impact(.light)
+                        UIAccessibility.post(notification: .announcement, argument: "Wrapped image saved to Photos")
                     }
                 } else {
                     showPhotoPermissionDenied = true
