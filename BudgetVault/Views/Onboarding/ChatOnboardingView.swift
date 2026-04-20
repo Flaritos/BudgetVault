@@ -542,121 +542,200 @@ struct ChatOnboardingView: View {
         .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
     }
 
-    // MARK: - Step 2: Name Your Vault (VaultRevamp §7.3)
+    // MARK: - Step 2: Name Your Vault (VaultRevamp §7.3) — HTML 1:1
 
+    /// HTML ground truth: VaultRevamp.html lines 1235-1297.
+    /// - Top-bar: BoltRow (4, engaged 2) + plain "Skip" text (13pt/500/text-3)
+    /// - .label "Personal" (11pt/600/2.42 tracking/titanium300)
+    /// - <h2> "Name your vault." — 28pt/700/-0.025em/line-height 1.15, left-aligned
+    /// - Subtitle: "Appears at the top of your dashboard. You can change this anytime."
+    ///   (14pt regular / line-height 1.5 / text-2)
+    /// - Titanium EngravingPlate with brushed texture + character counter
+    /// - .label-sm "Or choose a preset"
+    /// - 3 preset pills: rgba(96,165,250,0.08) bg + rgba(96,165,250,0.3) border,
+    ///   text in blue-soft (#60A5FA), 8x14 padding, 6px radius, 13pt/500.
+    /// - Info note (electric-blue tinted): "Stored only in iOS Keychain on this
+    ///   device. We can't read it." with info-circle icon.
+    /// - cta-primary "Engrave it"
     private var nameVaultStep: some View {
-        ScrollView {
-            VStack(spacing: BudgetVaultTheme.spacingXL) {
-                BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
-                    .padding(.top, BudgetVaultTheme.spacingLG)
+        ZStack {
+            RadialGradient(
+                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                center: UnitPoint(x: 0.5, y: 0.3),
+                startRadius: 0,
+                endRadius: 600
+            )
+            .ignoresSafeArea()
 
-                VStack(spacing: BudgetVaultTheme.spacingSM) {
-                    Text("Personal")
-                        .font(BudgetVaultTheme.engravedLabel(size: 11))
-                        .textCase(.uppercase)
-                        .tracking(2.4)
-                        .foregroundStyle(.white.opacity(0.55))
-
-                    Text("Name your vault.")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-
-                    Text("Use your name, your household's name, or a word that means safe.")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.55))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-                }
-
-                // Text field styled into the engraving plate. The plate
-                // renders the visible text; the TextField underneath captures
-                // keystrokes and is visually invisible (foregroundStyle clear).
-                ZStack {
-                    EngravingPlate(text: vaultName.isEmpty ? "Type a name" : vaultName,
-                                   characterLimit: 24,
-                                   showCounter: true)
-                    TextField("", text: $vaultName)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(.clear)
-                        .tint(BudgetVaultTheme.titanium800)
-                        .focused($vaultNameFocused)
-                        .padding(.horizontal, 24)
-                        .onChange(of: vaultName) { _, newValue in
-                            if newValue.count > 24 { vaultName = String(newValue.prefix(24)) }
-                        }
-                }
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
-
-                // Preset pills
-                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-                    Text("Or choose a preset")
-                        .font(BudgetVaultTheme.engravedLabel(size: 10))
-                        .textCase(.uppercase)
-                        .tracking(1.8)
-                        .foregroundStyle(.white.opacity(0.45))
-
-                    HStack(spacing: BudgetVaultTheme.spacingSM) {
-                        ForEach(["The Household", "Savings", "Ledger"], id: \.self) { preset in
-                            Button {
-                                vaultName = preset
-                            } label: {
-                                Text(preset)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.85))
-                                    .padding(.horizontal, BudgetVaultTheme.spacingMD)
-                                    .padding(.vertical, BudgetVaultTheme.spacingSM)
-                                    .background(
-                                        Capsule()
-                                            .fill(BudgetVaultTheme.titanium700.opacity(0.35))
-                                    )
-                                    .overlay(
-                                        Capsule()
-                                            .strokeBorder(BudgetVaultTheme.titanium600, lineWidth: 1)
-                                    )
-                            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Top row: bolt row (4, engaged 2) + Skip
+                    HStack {
+                        BoltRow(count: 4, engaged: 2, size: .medium)
+                        Spacer()
+                        Button { skipOnboarding() } label: {
+                            Text("Skip")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
                         }
                     }
-                }
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    .padding(.top, 16)
+                    .padding(.bottom, 46)
 
-                // Keychain info note
-                HStack(spacing: BudgetVaultTheme.spacingSM) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 12))
-                        .foregroundStyle(BudgetVaultTheme.accentSoft)
-                    Text("Stored only in iOS Keychain on this device. We can't read it.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-                .padding(BudgetVaultTheme.spacingMD)
-                .background(
-                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
-                        .fill(BudgetVaultTheme.electricBlue.opacity(0.10))
-                )
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    // .label "Personal"
+                    Text("Personal")
+                        .font(.system(size: 11, weight: .semibold))
+                        .textCase(.uppercase)
+                        .tracking(2.42)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                        .padding(.bottom, 12)
 
-                Spacer(minLength: 110)
+                    // <h2>: 28pt / 700 / -0.025em / line-height 1.15
+                    Text("Name your vault.")
+                        .font(.system(size: 28, weight: .bold))
+                        .tracking(-0.7)    // -0.025em × 28pt
+                        .lineSpacing(4.2)  // (1.15 - 1) × 28pt
+                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                        .padding(.bottom, 8)
+
+                    // Subtitle — 14pt regular, line-height 1.5, text-2. VERBATIM.
+                    Text("Appears at the top of your dashboard. You can change this anytime.")
+                        .font(.system(size: 14))
+                        .lineSpacing(7.0)  // (1.5 - 1) × 14pt
+                        .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                        .padding(.bottom, 28)
+
+                    // Titanium engraving plate + invisible TextField for input.
+                    ZStack {
+                        EngravingPlate(text: vaultName.isEmpty ? "Emma's Vault" : vaultName,
+                                       characterLimit: 24,
+                                       showCounter: true)
+                        TextField("", text: $vaultName)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(.clear)
+                            .tint(BudgetVaultTheme.titanium800)
+                            .focused($vaultNameFocused)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                            .onChange(of: vaultName) { _, newValue in
+                                if newValue.count > 24 { vaultName = String(newValue.prefix(24)) }
+                            }
+                    }
+                    .padding(.bottom, 28)
+
+                    // .label-sm "Or choose a preset" — 9pt/600/0.24em/titanium400
+                    Text("Or choose a preset")
+                        .font(.system(size: 9, weight: .semibold))
+                        .textCase(.uppercase)
+                        .tracking(2.16)    // 0.24em × 9pt
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                        .padding(.bottom, 12)
+
+                    // Preset pills — 6px gap, blue-tinted. Active state = selected preset.
+                    HStack(spacing: 6) {
+                        ForEach(["The Household", "Savings", "Ledger"], id: \.self) { preset in
+                            namePresetPill(preset)
+                        }
+                    }
+                    .padding(.bottom, 28)
+
+                    // Keychain info note — rgba(96,165,250,0.06) bg + 0.2 border.
+                    HStack(spacing: 12) {
+                        // info-circle SVG equivalent, 16x16, stroke #60A5FA
+                        ZStack {
+                            Circle()
+                                .strokeBorder(Color(hex: "#60A5FA"), lineWidth: 1.2)
+                                .frame(width: 16, height: 16)
+                            VStack(spacing: 1) {
+                                Rectangle()
+                                    .fill(Color(hex: "#60A5FA"))
+                                    .frame(width: 1.2, height: 5)
+                                Rectangle()
+                                    .fill(Color(hex: "#60A5FA"))
+                                    .frame(width: 1.2, height: 1)
+                            }
+                        }
+                        .frame(width: 16, height: 16)
+                        .accessibilityHidden(true)
+
+                        Text("Stored only in iOS Keychain on this device. We can't read it.")
+                            .font(.system(size: 12))
+                            .lineSpacing(6.0)   // (1.5 - 1) × 12pt
+                            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(hex: "#60A5FA").opacity(0.06))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color(hex: "#60A5FA").opacity(0.2), lineWidth: 1)
+                    )
+
+                    Spacer(minLength: 110)
+                }
+                .padding(.horizontal, 24)
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                advanceToNextStep()
-            } label: {
-                // SPEC §7.3: the ONE costume verb earned on this screen.
+            Button { advanceToNextStep() } label: {
                 Text("Engrave it")
-                    .font(.headline.weight(.semibold))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-                    .foregroundStyle(.white)
+                    .padding(.vertical, 17)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: "#60A5FA"), Color(hex: "#2563EB"), Color(hex: "#1E40AF")],
+                            startPoint: .top, endPoint: .bottom
+                        ),
+                        in: RoundedRectangle(cornerRadius: 12)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                    )
+                    .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, y: 2)
             }
             .disabled(vaultName.trimmingCharacters(in: .whitespaces).isEmpty)
             .opacity(vaultName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1.0)
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
-            .background(BudgetVaultTheme.navyDark.opacity(0.95))
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+            .background(Color(hex: "#0F1B33").opacity(0.95))
         }
+    }
+
+    /// Preset pill — active (selected or typed match) gets brighter blue
+    /// background/border; inactive is the subtle blue-tinted default.
+    @ViewBuilder
+    private func namePresetPill(_ preset: String) -> some View {
+        let isActive = vaultName == preset
+        Button {
+            vaultName = preset
+        } label: {
+            Text(preset)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(hex: "#60A5FA"))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(hex: "#60A5FA")
+                            .opacity(isActive ? 0.18 : 0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(
+                            Color(hex: "#60A5FA").opacity(isActive ? 0.6 : 0.3),
+                            lineWidth: isActive ? 1.5 : 1
+                        )
+                )
+        }
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     // MARK: - Step 3: Depth Fork (VaultRevamp §7.4)
