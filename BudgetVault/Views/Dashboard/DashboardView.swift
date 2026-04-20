@@ -381,6 +381,16 @@ struct DashboardView: View {
                 refreshCachedValues()
                 lastActiveDate = Date().timeIntervalSince1970
 
+                #if DEBUG
+                // v3.3.0 Plan 3 / Task 19: XCUITest auto-opens Wrapped for a11y
+                // contract testing. Gated on the `-uiTestSeedWrapped` launch arg
+                // so it never runs in production or standard smoke tests.
+                if UITestSeedService.shouldAutoOpenWrapped(), currentBudget != nil {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    await MainActor.run { activeSheet = .monthlyWrapped }
+                }
+                #endif
+
                 if let budget = currentBudget {
                     NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
 

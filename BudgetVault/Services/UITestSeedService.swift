@@ -53,6 +53,15 @@ enum UITestSeedService {
         }
     }
 
+    /// v3.3.0 Plan 3 / Task 19: when set, DashboardView auto-presents
+    /// MonthlyWrappedView via `activeSheet = .monthlyWrapped` on first `.task`
+    /// so XCUITest can exercise the Wrapped accessibility contract without
+    /// simulating the real calendar-driven trigger. Paired with `-uitest`
+    /// to ensure a deterministic budget + transactions fixture exists.
+    static func shouldAutoOpenWrapped() -> Bool {
+        ProcessInfo.processInfo.arguments.contains("-uiTestSeedWrapped")
+    }
+
     // MARK: - Reset
 
     private static func resetUserDefaults() {
