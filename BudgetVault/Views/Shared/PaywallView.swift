@@ -127,6 +127,7 @@ struct PaywallView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        LocalMetricsService.increment(.paywallDismissals)
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -165,6 +166,9 @@ struct PaywallView: View {
             }
             .sheet(isPresented: $showWelcomePremium) {
                 postPurchaseWelcomeView
+            }
+            .onAppear {
+                LocalMetricsService.increment(.paywallViews)
             }
         }
     }
