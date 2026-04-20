@@ -186,10 +186,12 @@ struct ChatOnboardingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Skip pill — shown on Pledge (1) through Envelopes (6).
+                // Skip pill — shown on currency (4) through envelopes (6).
                 // Hidden on Welcome (its own dedicated "I'll set up later"
-                // button) and on Unlocked (the terminal step).
-                if currentStep.rawValue >= 1 && currentStep.rawValue <= 6 {
+                // button), on Pledge/Name/Fork (which render their own inline
+                // "Skip" text alongside the bolt row per HTML spec), and on
+                // Unlocked (the terminal step).
+                if currentStep.rawValue >= 4 && currentStep.rawValue <= 6 {
                     HStack {
                         Spacer()
                         Button { skipOnboarding() } label: {
@@ -349,114 +351,195 @@ struct ChatOnboardingView: View {
         }
     }
 
-    // MARK: - Step 1: Privacy Pledge (VaultRevamp §7.2)
+    // MARK: - Step 1: Privacy Pledge (VaultRevamp §7.2) — HTML 1:1
 
+    /// HTML ground truth: VaultRevamp.html lines 1146-1233.
+    /// - Top-bar: BoltRow (4, engaged 1) on left + "Skip" text on right
+    ///   (13pt weight 500, color text-3)
+    /// - .label "The Pledge" (11pt/600/tracking 0.22em/titanium300)
+    /// - <h2>: 26pt/700/-0.025em tracking/line-height 1.15, left-aligned.
+    ///   Split: "Four things we" white + "will never do." titanium300 weight 300
+    /// - 4 .chamber rows (14px vertical / 16px horizontal padding) with
+    ///   22x22 barred-circle SVG glyph in titanium300 and copy:
+    ///     * "Ask for your bank login" / "No Plaid · No aggregator"
+    ///     * "Send data to a server" / "Everything stays on this iPhone"
+    ///     * "Charge you monthly" / "$14.99 once · Yours forever"
+    ///     * "Use cloud AI on your spending" / "Patterns run on-device only"
+    /// - Apple privacy credential card: titanium-circled shield with checkmark,
+    ///   .label "APPLE PRIVACY LABEL" at titanium200, 12pt "Data Not Collected"
+    /// - cta-primary "I understand"
     private var pledgeStep: some View {
-        ScrollView {
-            VStack(spacing: BudgetVaultTheme.spacingXL) {
-                BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
-                    .padding(.top, BudgetVaultTheme.spacingLG)
+        ZStack {
+            // Screen background — radial per HTML .screen rule.
+            RadialGradient(
+                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                center: UnitPoint(x: 0.5, y: 0.3),
+                startRadius: 0,
+                endRadius: 600
+            )
+            .ignoresSafeArea()
 
-                VStack(spacing: BudgetVaultTheme.spacingSM) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Top row: bolt row + plain Skip text (HTML: top: 64px with 16px padding)
+                    HStack {
+                        BoltRow(count: 4, engaged: 1, size: .medium)
+                        Spacer()
+                        Button { skipOnboarding() } label: {
+                            Text("Skip")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                        }
+                    }
+                    .padding(.top, 16)
+                    .padding(.bottom, 46) // approximates the ~110px top offset to first content
+
+                    // .label "The Pledge"
                     Text("The Pledge")
-                        .font(BudgetVaultTheme.engravedLabel(size: 11))
+                        .font(.system(size: 11, weight: .semibold))
                         .textCase(.uppercase)
-                        .tracking(2.4)
-                        .foregroundStyle(.white.opacity(0.55))
+                        .tracking(2.42)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                        .padding(.bottom, 10)
 
-                    // §7.2 — the ONE place in this screen where weight-split is earned
-                    (Text("Four things we ").font(.system(size: 26, weight: .bold)) +
-                     Text("will never do")
+                    // <h2>: 26pt / 700 / -0.025em / line-height 1.15, left-aligned
+                    // Weight-split: bold white + light titanium300.
+                    (Text("Four things we\n")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(Color(hex: "#E8EDF5"))
+                    + Text("will never do.")
                         .font(.system(size: 26, weight: .light))
                         .foregroundColor(BudgetVaultTheme.titanium300))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-                }
+                        .tracking(-0.65)     // -0.025em × 26pt
+                        .lineSpacing(3.9)    // (1.15 - 1) × 26pt
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 20)
 
-                VStack(spacing: BudgetVaultTheme.spacingMD) {
-                    pledgeRow(title: "Ask for your bank login",
-                              subtitle: "No Plaid · No aggregator")
-                    pledgeRow(title: "Share your data",
-                              subtitle: "Not to brokers. Not to us.")
-                    pledgeRow(title: "Require a subscription",
-                              subtitle: "$14.99 once. Done.")
-                    pledgeRow(title: "Send anything off your device",
-                              subtitle: "Except iCloud sync — your choice")
-                }
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
-
-                // Apple privacy credential card
-                HStack(spacing: BudgetVaultTheme.spacingMD) {
-                    Image(systemName: "hand.raised.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(BudgetVaultTheme.titanium100)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Data Not Collected")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white)
-                        Text("App Store · Privacy Label")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.white.opacity(0.55))
+                    // 4 pledge rows — gap: 10px
+                    VStack(spacing: 10) {
+                        pledgeRow(title: "Ask for your bank login",
+                                  subtitle: "No Plaid · No aggregator")
+                        pledgeRow(title: "Send data to a server",
+                                  subtitle: "Everything stays on this iPhone")
+                        pledgeRow(title: "Charge you monthly",
+                                  subtitle: "$14.99 once · Yours forever")
+                        pledgeRow(title: "Use cloud AI on your spending",
+                                  subtitle: "Patterns run on-device only")
                     }
-                    Spacer()
-                }
-                .padding(BudgetVaultTheme.spacingLG)
-                .background(
-                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                        .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
-                )
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                .padding(.top, BudgetVaultTheme.spacingSM)
+                    .padding(.bottom, 16)
 
-                Spacer(minLength: 110) // room for the floating CTA
+                    // Apple privacy credential stamp — titanium border, navy gradient fill,
+                    // titanium-circled shield with checkmark on left.
+                    HStack(spacing: 12) {
+                        PledgeAppleShield()
+                            .frame(width: 30, height: 30)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Apple Privacy Label")
+                                .font(.system(size: 10, weight: .semibold))
+                                .textCase(.uppercase)
+                                .tracking(2.2)    // 0.22em × 10pt
+                                .foregroundStyle(BudgetVaultTheme.titanium200)
+                            Text("Data Not Collected")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(LinearGradient(
+                                colors: [Color(hex: "#101A33"), Color(hex: "#070E1F")],
+                                startPoint: UnitPoint(x: 0.15, y: 0),
+                                endPoint: UnitPoint(x: 0.85, y: 1)
+                            ))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
+                    )
+
+                    Spacer(minLength: 110) // floating CTA clearance
+                }
+                .padding(.horizontal, 24)
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                advanceToNextStep()
-            } label: {
-                Text("I understand")
-                    .font(.headline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-                    .foregroundStyle(.white)
-            }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
-            .background(BudgetVaultTheme.navyDark.opacity(0.95))
+            pledgePrimaryCTA
         }
     }
 
-    private func pledgeRow(title: String, subtitle: String) -> some View {
-        ChamberCard(padding: BudgetVaultTheme.spacingLG) {
-            HStack(spacing: BudgetVaultTheme.spacingMD) {
-                // Titanium barred-circle glyph (not a checkmark — "we will not")
-                ZStack {
-                    Circle()
-                        .strokeBorder(BudgetVaultTheme.titanium300, lineWidth: 1.5)
-                        .frame(width: 24, height: 24)
-                    Rectangle()
-                        .fill(BudgetVaultTheme.titanium300)
-                        .frame(width: 18, height: 1.5)
-                        .rotationEffect(.degrees(-45))
-                }
-                .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Text(subtitle)
-                        .font(BudgetVaultTheme.engravedLabel(size: 10))
-                        .textCase(.uppercase)
-                        .tracking(1.5)
-                        .foregroundStyle(.white.opacity(0.45))
-                }
-                Spacer()
-            }
+    private var pledgePrimaryCTA: some View {
+        Button { advanceToNextStep() } label: {
+            Text("I understand")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 17)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: "#60A5FA"), Color(hex: "#2563EB"), Color(hex: "#1E40AF")],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    in: RoundedRectangle(cornerRadius: 12)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                )
+                .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, y: 2)
         }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .background(Color(hex: "#0F1B33").opacity(0.95))
+    }
+
+    /// Single pledge row — .chamber-style panel with titanium barred-circle glyph.
+    private func pledgeRow(title: String, subtitle: String) -> some View {
+        HStack(spacing: 14) {
+            // 22x22 barred-circle SVG equivalent — titanium300 circle + diagonal stroke
+            ZStack {
+                Circle()
+                    .strokeBorder(BudgetVaultTheme.titanium300, lineWidth: 1.8)
+                    .frame(width: 17, height: 17)
+                Capsule()
+                    .fill(BudgetVaultTheme.titanium300)
+                    .frame(width: 13.5, height: 1.8)
+                    .rotationEffect(.degrees(-45))
+            }
+            .frame(width: 22, height: 22)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                Text(subtitle)
+                    .font(.system(size: 9, weight: .semibold))
+                    .textCase(.uppercase)
+                    .tracking(2.16)   // 0.24em × 9pt
+                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(LinearGradient(
+                    colors: [Color(hex: "#0F1A30"), Color(hex: "#070E1F")],
+                    startPoint: UnitPoint(x: 0.15, y: 0),
+                    endPoint: UnitPoint(x: 0.85, y: 1)
+                ))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(BudgetVaultTheme.titanium300.opacity(0.14), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
     }
 
     // MARK: - Step 2: Name Your Vault (VaultRevamp §7.3)
@@ -1368,6 +1451,39 @@ struct ChatOnboardingView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Pledge Apple Shield
+
+/// HTML: a titanium-bordered double-circle with a checkmark centered
+/// (VaultRevamp.html lines 1216-1220). Rendered as plain SwiftUI shapes
+/// because the path is trivial and a PNG would rasterize poorly.
+private struct PledgeAppleShield: View {
+    var body: some View {
+        ZStack {
+            // Outer 14-radius ring (1.5px stroke) in titanium300
+            Circle()
+                .strokeBorder(BudgetVaultTheme.titanium300, lineWidth: 1.5)
+
+            // Inner 10-radius ring (0.8px stroke)
+            Circle()
+                .strokeBorder(BudgetVaultTheme.titanium300, lineWidth: 0.8)
+                .padding(4)
+
+            // Checkmark — matches path "M10 16l4 4 8-8" from a 32x32 viewBox
+            GeometryReader { geo in
+                let s = geo.size.width / 32
+                Path { p in
+                    p.move(to: CGPoint(x: 10 * s, y: 16 * s))
+                    p.addLine(to: CGPoint(x: 14 * s, y: 20 * s))
+                    p.addLine(to: CGPoint(x: 22 * s, y: 12 * s))
+                }
+                .stroke(BudgetVaultTheme.titanium300,
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 
