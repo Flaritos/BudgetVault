@@ -3,6 +3,50 @@ import SwiftData
 import UserNotifications
 import BudgetVaultShared
 
+// MARK: - Onboarding State Machine (VaultRevamp Phase 3a)
+
+/// Ordered steps in the VaultRevamp onboarding flow. Steps 0-3 are
+/// pre-fork (Welcome, Pledge, Name Vault, Depth Fork) — see spec §7.1-7.4.
+/// Steps 4-7 are the existing currency/income/envelopes/unlocked screens;
+/// their bodies are unchanged in Phase 3a and will be restyled in 3b/3c.
+///
+/// At the Depth Fork (step 3) the user branches:
+///   - Quick: auto-defaults applied, jump directly to step 7 (.unlocked)
+///   - Thorough: continue linearly through 4 → 5 → 6 → 7
+enum OnboardingStep: Int, CaseIterable {
+    case welcome = 0       // NEW visuals (§7.1)
+    case pledge = 1        // NEW screen (§7.2)
+    case nameVault = 2     // NEW screen (§7.3)
+    case depthFork = 3     // NEW screen (§7.4)
+    case currency = 4      // EXISTING — restyle deferred to Phase 3b
+    case income = 5        // EXISTING — restyle deferred to Phase 3b
+    case envelopes = 6     // EXISTING — restyle deferred to Phase 3c
+    case unlocked = 7      // EXISTING — becomes "Vault Opens" in Phase 3c
+
+    /// BoltRow progress for header:
+    /// - Steps 0-3 show 4-bolt row (pre-fork count)
+    /// - Steps 4-7 show 7-bolt row (thorough path)
+    var boltCount: Int {
+        rawValue < 4 ? 4 : 7
+    }
+
+    var boltEngaged: Int {
+        switch self {
+        case .welcome: return 0
+        case .pledge: return 1
+        case .nameVault: return 2
+        case .depthFork: return 3
+        case .currency: return 4
+        case .income: return 5
+        case .envelopes: return 6
+        case .unlocked: return 7
+        }
+    }
+}
+
+/// Which branch the user chose at the Depth Fork (step 3).
+enum OnboardingPath { case quick, thorough }
+
 // MARK: - Onboarding Vault Dial
 
 /// A vault dial with a progress arc that fills as the user advances through onboarding steps.
@@ -101,7 +145,14 @@ struct ChatOnboardingView: View {
     @State private var biometricLockEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uitest")
     @AppStorage(AppStorageKeys.biometricLockEnabled) private var persistedBiometricLock = false
 
-    @State private var currentStep = 0 // 0=welcome, 1=currency, 2=income, 3=envelopes, 4=unlocked
+    // TODO(vault-name-keychain): migrate to KeychainService for §7.3 compliance.
+    // Spec §7.3 says "Stored only in iOS Keychain on this device" — @AppStorage
+    // uses UserDefaults. Infrastructure exists (KeychainService.swift); a later
+    // phase will migrate.
+    @AppStorage(AppStorageKeys.vaultName) private var vaultName = ""
+
+    @State private var currentStep: OnboardingStep = .welcome
+    @State private var chosePath: OnboardingPath = .thorough
     @State private var dialRotation: Double = 0
     @State private var tempCurrency = "USD"
     @State private var incomeText = ""
@@ -111,12 +162,13 @@ struct ChatOnboardingView: View {
     @State private var showCurrencyPicker = false
     @State private var budgetCreated = false
     @ScaledMetric(relativeTo: .largeTitle) private var incomeDisplaySize: CGFloat = 48
+    @FocusState private var vaultNameFocused: Bool
 
     private let categoryLimit = 6
 
-    // Step progress: 0=0%, 1=25%, 2=50%, 3=75%, 4=100%
+    // Step progress: normalize rawValue against final step (.unlocked == 7).
     private var stepProgress: Double {
-        min(Double(currentStep) / 4.0, 1.0)
+        min(Double(currentStep.rawValue) / 7.0, 1.0)
     }
 
     var body: some View {
@@ -134,11 +186,10 @@ struct ChatOnboardingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Skip button (top right, steps 2-3 only). v3.2: promoted
-                // from subtle gray text to a visible pill chip.
-                // v3.2 audit M7: HIDDEN on currency step (step 1) — skipping
-                // currency leaves the app in an undefined state.
-                if currentStep > 1 && currentStep < 4 {
+                // Skip pill — shown on Pledge (1) through Envelopes (6).
+                // Hidden on Welcome (its own dedicated "I'll set up later"
+                // button) and on Unlocked (the terminal step).
+                if currentStep.rawValue >= 1 && currentStep.rawValue <= 6 {
                     HStack {
                         Spacer()
                         Button { skipOnboarding() } label: {
@@ -157,12 +208,14 @@ struct ChatOnboardingView: View {
                 // Step content
                 Group {
                     switch currentStep {
-                    case 0: welcomeStep
-                    case 1: currencyStep
-                    case 2: incomeStep
-                    case 3: envelopeStep
-                    case 4: unlockedStep
-                    default: EmptyView()
+                    case .welcome: welcomeStep
+                    case .pledge: pledgeStep
+                    case .nameVault: nameVaultStep
+                    case .depthFork: depthForkStep
+                    case .currency: currencyStep
+                    case .income: incomeStep
+                    case .envelopes: envelopeStep
+                    case .unlocked: unlockedStep
                     }
                 }
                 .transition(.asymmetric(
@@ -186,73 +239,424 @@ struct ChatOnboardingView: View {
         }
     }
 
-    // MARK: - Step 0: Welcome
+    // MARK: - Step 0: Welcome (VaultRevamp §7.1)
 
     private var welcomeStep: some View {
         VStack(spacing: BudgetVaultTheme.spacingXL) {
             Spacer()
 
-            OnboardingVaultDial(
-                size: 200,
-                progress: 0,
-                stepNumber: nil,
-                stepLabel: nil,
-                rotation: dialRotation,
-                showLock: true,
-                showUnlock: false
-            )
+            VaultDial(size: .hero, state: .locked)
+                .shadow(color: .black.opacity(0.4), radius: 30, y: 10)
 
-            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                Text("BudgetVault")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
+            BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
+                .padding(.top, BudgetVaultTheme.spacingMD)
 
-                Text("Your budget. Your device. No one else.")
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
+            Text("Welcome")
+                .font(BudgetVaultTheme.engravedLabel(size: 11))
+                .textCase(.uppercase)
+                .tracking(2.4)
+                .foregroundStyle(.white.opacity(0.55))
 
-                // v3.2 audit M1/L5: surface the strongest anti-positioning
-                // claim at the exact moment users decide to stay.
-                Text("No bank login. One-time price.")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(BudgetVaultTheme.accentSoft)
-                    .padding(.top, BudgetVaultTheme.spacingXS)
-
-                Text("4 quick steps — skip anytime")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.35))
-                    .padding(.top, BudgetVaultTheme.spacingSM)
+            VStack(spacing: BudgetVaultTheme.spacingXS) {
+                // Spec §7.1 — three equal-weight lines (NOT weight-split)
+                Text("Your budget.")
+                Text("Your device.")
+                Text("No one else.")
             }
+            .font(.system(size: 32, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+
+            Text("$14.99 · One time · Yours forever")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white.opacity(0.45))
+                .padding(.top, BudgetVaultTheme.spacingXS)
 
             Spacer()
 
-            VStack(spacing: 12) {
+            VStack(spacing: BudgetVaultTheme.spacingSM) {
                 Button {
-                    advanceStep()
+                    advanceToNextStep()
                 } label: {
-                    Text("Begin Setup")
-                        .font(.headline)
-                        .foregroundStyle(BudgetVaultTheme.navyDark)
+                    Text("Get started")
+                        .font(.headline.weight(.semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                        .frame(height: 52)
+                        .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                        .foregroundStyle(.white)
                 }
 
-                // v3.2 audit M2: explicit "skip for now" on welcome so the
-                // fastest path to the app is a single tap.
                 Button {
                     skipOnboarding()
                 } label: {
-                    Text("Skip for now")
+                    Text("I'll set up later")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.7))
-                        .padding(.vertical, 8)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(.vertical, 10)
                 }
                 .accessibilityIdentifier("welcomeSkipButton")
             }
             .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
+        }
+    }
+
+    // MARK: - Step 1: Privacy Pledge (VaultRevamp §7.2)
+
+    private var pledgeStep: some View {
+        ScrollView {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
+                BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
+                    .padding(.top, BudgetVaultTheme.spacingLG)
+
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
+                    Text("The Pledge")
+                        .font(BudgetVaultTheme.engravedLabel(size: 11))
+                        .textCase(.uppercase)
+                        .tracking(2.4)
+                        .foregroundStyle(.white.opacity(0.55))
+
+                    // §7.2 — the ONE place in this screen where weight-split is earned
+                    (Text("Four things we ").font(.system(size: 26, weight: .bold)) +
+                     Text("will never do")
+                        .font(.system(size: 26, weight: .light))
+                        .foregroundColor(BudgetVaultTheme.titanium300))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                }
+
+                VStack(spacing: BudgetVaultTheme.spacingMD) {
+                    pledgeRow(title: "Ask for your bank login",
+                              subtitle: "No Plaid · No aggregator")
+                    pledgeRow(title: "Share your data",
+                              subtitle: "Not to brokers. Not to us.")
+                    pledgeRow(title: "Require a subscription",
+                              subtitle: "$14.99 once. Done.")
+                    pledgeRow(title: "Send anything off your device",
+                              subtitle: "Except iCloud sync — your choice")
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                // Apple privacy credential card
+                HStack(spacing: BudgetVaultTheme.spacingMD) {
+                    Image(systemName: "hand.raised.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(BudgetVaultTheme.titanium100)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Data Not Collected")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text("App Store · Privacy Label")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    Spacer()
+                }
+                .padding(BudgetVaultTheme.spacingLG)
+                .background(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                        .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
+                )
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                .padding(.top, BudgetVaultTheme.spacingSM)
+
+                Spacer(minLength: 110) // room for the floating CTA
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                advanceToNextStep()
+            } label: {
+                Text("I understand")
+                    .font(.headline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
+            .background(BudgetVaultTheme.navyDark.opacity(0.95))
+        }
+    }
+
+    private func pledgeRow(title: String, subtitle: String) -> some View {
+        ChamberCard(padding: BudgetVaultTheme.spacingLG) {
+            HStack(spacing: BudgetVaultTheme.spacingMD) {
+                // Titanium barred-circle glyph (not a checkmark — "we will not")
+                ZStack {
+                    Circle()
+                        .strokeBorder(BudgetVaultTheme.titanium300, lineWidth: 1.5)
+                        .frame(width: 24, height: 24)
+                    Rectangle()
+                        .fill(BudgetVaultTheme.titanium300)
+                        .frame(width: 18, height: 1.5)
+                        .rotationEffect(.degrees(-45))
+                }
+                .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(subtitle)
+                        .font(BudgetVaultTheme.engravedLabel(size: 10))
+                        .textCase(.uppercase)
+                        .tracking(1.5)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: - Step 2: Name Your Vault (VaultRevamp §7.3)
+
+    private var nameVaultStep: some View {
+        ScrollView {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
+                BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
+                    .padding(.top, BudgetVaultTheme.spacingLG)
+
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
+                    Text("Personal")
+                        .font(BudgetVaultTheme.engravedLabel(size: 11))
+                        .textCase(.uppercase)
+                        .tracking(2.4)
+                        .foregroundStyle(.white.opacity(0.55))
+
+                    Text("Name your vault.")
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text("Use your name, your household's name, or a word that means safe.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                }
+
+                // Text field styled into the engraving plate. The plate
+                // renders the visible text; the TextField underneath captures
+                // keystrokes and is visually invisible (foregroundStyle clear).
+                ZStack {
+                    EngravingPlate(text: vaultName.isEmpty ? "Type a name" : vaultName,
+                                   characterLimit: 24,
+                                   showCounter: true)
+                    TextField("", text: $vaultName)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(.clear)
+                        .tint(BudgetVaultTheme.titanium800)
+                        .focused($vaultNameFocused)
+                        .padding(.horizontal, 24)
+                        .onChange(of: vaultName) { _, newValue in
+                            if newValue.count > 24 { vaultName = String(newValue.prefix(24)) }
+                        }
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                // Preset pills
+                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+                    Text("Or choose a preset")
+                        .font(BudgetVaultTheme.engravedLabel(size: 10))
+                        .textCase(.uppercase)
+                        .tracking(1.8)
+                        .foregroundStyle(.white.opacity(0.45))
+
+                    HStack(spacing: BudgetVaultTheme.spacingSM) {
+                        ForEach(["The Household", "Savings", "Ledger"], id: \.self) { preset in
+                            Button {
+                                vaultName = preset
+                            } label: {
+                                Text(preset)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .padding(.horizontal, BudgetVaultTheme.spacingMD)
+                                    .padding(.vertical, BudgetVaultTheme.spacingSM)
+                                    .background(
+                                        Capsule()
+                                            .fill(BudgetVaultTheme.titanium700.opacity(0.35))
+                                    )
+                                    .overlay(
+                                        Capsule()
+                                            .strokeBorder(BudgetVaultTheme.titanium600, lineWidth: 1)
+                                    )
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                // Keychain info note
+                HStack(spacing: BudgetVaultTheme.spacingSM) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 12))
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
+                    Text("Stored only in iOS Keychain on this device. We can't read it.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                .padding(BudgetVaultTheme.spacingMD)
+                .background(
+                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
+                        .fill(BudgetVaultTheme.electricBlue.opacity(0.10))
+                )
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                Spacer(minLength: 110)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                advanceToNextStep()
+            } label: {
+                // SPEC §7.3: the ONE costume verb earned on this screen.
+                Text("Engrave it")
+                    .font(.headline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                    .foregroundStyle(.white)
+            }
+            .disabled(vaultName.trimmingCharacters(in: .whitespaces).isEmpty)
+            .opacity(vaultName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1.0)
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
+            .background(BudgetVaultTheme.navyDark.opacity(0.95))
+        }
+    }
+
+    // MARK: - Step 3: Depth Fork (VaultRevamp §7.4)
+
+    private var depthForkStep: some View {
+        ScrollView {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
+                BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
+                    .padding(.top, BudgetVaultTheme.spacingLG)
+
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
+                    Text("Your Pace")
+                        .font(BudgetVaultTheme.engravedLabel(size: 11))
+                        .textCase(.uppercase)
+                        .tracking(2.4)
+                        .foregroundStyle(.white.opacity(0.55))
+
+                    Text("Two ways to finish.")
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(spacing: BudgetVaultTheme.spacingMD) {
+                    // Quick start (Recommended)
+                    Button {
+                        chosePath = .quick
+                    } label: {
+                        ChamberCard {
+                            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+                                HStack {
+                                    Text("Quick start")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(.white)
+                                    Spacer()
+                                }
+                                Text("We set sensible defaults · $5,000 income · single \"General\" envelope · USD · no biometric")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.7))
+                            }
+                        }
+                        .overlay(alignment: .topLeading) {
+                            // Corner-notched "Recommended" label
+                            Text("RECOMMENDED")
+                                .font(.system(size: 9, weight: .heavy))
+                                .tracking(1.2)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    UnevenRoundedRectangle(
+                                        topLeadingRadius: BudgetVaultTheme.radiusMD,
+                                        bottomLeadingRadius: 3,
+                                        bottomTrailingRadius: 3,
+                                        topTrailingRadius: 3,
+                                        style: .continuous
+                                    )
+                                    .fill(BudgetVaultTheme.electricBlue)
+                                )
+                                .offset(x: 0, y: -4)
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(chosePath == .quick ? BudgetVaultTheme.electricBlue : Color.clear,
+                                              lineWidth: 2)
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    // Thorough setup
+                    Button {
+                        chosePath = .thorough
+                    } label: {
+                        ChamberCard {
+                            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
+                                Text("Thorough setup")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(.white)
+                                Text("Pick currency · enter income · customize envelopes · opt into biometric lock")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.7))
+                            }
+                        }
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(
+                                    chosePath == .thorough ? BudgetVaultTheme.electricBlue : BudgetVaultTheme.titanium700,
+                                    lineWidth: chosePath == .thorough ? 2 : 1
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                Spacer(minLength: 110)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                takeDepthForkDecision()
+            } label: {
+                Text(chosePath == .quick ? "Quick start" : "Walk me through everything")
+                    .font(.headline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.bottom, BudgetVaultTheme.spacingLG)
+            .background(BudgetVaultTheme.navyDark.opacity(0.95))
+        }
+    }
+
+    private func takeDepthForkDecision() {
+        if chosePath == .quick {
+            // Auto-defaults so the user lands on a working Home without
+            // revisiting currency/income/envelopes in onboarding.
+            tempCurrency = "USD"
+            selectedCurrency = "USD"
+            incomeText = "5000"
+            selectedTemplate = .single
+            editableCategories = Array(BudgetTemplates.OnboardingTemplate.single.categories.prefix(categoryLimit))
+
+            // Commit the budget now (same path as Looks Good), then jump
+            // to the unlocked step. createBudget() handles the transition
+            // to .unlocked via its internal animation.
+            createBudget()
+        } else {
+            // Thorough path: advance normally to .currency.
+            advanceToNextStep()
         }
     }
 
@@ -807,6 +1211,18 @@ struct ChatOnboardingView: View {
 
     // MARK: - Step Advancement
 
+    /// Linear advance to the next step in the rawValue order. Used by
+    /// Welcome → Pledge → Name → Fork, and by Thorough-path continuations.
+    private func advanceToNextStep() {
+        guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            currentStep = next
+        }
+    }
+
+    /// Legacy advance used by currency/income steps — preserves the dial
+    /// rotation flourish. Will be replaced in Phase 3b when those screens
+    /// are restyled.
     private func advanceStep() {
         let animation: Animation = reduceMotion
             ? .easeOut(duration: 0.2)
@@ -814,7 +1230,9 @@ struct ChatOnboardingView: View {
 
         withAnimation(animation) {
             dialRotation += reduceMotion ? 0 : 90
-            currentStep += 1
+            if let next = OnboardingStep(rawValue: currentStep.rawValue + 1) {
+                currentStep = next
+            }
         }
     }
 
@@ -863,7 +1281,7 @@ struct ChatOnboardingView: View {
 
         withAnimation(animation) {
             dialRotation += reduceMotion ? 0 : 90
-            currentStep = 4
+            currentStep = .unlocked
         }
     }
 
