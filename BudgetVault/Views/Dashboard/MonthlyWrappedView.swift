@@ -272,6 +272,7 @@ struct MonthlyWrappedView: View {
             .padding(.trailing, 16)
         }
         .preferredColorScheme(.dark)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .alert("Image Saved", isPresented: $showSaveSuccess) {
             Button("OK", role: .cancel) {}
         } message: {
