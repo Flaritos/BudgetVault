@@ -738,116 +738,195 @@ struct ChatOnboardingView: View {
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    // MARK: - Step 3: Depth Fork (VaultRevamp §7.4)
+    // MARK: - Step 3: Depth Fork (VaultRevamp §7.4) — HTML 1:1
 
+    /// HTML ground truth: VaultRevamp.html lines 1307-1358.
+    /// - Top: BoltRow (4, engaged 3) — no Skip text here (HTML has none)
+    /// - .label "Your Pace"
+    /// - <h2> "Two ways to finish." (28pt/700/-0.025em/line-height 1.15)
+    /// - Quick start card: linear-gradient(160deg, #162952 → #0F1B33),
+    ///   2px electric-blue border, 12px radius, blue glow shadow.
+    ///   "RECOMMENDED" corner notch top-left: electric-blue bg, white 9pt heavy,
+    ///   0.2em tracking, 3px radius. "30 SEC" label-sm top-right.
+    ///   Title "Quick start" 20pt/700/-0.01em white + subtitle 13pt/1.55 text-2.
+    /// - Thorough setup card: linear-gradient(160deg, #101A33 → #070E1F),
+    ///   1px titanium700 border, same layout. Title color text-2, subtitle text-3.
+    /// - CTA: "Quick start" when quick; "Walk me through everything" when thorough.
     private var depthForkStep: some View {
-        ScrollView {
-            VStack(spacing: BudgetVaultTheme.spacingXL) {
-                BoltRow(count: currentStep.boltCount, engaged: currentStep.boltEngaged, size: .medium)
-                    .padding(.top, BudgetVaultTheme.spacingLG)
+        ZStack {
+            RadialGradient(
+                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                center: UnitPoint(x: 0.5, y: 0.3),
+                startRadius: 0,
+                endRadius: 600
+            )
+            .ignoresSafeArea()
 
-                VStack(spacing: BudgetVaultTheme.spacingSM) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Top row: bolt row only — HTML shows NO Skip text on this step.
+                    HStack {
+                        BoltRow(count: 4, engaged: 3, size: .medium)
+                        Spacer()
+                    }
+                    .padding(.top, 16)
+                    .padding(.bottom, 46)
+
+                    // .label "Your Pace"
                     Text("Your Pace")
-                        .font(BudgetVaultTheme.engravedLabel(size: 11))
+                        .font(.system(size: 11, weight: .semibold))
                         .textCase(.uppercase)
-                        .tracking(2.4)
-                        .foregroundStyle(.white.opacity(0.55))
+                        .tracking(2.42)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                        .padding(.bottom, 12)
 
+                    // <h2>: 28pt / 700 / -0.025em / line-height 1.15
                     Text("Two ways to finish.")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 28, weight: .bold))
+                        .tracking(-0.7)
+                        .lineSpacing(4.2)
+                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                        .padding(.bottom, 28)
+
+                    // Quick start card (recommended) — blue gradient, 2px electric border.
+                    quickStartCard
+                        .padding(.bottom, 10)
+
+                    // Thorough setup card — titanium border, darker gradient.
+                    thoroughSetupCard
+
+                    Spacer(minLength: 110)
                 }
-
-                VStack(spacing: BudgetVaultTheme.spacingMD) {
-                    // Quick start (Recommended)
-                    Button {
-                        chosePath = .quick
-                    } label: {
-                        ChamberCard {
-                            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-                                HStack {
-                                    Text("Quick start")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(.white)
-                                    Spacer()
-                                }
-                                Text("We set sensible defaults · $5,000 income · single \"General\" envelope · USD · no biometric")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.7))
-                            }
-                        }
-                        .overlay(alignment: .topLeading) {
-                            // Corner-notched "Recommended" label
-                            Text("RECOMMENDED")
-                                .font(.system(size: 9, weight: .heavy))
-                                .tracking(1.2)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(
-                                    UnevenRoundedRectangle(
-                                        topLeadingRadius: BudgetVaultTheme.radiusMD,
-                                        bottomLeadingRadius: 3,
-                                        bottomTrailingRadius: 3,
-                                        topTrailingRadius: 3,
-                                        style: .continuous
-                                    )
-                                    .fill(BudgetVaultTheme.electricBlue)
-                                )
-                                .offset(x: 0, y: -4)
-                        }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(chosePath == .quick ? BudgetVaultTheme.electricBlue : Color.clear,
-                                              lineWidth: 2)
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    // Thorough setup
-                    Button {
-                        chosePath = .thorough
-                    } label: {
-                        ChamberCard {
-                            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-                                Text("Thorough setup")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(.white)
-                                Text("Pick currency · enter income · customize envelopes · opt into biometric lock")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.7))
-                            }
-                        }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(
-                                    chosePath == .thorough ? BudgetVaultTheme.electricBlue : BudgetVaultTheme.titanium700,
-                                    lineWidth: chosePath == .thorough ? 2 : 1
-                                )
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
-
-                Spacer(minLength: 110)
+                .padding(.horizontal, 24)
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                takeDepthForkDecision()
-            } label: {
+            Button { takeDepthForkDecision() } label: {
                 Text(chosePath == .quick ? "Quick start" : "Walk me through everything")
-                    .font(.headline.weight(.semibold))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(BudgetVaultTheme.electricBlue, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-                    .foregroundStyle(.white)
+                    .padding(.vertical, 17)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: "#60A5FA"), Color(hex: "#2563EB"), Color(hex: "#1E40AF")],
+                            startPoint: .top, endPoint: .bottom
+                        ),
+                        in: RoundedRectangle(cornerRadius: 12)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                    )
+                    .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, y: 2)
             }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
-            .background(BudgetVaultTheme.navyDark.opacity(0.95))
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+            .background(Color(hex: "#0F1B33").opacity(0.95))
         }
+    }
+
+    /// Quick start card — blue gradient fill with 2px electric border,
+    /// "RECOMMENDED" notch protruding from the top-left, "30 SEC" label top-right.
+    private var quickStartCard: some View {
+        Button { chosePath = .quick } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Quick start")
+                        .font(.system(size: 20, weight: .bold))
+                        .tracking(-0.2)   // -0.01em × 20pt
+                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                    Spacer()
+                    Text("30 Sec")
+                        .font(.system(size: 9, weight: .semibold))
+                        .textCase(.uppercase)
+                        .tracking(2.16)
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                }
+                Text("Go straight to your dashboard with a starter envelope. Add income and allocations when ready.")
+                    .font(.system(size: 13))
+                    .lineSpacing(7.15)  // (1.55 - 1) × 13pt
+                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(LinearGradient(
+                        colors: [Color(hex: "#162952"), Color(hex: "#0F1B33")],
+                        startPoint: UnitPoint(x: 0.15, y: 0),
+                        endPoint: UnitPoint(x: 0.85, y: 1)
+                    ))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color(hex: "#2563EB"), lineWidth: 2)
+            )
+            .shadow(color: Color(hex: "#2563EB").opacity(0.2), radius: 14, y: 4)
+            .shadow(color: Color(hex: "#2563EB").opacity(0.08), radius: 24, x: 0, y: 0)
+            .overlay(alignment: .topLeading) {
+                // "RECOMMENDED" tab — HTML positions it top: -8px, left: 16px.
+                Text("Recommended")
+                    .font(.system(size: 9, weight: .bold))
+                    .textCase(.uppercase)
+                    .tracking(1.8)    // 0.2em × 9pt
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color(hex: "#2563EB"))
+                    )
+                    .offset(x: 16, y: -8)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(chosePath == .quick ? .isSelected : [])
+    }
+
+    /// Thorough setup card — darker navy gradient, titanium hairline border.
+    private var thoroughSetupCard: some View {
+        Button { chosePath = .thorough } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Thorough setup")
+                        .font(.system(size: 20, weight: .bold))
+                        .tracking(-0.2)
+                        .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                    Spacer()
+                    Text("2 Min")
+                        .font(.system(size: 9, weight: .semibold))
+                        .textCase(.uppercase)
+                        .tracking(2.16)
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                }
+                Text("Face ID, income, envelopes, and allocation. Seven more steps. Any step still skippable.")
+                    .font(.system(size: 13))
+                    .lineSpacing(7.15)
+                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(LinearGradient(
+                        colors: [Color(hex: "#101A33"), Color(hex: "#070E1F")],
+                        startPoint: UnitPoint(x: 0.15, y: 0),
+                        endPoint: UnitPoint(x: 0.85, y: 1)
+                    ))
+            )
+            // Per HTML: thorough card keeps a static titanium hairline
+            // border regardless of selection. The CTA label ("Quick start"
+            // vs "Walk me through everything") is the selection feedback.
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(chosePath == .thorough ? .isSelected : [])
     }
 
     private func takeDepthForkDecision() {
