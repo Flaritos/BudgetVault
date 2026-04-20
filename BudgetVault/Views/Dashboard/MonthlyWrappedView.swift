@@ -237,15 +237,19 @@ struct MonthlyWrappedView: View {
             pageDots
         }
         .overlay(alignment: .topTrailing) {
-            Button { dismiss() } label: {
+            Button {
+                dismiss()
+            } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .background(.white.opacity(0.15), in: Circle())
             }
+            .accessibilityLabel("Close")
+            .accessibilityHint("Closes your wrapped recap")
             .padding(.top, 56)
-            .padding(.trailing, 20)
+            .padding(.trailing, 16)
         }
         .preferredColorScheme(.dark)
         .alert("Image Saved", isPresented: $showSaveSuccess) {
