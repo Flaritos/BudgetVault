@@ -280,13 +280,18 @@ struct MonthlyWrappedView: View {
                         .frame(width: 24, height: 8)
                 } else {
                     Circle()
-                        .fill(.white.opacity(0.25))
+                        .fill(.white.opacity(0.7))
                         .frame(width: 8, height: 8)
                 }
             }
         }
+        .frame(minWidth: 44, minHeight: 44)
+        .contentShape(Rectangle())
         .animation(.easeInOut(duration: 0.2), value: currentPage)
         .padding(.bottom, 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page indicator")
+        .accessibilityValue("Slide \(currentPage + 1) of 5")
     }
 
     // MARK: - Slide 1: Story Intro
