@@ -817,16 +817,7 @@ struct MonthlyWrappedView: View {
                         .font(.title2)
                     Text(personalityType.name)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-
-                VStack(spacing: 2) {
-                    Text("\(currentStreak)")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
-                    Text("day streak")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
 
                 VStack(spacing: 2) {
@@ -835,7 +826,7 @@ struct MonthlyWrappedView: View {
                         .foregroundStyle(wrappedGreen)
                     Text("saved")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
 
                 VStack(spacing: 2) {
@@ -844,9 +835,21 @@ struct MonthlyWrappedView: View {
                         .foregroundStyle(.white)
                     Text("entries")
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.7))
                 }
             }
+
+            // Rotating brag pill (spec 5.10)
+            Text(BragStatRotator.currentBragStat(
+                streakDays: currentStreak,
+                txCount: periodTransactions.count,
+                zeroSpendDays: zeroSpendDays
+            ))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(.white.opacity(0.10), in: Capsule())
 
             // Footer
             Text("budgetvault.io")
