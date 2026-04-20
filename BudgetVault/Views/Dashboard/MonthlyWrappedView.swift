@@ -10,8 +10,10 @@ struct MonthlyWrappedView: View {
     @State private var currentPage = 0
     @State private var showSaveSuccess = false
     @State private var showPhotoPermissionDenied = false
-    @State private var renderedShareImage: Image?
     @State private var ringAppeared = false
+    @State private var shareImage: Image?
+    @State private var sharePNGData: Data?
+    @State private var shareImageGenerationStarted = false
 
     private var calendar: Calendar { Calendar.current }
 
@@ -681,7 +683,7 @@ struct MonthlyWrappedView: View {
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 // Share button
-                if let image = renderedShareImage {
+                if let image = shareImage {
                     ShareLink(item: image, preview: SharePreview("My \(monthYearString) Recap", image: image)) {
                         Label("Share", systemImage: "square.and.arrow.up")
                             .font(.headline.weight(.semibold))
@@ -718,10 +720,8 @@ struct MonthlyWrappedView: View {
                 Spacer()
             }
         }
-        .onAppear {
-            if renderedShareImage == nil {
-                renderedShareImage = renderShareCardImage()
-            }
+        .task {
+            await generateShareArtifactIfNeeded()
         }
     }
 
@@ -803,27 +803,104 @@ struct MonthlyWrappedView: View {
 
     @MainActor
     private func renderShareCardImage() -> Image {
-        let cardView = shareCardContent
-            .padding(BudgetVaultTheme.spacingXL)
-            .frame(width: 360)
-            .background(
-                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
-                    .fill(
-                        LinearGradient(
-                            colors: [wrappedNavyMid, wrappedPurple.opacity(0.3), wrappedNavy],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+        // Legacy synchronous path retained for in-sheet preview only;
+        // off-screen 1080x1920 render is in generateShareArtifactIfNeeded().
+        let card = MonthlyWrappedShareCard(
+            variant: .finalCTA,
+            monthName: monthName, monthYear: monthYearString,
+            savedCents: savedCents, savedPercent: savedPercent, spentPercent: spentPercent,
+            totalIncomeCents: budget.totalIncomeCents, totalSpentCents: totalSpentCents,
+            topCategoryName: topCategory?.name ?? "—",
+            topCategoryEmoji: topCategory?.emoji ?? "\u{1F4B0}",
+            topCategoryCents: topCategorySpent, topCategoryPercent: topCategoryPercent,
+            transactionCount: periodTransactions.count,
+            avgDailyCents: averageDailySpendCents,
+            zeroSpendDays: zeroSpendDays,
+            streakDays: currentStreak,
+            personalityName: personalityType.name,
+            personalityEmoji: personalityType.emoji,
+            bragStat: BragStatRotator.currentBragStat(
+                streakDays: currentStreak,
+                txCount: periodTransactions.count,
+                zeroSpendDays: zeroSpendDays
             )
-            .environment(\.colorScheme, .dark)
+        )
+        .scaleEffect(0.33)
+        .frame(width: 360, height: 640)
 
-        let renderer = ImageRenderer(content: cardView)
+        let renderer = ImageRenderer(content: card)
         renderer.scale = 3
         if let uiImage = renderer.uiImage {
             return Image(uiImage: uiImage)
         }
         return Image(systemName: "square")
+    }
+
+    /// Renders the full 1080×1920 share artifact OFF the main thread.
+    /// Spec 5.9: fixes the 200–800ms UI block flagged by the Performance
+    /// audit. Sets `shareImage` + `sharePNGData` when complete.
+    private func generateShareArtifactIfNeeded() async {
+        guard !shareImageGenerationStarted else { return }
+        shareImageGenerationStarted = true
+
+        // Capture facts on main, render on background.
+        let snapshot = (
+            monthName: monthName,
+            monthYear: monthYearString,
+            savedCents: savedCents,
+            savedPercent: savedPercent,
+            spentPercent: spentPercent,
+            totalIncomeCents: budget.totalIncomeCents,
+            totalSpentCents: totalSpentCents,
+            topCategoryName: topCategory?.name ?? "—",
+            topCategoryEmoji: topCategory?.emoji ?? "\u{1F4B0}",
+            topCategoryCents: topCategorySpent,
+            topCategoryPercent: topCategoryPercent,
+            transactionCount: periodTransactions.count,
+            avgDailyCents: averageDailySpendCents,
+            zeroSpendDays: zeroSpendDays,
+            streakDays: currentStreak,
+            personalityName: personalityType.name,
+            personalityEmoji: personalityType.emoji,
+            bragStat: BragStatRotator.currentBragStat(
+                streakDays: currentStreak,
+                txCount: periodTransactions.count,
+                zeroSpendDays: zeroSpendDays
+            )
+        )
+
+        let pngData: Data? = await Task.detached(priority: .userInitiated) { @MainActor in
+            let card = MonthlyWrappedShareCard(
+                variant: .finalCTA,
+                monthName: snapshot.monthName, monthYear: snapshot.monthYear,
+                savedCents: snapshot.savedCents, savedPercent: snapshot.savedPercent,
+                spentPercent: snapshot.spentPercent,
+                totalIncomeCents: snapshot.totalIncomeCents,
+                totalSpentCents: snapshot.totalSpentCents,
+                topCategoryName: snapshot.topCategoryName,
+                topCategoryEmoji: snapshot.topCategoryEmoji,
+                topCategoryCents: snapshot.topCategoryCents,
+                topCategoryPercent: snapshot.topCategoryPercent,
+                transactionCount: snapshot.transactionCount,
+                avgDailyCents: snapshot.avgDailyCents,
+                zeroSpendDays: snapshot.zeroSpendDays,
+                streakDays: snapshot.streakDays,
+                personalityName: snapshot.personalityName,
+                personalityEmoji: snapshot.personalityEmoji,
+                bragStat: snapshot.bragStat
+            )
+            let renderer = ImageRenderer(content: card)
+            renderer.scale = 1
+            renderer.proposedSize = .init(CGSize(width: 1080, height: 1920))
+            return renderer.uiImage?.pngData()
+        }.value
+
+        if let data = pngData, let ui = UIImage(data: data) {
+            await MainActor.run {
+                self.sharePNGData = data
+                self.shareImage = Image(uiImage: ui)
+            }
+        }
     }
 
     @MainActor
