@@ -662,7 +662,7 @@ struct MonthlyWrappedView: View {
             VStack(spacing: BudgetVaultTheme.spacingXL) {
                 Spacer()
 
-                // The visual share card
+                // In-sheet preview (downscaled 1080×1920 card)
                 shareCardContent
                     .padding(BudgetVaultTheme.spacingXL)
                     .background(
@@ -682,24 +682,39 @@ struct MonthlyWrappedView: View {
                     .shadow(color: wrappedPurple.opacity(0.2), radius: 30, y: 10)
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
-                // Share button
+                // Share button — auto-presents once the 1080×1920 PNG is ready.
                 if let image = shareImage {
-                    ShareLink(item: image, preview: SharePreview("My \(monthYearString) Recap", image: image)) {
+                    ShareLink(
+                        item: image,
+                        subject: Text("My \(monthYearString) Recap"),
+                        message: Text(shareCaption),
+                        preview: SharePreview("My \(monthYearString) Recap", image: image)
+                    ) {
                         Label("Share", systemImage: "square.and.arrow.up")
                             .font(.headline.weight(.semibold))
                             .foregroundStyle(wrappedNavy)
                             .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
                             .padding(.vertical, BudgetVaultTheme.spacingMD)
                             .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
                     }
+                    .accessibilityLabel("Share your \(monthYearString) wrapped")
+                    .accessibilityHint("Opens the share sheet")
+                    .simultaneousGesture(TapGesture().onEnded {
+                        LocalMetricsService.increment(.wrappedShareTaps)
+                        let count = UserDefaults.standard.integer(forKey: AppStorageKeys.wrappedSharesAllTime)
+                        UserDefaults.standard.set(count + 1, forKey: AppStorageKeys.wrappedSharesAllTime)
+                    })
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
                 } else {
                     ProgressView()
                         .tint(.white)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .padding(.horizontal, BudgetVaultTheme.spacingXL)
+                        .accessibilityLabel("Preparing share image")
                 }
 
-                // Save Image button
+                // Save Image button (manual photos save)
                 Button {
                     saveImage()
                 } label: {
@@ -707,6 +722,7 @@ struct MonthlyWrappedView: View {
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
+                        .frame(minHeight: 44)
                         .padding(.vertical, BudgetVaultTheme.spacingMD)
                         .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
                         .overlay(
@@ -714,6 +730,7 @@ struct MonthlyWrappedView: View {
                                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
                         )
                 }
+                .accessibilityHint("Saves the wrapped card to your photo library")
                 .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 Spacer()
@@ -723,6 +740,13 @@ struct MonthlyWrappedView: View {
         .task {
             await generateShareArtifactIfNeeded()
         }
+    }
+
+    /// Pre-filled caption per spec 5.10 — quotes the saved amount and
+    /// includes `budgetvault.io` for branded SEO + free attribution.
+    private var shareCaption: String {
+        let saved = CurrencyFormatter.format(cents: savedCents)
+        return "I budgeted \(saved) this month without giving any app my bank login.\n\nbudgetvault.io"
     }
 
     // MARK: - Share Card Content
