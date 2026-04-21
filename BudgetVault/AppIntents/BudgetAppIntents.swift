@@ -74,4 +74,8 @@ struct BudgetVaultShortcuts: AppShortcutsProvider {
 extension Notification.Name {
     static let openTransactionEntry = Notification.Name("openTransactionEntry")
     static let switchToHistoryTab = Notification.Name("switchToHistoryTab")
+    /// Posted by BiometricLockView when authService.isAuthenticated
+    /// flips true. Subscribers: BudgetVaultApp runs deferred month
+    /// rollover + recurring expense posting after this fires.
+    static let biometricUnlocked = Notification.Name("biometricUnlocked")
 }

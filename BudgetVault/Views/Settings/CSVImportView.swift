@@ -19,6 +19,7 @@ struct CSVImportView: View {
     @State private var categoryMap: [String: String] = [:]
     @State private var importResult: (transactions: Int, months: Int)?
     @State private var step: ImportStep = .selectFile
+    @State private var fileError: String?
 
     enum ImportStep {
         case selectFile
@@ -120,6 +121,17 @@ struct CSVImportView: View {
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
+
+            // Audit fix: surface parse / size / access errors to the
+            // user instead of silently returning them to the selector.
+            if let fileError {
+                Text(fileError)
+                    .font(.caption)
+                    .foregroundStyle(BudgetVaultTheme.negative)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
             Spacer()
         }
     }
@@ -293,24 +305,55 @@ struct CSVImportView: View {
         }
     }
 
+    /// Max CSV size we'll read into memory. Anything larger is
+    /// rejected with a user-visible error so an adversarial 500 MB
+    /// file from the share sheet can't OOM the app.
+    private static let maxFileSizeBytes: Int = 10 * 1024 * 1024  // 10 MB
+
     private func handleFileSelection(_ result: Result<URL, Error>) {
-        guard let url = try? result.get() else { return }
-        guard url.startAccessingSecurityScopedResource() else { return }
-        defer { url.stopAccessingSecurityScopedResource() }
+        fileError = nil
+        switch result {
+        case .failure(let err):
+            fileError = "Couldn't read file: \(err.localizedDescription)"
+            return
+        case .success(let url):
+            guard url.startAccessingSecurityScopedResource() else {
+                fileError = "Couldn't access the selected file."
+                return
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
 
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return }
-        csvContent = content
+            // Audit fix: cap file size before reading into memory.
+            // `String(contentsOf:)` loads the entire file — a large
+            // CSV would OOM the app on devices with tight memory.
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+               let size = attrs[.size] as? Int,
+               size > Self.maxFileSizeBytes {
+                let mb = Double(size) / (1024 * 1024)
+                fileError = String(format: "File is %.1f MB — max supported is 10 MB.", mb)
+                return
+            }
 
-        let parsed = CSVImporter.parse(csv: content)
-        detectedFormat = parsed.format
-        parsedRows = parsed.rows
-        uniqueCategories = Array(Set(parsedRows.map(\.category))).sorted()
-        // Phase 8.3 audit fix: free-tier category limit is 6 everywhere
-        // else in the app (MEMORY.md rule 1, SettingsView.freeLimit). Was
-        // hard-coded as 4 here which contradicted the rest of the codebase.
-        selectedCategories = Set(uniqueCategories.prefix(isPremium ? uniqueCategories.count : Self.freeCategoryLimit))
+            do {
+                let content = try String(contentsOf: url, encoding: .utf8)
+                csvContent = content
 
-        step = parsedRows.isEmpty ? .selectFile : .preview
+                let parsed = CSVImporter.parse(csv: content)
+                detectedFormat = parsed.format
+                parsedRows = parsed.rows
+                uniqueCategories = Array(Set(parsedRows.map(\.category))).sorted()
+                selectedCategories = Set(uniqueCategories.prefix(isPremium ? uniqueCategories.count : Self.freeCategoryLimit))
+
+                if parsedRows.isEmpty {
+                    fileError = "No transactions found in this file. Supported formats: YNAB export or generic CSV with Date, Category, Amount columns."
+                    step = .selectFile
+                } else {
+                    step = .preview
+                }
+            } catch {
+                fileError = "File must be UTF-8 plain text. \(error.localizedDescription)"
+            }
+        }
     }
 
     /// Free-tier category cap. Matches `SettingsView.BudgetTemplateSheetView`

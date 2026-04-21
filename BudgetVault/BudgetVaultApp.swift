@@ -93,12 +93,23 @@ struct BudgetVaultApp: App {
         do {
             container = try ModelContainer(for: schema, migrationPlan: BudgetVaultMigrationPlan.self, configurations: [config])
 
-            // Set NSFileProtectionComplete on the Application Support directory
-            // so the SwiftData store is encrypted at rest and inaccessible while the device is locked.
+            // Audit fix: directory-level fileProtectionKey only
+            // applies to NEW files on iOS. The SwiftData store file
+            // (and its `.wal` / `.shm` siblings) already exists after
+            // `ModelContainer(for:)` above — the directory attribute
+            // doesn't retroactively cover them. We now explicitly set
+            // `.completeUnlessOpen` on every existing SwiftData file
+            // so they're encrypted at rest but stay readable while
+            // the app is running (required for background refresh
+            // and widget updates).
             if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
                 try? (appSupport as NSURL).setResourceValue(
-                    URLFileProtection.complete,
+                    URLFileProtection.completeUnlessOpen,
                     forKey: .fileProtectionKey
+                )
+                Self.applyFileProtection(
+                    to: appSupport,
+                    protection: URLFileProtection.completeUnlessOpen
                 )
             }
 
@@ -130,16 +141,34 @@ struct BudgetVaultApp: App {
                     }
                     .onChange(of: scenePhase) { _, newPhase in
                         if newPhase == .active {
-                            performMonthRollover(container: container)
-                            processRecurringExpenses(container: container)
-                            StreakService.processOnForeground()
+                            // Audit fix: gate database-mutating operations
+                            // on biometric unlock. Running month rollover
+                            // + recurring-expense posting before the user
+                            // authenticates was observable state change
+                            // behind the lock screen. StoreKit check +
+                            // re-engagement scheduling stay unconditional
+                            // (they don't reveal data through the lock).
+                            let biometricOn = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
+                            if !biometricOn {
+                                performMonthRollover(container: container)
+                                processRecurringExpenses(container: container)
+                                StreakService.processOnForeground()
+                            }
                             Task { await storeKit.checkEntitlements() }
-                            // Schedule re-engagement notifications (reset timer on each foreground)
                             NotificationService.scheduleReengagementNotifications()
                         } else if newPhase == .background {
                             try? container.mainContext.save()
                             scheduleBackgroundRefresh()
                         }
+                    }
+                    // Audit fix: when biometric lock is on, run the
+                    // deferred mutations as soon as the user unlocks.
+                    // Idempotent — rollover/recurring check their own
+                    // guards before inserting anything.
+                    .onReceive(NotificationCenter.default.publisher(for: .biometricUnlocked)) { _ in
+                        performMonthRollover(container: container)
+                        processRecurringExpenses(container: container)
+                        StreakService.processOnForeground()
                     }
             } else {
                 databaseErrorView
@@ -147,6 +176,42 @@ struct BudgetVaultApp: App {
         }
         .backgroundTask(.appRefresh(Self.bgRefreshIdentifier)) {
             await handleBackgroundRefresh()
+        }
+    }
+
+    // MARK: - File Protection
+
+    /// Walk the Application Support directory and stamp every
+    /// existing file with the requested protection class. SwiftData
+    /// creates the `.store` / `.wal` / `.shm` files during
+    /// `ModelContainer(for:)` before we reach the container-init
+    /// completion, so pure directory-level protection misses them.
+    private static func applyFileProtection(
+        to directory: URL,
+        protection: URLFileProtection
+    ) {
+        // Map URLFileProtection → FileProtectionType (FileManager's key).
+        let fileProtection: FileProtectionType
+        switch protection {
+        case .complete: fileProtection = .complete
+        case .completeUnlessOpen: fileProtection = .completeUnlessOpen
+        case .completeUntilFirstUserAuthentication: fileProtection = .completeUntilFirstUserAuthentication
+        case .none: fileProtection = .none
+        default: fileProtection = .completeUnlessOpen
+        }
+
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        for case let url as URL in enumerator {
+            try? fm.setAttributes(
+                [.protectionKey: fileProtection],
+                ofItemAtPath: url.path
+            )
         }
     }
 

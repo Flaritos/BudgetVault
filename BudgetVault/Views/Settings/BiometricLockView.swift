@@ -55,6 +55,17 @@ struct BiometricLockView: View {
         }
         .task {
             await authService.authenticate()
+            if authService.isAuthenticated {
+                // Audit fix: notify the app that database-mutating
+                // operations deferred at scenePhase .active (rollover,
+                // recurring posting, streak update) can now run.
+                NotificationCenter.default.post(name: .biometricUnlocked, object: nil)
+            }
+        }
+        .onChange(of: authService.isAuthenticated) { _, newValue in
+            if newValue {
+                NotificationCenter.default.post(name: .biometricUnlocked, object: nil)
+            }
         }
     }
 }

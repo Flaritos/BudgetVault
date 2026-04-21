@@ -114,12 +114,20 @@ final class StoreKitManager {
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
                 await checkEntitlements()
-                purchaseState = .success
-                showPostPurchaseWelcome = true
-                // Cache for instant UI + Keychain source of truth
-                UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
+                // Audit fix: only show the success state if the
+                // entitlement actually landed. If checkEntitlements
+                // doesn't flip `isPremium` to true (silent verification
+                // failure, stale cache, etc.), leave purchaseState
+                // idle so the user can retry instead of seeing a
+                // "Thanks!" screen that didn't actually unlock anything.
                 if isPremium {
+                    purchaseState = .success
+                    showPostPurchaseWelcome = true
+                    UserDefaults.standard.set(true, forKey: AppStorageKeys.isPremium)
                     KeychainService.set(true, forKey: "isPremium")
+                } else {
+                    purchaseState = .error
+                    errorMessage = "Purchase completed but entitlement didn't verify. Tap Retry or Restore."
                 }
 
             case .userCancelled:
