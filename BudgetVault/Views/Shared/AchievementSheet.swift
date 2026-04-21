@@ -21,6 +21,7 @@ struct AchievementSheet: View {
     @State private var contentVisible = false
     @State private var badgeScale: CGFloat = 0.5
     @State private var confettiActive = false
+    @State private var confettiTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var tier: AchievementBadge.Tier {
@@ -145,6 +146,7 @@ struct AchievementSheet: View {
             if reduceMotion {
                 badgeScale = 1.0
                 contentVisible = true
+                // Reduce Motion skips confetti entirely per §8.4.
                 return
             }
 
@@ -154,9 +156,19 @@ struct AchievementSheet: View {
             withAnimation(.easeIn(duration: 0.4).delay(0.5)) {
                 contentVisible = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            // Audit fix: cancellable Task replaces DispatchQueue delay
+            // so a fast-dismissed sheet doesn't fire state changes on
+            // a torn-down view.
+            confettiTask?.cancel()
+            confettiTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
                 confettiActive = true
             }
+        }
+        .onDisappear {
+            confettiTask?.cancel()
+            confettiActive = false
         }
         .accessibilityAddTraits(.isModal)
     }

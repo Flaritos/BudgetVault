@@ -8,6 +8,7 @@ struct CSVImportView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
 
     @State private var showFilePicker = false
     @State private var csvContent: String?
@@ -158,7 +159,15 @@ struct CSVImportView: View {
                             Text(row.category)
                                 .font(.subheadline.bold())
                             Spacer()
-                            Text(String(format: "$%.2f", row.amount))
+                            // Phase 8.3 audit fix: was `String(format:
+                            // "$%.2f")` which locked the symbol to USD
+                            // and used Double precision. Route through
+                            // the shared CurrencyFormatter so locale +
+                            // money-as-cents rules are honored.
+                            Text(CurrencyFormatter.format(
+                                cents: Int64((row.amount * 100).rounded()),
+                                currencyCode: selectedCurrency
+                            ))
                                 .font(.subheadline)
                                 .foregroundStyle(row.isIncome ? BudgetVaultTheme.positive : .primary)
                         }
@@ -199,7 +208,7 @@ struct CSVImportView: View {
     private var categorySelectionView: some View {
         List {
             Section {
-                Text("Your import has \(uniqueCategories.count) categories. Free accounts support 4. Select which to keep.")
+                Text("Your import has \(uniqueCategories.count) categories. Free accounts support 6. Select which to keep.")
                     .font(.subheadline)
                     .foregroundStyle(BudgetVaultTheme.titanium400)
                     .listRowBackground(BudgetVaultTheme.chamberDeep)
@@ -226,7 +235,7 @@ struct CSVImportView: View {
                     .listRowBackground(BudgetVaultTheme.chamberDeep)
                 }
             } header: {
-                EngravedSectionHeader(title: "Select up to 4 categories")
+                EngravedSectionHeader(title: "Select up to 6 categories")
             }
 
             Section {
@@ -296,13 +305,20 @@ struct CSVImportView: View {
         detectedFormat = parsed.format
         parsedRows = parsed.rows
         uniqueCategories = Array(Set(parsedRows.map(\.category))).sorted()
-        selectedCategories = Set(uniqueCategories.prefix(isPremium ? uniqueCategories.count : 4))
+        // Phase 8.3 audit fix: free-tier category limit is 6 everywhere
+        // else in the app (MEMORY.md rule 1, SettingsView.freeLimit). Was
+        // hard-coded as 4 here which contradicted the rest of the codebase.
+        selectedCategories = Set(uniqueCategories.prefix(isPremium ? uniqueCategories.count : Self.freeCategoryLimit))
 
         step = parsedRows.isEmpty ? .selectFile : .preview
     }
 
+    /// Free-tier category cap. Matches `SettingsView.BudgetTemplateSheetView`
+    /// and `AppStorage` usage elsewhere. Single source of truth.
+    private static let freeCategoryLimit = 6
+
     private func proceedFromPreview() {
-        if !isPremium && uniqueCategories.count > 4 {
+        if !isPremium && uniqueCategories.count > Self.freeCategoryLimit {
             step = .categorySelection
         } else {
             performImport()
@@ -312,7 +328,7 @@ struct CSVImportView: View {
     private func toggleCategory(_ cat: String) {
         if selectedCategories.contains(cat) {
             selectedCategories.remove(cat)
-        } else if selectedCategories.count < 4 {
+        } else if selectedCategories.count < Self.freeCategoryLimit {
             selectedCategories.insert(cat)
         }
     }
@@ -322,7 +338,7 @@ struct CSVImportView: View {
 
         // Build category map — unselected categories map to "Other"
         var map: [String: String] = [:]
-        if !isPremium && uniqueCategories.count > 4 {
+        if !isPremium && uniqueCategories.count > Self.freeCategoryLimit {
             for cat in uniqueCategories {
                 map[cat] = selectedCategories.contains(cat) ? cat : "Other"
             }

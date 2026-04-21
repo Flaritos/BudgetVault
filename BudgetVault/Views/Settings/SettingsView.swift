@@ -332,9 +332,22 @@ struct SettingsView: View {
             HStack {
                 Text("Name")
                 Spacer()
+                // Audit fix: TextField without submitLabel traps users
+                // on-keyboard with no Done button visible in a Form
+                // context. `.submitLabel(.done)` + onSubmit gives the
+                // return key a "done" affordance that dismisses the
+                // keyboard.
                 TextField("Your name", text: $userName)
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(BudgetVaultTheme.titanium300)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
+                    .accessibilityLabel("Name")
             }
             .listRowBackground(BudgetVaultTheme.chamberDeep)
 
@@ -832,14 +845,25 @@ struct SettingsView: View {
     }()
 
     private func deleteAllData() {
-        // Delete all model objects
+        // Delete all model objects.
+        //
+        // Audit fix: previously used `try? modelContext.delete(model:)`
+        // per type, which swallowed errors silently. If one type failed
+        // mid-loop the remaining types still got deleted and SafeSave
+        // committed a partially-wiped state. Now we propagate errors,
+        // rollback on the first failure, and abort before save.
         let types: [any PersistentModel.Type] = [
             Budget.self, Category.self, Transaction.self,
             RecurringExpense.self, DebtAccount.self, DebtPayment.self,
             NetWorthAccount.self, NetWorthSnapshot.self
         ]
-        for type in types {
-            try? modelContext.delete(model: type)
+        do {
+            for type in types {
+                try modelContext.delete(model: type)
+            }
+        } catch {
+            modelContext.rollback()
+            return
         }
         guard SafeSave.save(modelContext) else { modelContext.rollback(); return }
 

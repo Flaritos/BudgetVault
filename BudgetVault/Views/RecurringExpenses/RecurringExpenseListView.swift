@@ -25,6 +25,7 @@ struct RecurringExpenseListView: View {
     @State private var showForm = false
     @State private var editingExpense: RecurringExpense?
     @State private var showPaywall = false
+    @State private var postPurchaseTask: Task<Void, Never>?
 
     private var activeExpenses: [RecurringExpense] {
         allExpenses.filter { $0.isActive }
@@ -87,10 +88,20 @@ struct RecurringExpenseListView: View {
         .onChange(of: isPremium) { _, newValue in
             if newValue && showPaywall {
                 showPaywall = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // Audit fix: cancellable Task replaces
+                // `DispatchQueue.main.asyncAfter` so the delayed
+                // showForm trigger doesn't fire on a dismissed view
+                // (which produced "view not in hierarchy" warnings).
+                postPurchaseTask?.cancel()
+                postPurchaseTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled else { return }
                     showForm = true
                 }
             }
+        }
+        .onDisappear {
+            postPurchaseTask?.cancel()
         }
     }
 

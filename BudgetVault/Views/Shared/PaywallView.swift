@@ -30,7 +30,10 @@ struct PaywallView: View {
     }
 
     private var priceDecimal: Decimal {
-        storeKit.premiumProduct?.price ?? Decimal(14.99)
+        // Audit fix: `Decimal(14.99)` init-from-Double stores
+        // 14.9899999… due to binary float rounding. Use string or
+        // integer construction so the fallback is exact.
+        storeKit.premiumProduct?.price ?? (Decimal(string: "14.99") ?? 0)
     }
 
     private var currencyCode: String {
@@ -91,6 +94,11 @@ struct PaywallView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
                             .foregroundStyle(.white.opacity(0.75), .white.opacity(0.12))
+                            // Audit fix: bare toolbar image ≈ 22pt —
+                            // fails WCAG 2.5.5 44×44 minimum. Expand
+                            // hit area without enlarging the glyph.
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Close")
                 }
@@ -135,6 +143,10 @@ struct PaywallView: View {
         // Phase 8.3 §4.2: Ready state uses the locked .hero dial; Success
         // swaps to .open with positive-green halo and a 72° face rotation.
         // Reduce Motion skips the rotation and the scale swell.
+        //
+        // Audit fix: the dial is decorative — the title block carries
+        // the meaning. Hide from VoiceOver so screen reader users don't
+        // hear the dial's internal asset names before the actual copy.
         ZStack {
             if isSuccess {
                 VaultDial(
@@ -153,6 +165,7 @@ struct PaywallView: View {
                     .transition(.opacity)
             }
         }
+        .accessibilityHidden(true)
     }
 
     // MARK: - Title Block

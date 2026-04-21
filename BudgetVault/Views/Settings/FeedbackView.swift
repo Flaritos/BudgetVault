@@ -10,6 +10,7 @@ struct FeedbackView: View {
     @State private var message: String = ""
     @State private var didSave = false
     @State private var showMailFallback = false
+    @FocusState private var editorFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,7 @@ struct FeedbackView: View {
                             .padding(10)
                             .frame(minHeight: 160)
                             .accessibilityLabel("Feedback message")
+                            .focused($editorFocused)
 
                         if message.isEmpty {
                             Text("Tell us what you'd like to see, or what isn't working the way you'd expect\u{2026}")
@@ -135,10 +137,22 @@ struct FeedbackView: View {
                         } else {
                             FeedbackService.append(category: category, message: message)
                             HapticManager.notification(.success)
+                            editorFocused = false
                             withAnimation { didSave = true }
                         }
                     }
                     .disabled(!didSave && message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                // Audit fix: TextEditor on iOS has no default keyboard
+                // dismiss affordance. Add a Done button in the keyboard
+                // toolbar so users can escape once their message is
+                // written.
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        editorFocused = false
+                    }
+                    .tint(BudgetVaultTheme.accentSoft)
                 }
             }
             .alert("No mail account configured", isPresented: $showMailFallback) {

@@ -99,15 +99,38 @@ struct MoveMoneyView: View {
 
     @ViewBuilder
     private func envelopeRow(isFrom: Bool) -> some View {
-        // Mockup §6 line 75–78: `.envelope-row { display: flex; gap: 6px;
-        // margin-bottom: 24px }` with each .envelope at `flex: 1`. Equal-
-        // width 3-up grid, not a horizontal scroll. Compact tile
-        // geometry keeps the screen from overflowing.
-        HStack(spacing: 6) {
-            ForEach(categories.prefix(3), id: \.id) { cat in
-                envelopeTile(category: cat, isFrom: isFrom)
-                    .frame(maxWidth: .infinity)
+        // Mockup §6 line 75–78: 3-up equal-width grid. Audit fix: the
+        // prior `.prefix(3)` silently hid categories 4+, making them
+        // unreachable for users with more than 3 envelopes. We now
+        // show 3 per row and wrap to additional rows below. Keeps the
+        // mockup's 3-across geometry while remaining functional for
+        // premium users with 20+ envelopes.
+        let rows = chunked(categories, size: 3)
+        VStack(spacing: 6) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 6) {
+                    ForEach(row, id: \.id) { cat in
+                        envelopeTile(category: cat, isFrom: isFrom)
+                            .frame(maxWidth: .infinity)
+                    }
+                    // Pad the last row with invisible placeholders so
+                    // tile widths stay uniform across rows.
+                    if row.count < 3 {
+                        ForEach(0..<(3 - row.count), id: \.self) { _ in
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 1)
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    private func chunked<T>(_ array: [T], size: Int) -> [[T]] {
+        guard size > 0 else { return [array] }
+        return stride(from: 0, to: array.count, by: size).map {
+            Array(array[$0 ..< min($0 + size, array.count)])
         }
     }
 
@@ -139,11 +162,16 @@ struct MoveMoneyView: View {
 
         Button {
             HapticManager.impact(.light)
+            // Audit fix: picking the same envelope for From clears To
+            // (already handled below), AND picking the same envelope
+            // for To clears From. Prior impl only handled one side,
+            // so the user could end up with From=X, To=X transiently.
             if isFrom {
                 fromCategory = category
                 if toCategory?.id == category.id { toCategory = nil }
             } else {
                 toCategory = category
+                if fromCategory?.id == category.id { fromCategory = nil }
             }
         } label: {
             VStack(alignment: .leading, spacing: 0) {
