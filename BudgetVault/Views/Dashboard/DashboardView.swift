@@ -31,6 +31,7 @@ struct DashboardView: View {
     @AppStorage(AppStorageKeys.morningBriefingEnabled) private var morningBriefingEnabled = false
     @AppStorage(AppStorageKeys.morningBriefingHour) private var morningBriefingHour = 8
     @AppStorage(AppStorageKeys.weeklyDigestEnabled) private var weeklyDigestEnabled = false
+    @AppStorage(AppStorageKeys.vaultName) private var vaultName = ""
 
     // MARK: - Consolidated Sheet Enum (Finding 29)
     enum ActiveSheet: Identifiable, Equatable {
@@ -251,21 +252,13 @@ struct DashboardView: View {
                         .accessibilityHint("Closes today's vault without logging a transaction")
                         .accessibilityIdentifier("noSpendButton")
 
+                        // VaultRevamp v2.1 FAB — titanium dial with blue pointer + blue plus
+                        Spacer(minLength: 0)
                         Button {
                             HapticManager.impact(.medium)
                             activeSheet = .transactionEntry
                         } label: {
-                            HStack(spacing: BudgetVaultTheme.spacingSM) {
-                                Image(systemName: "plus")
-                                    .font(.body.weight(.bold))
-                                Text("Log Expense")
-                                    .font(.subheadline.weight(.semibold))
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-                            .padding(.vertical, BudgetVaultTheme.spacingMD)
-                            .background(Color.accentColor, in: Capsule())
-                            .shadow(color: Color.accentColor.opacity(0.3), radius: 12, y: 6)
+                            TitaniumPlusFAB()
                         }
                         .accessibilityLabel("Log expense")
                         .accessibilityHint("Opens the transaction entry form")
@@ -648,12 +641,9 @@ struct DashboardView: View {
                         .padding(.horizontal)
                     }
 
-                    // 2. Envelope Cards — "Vault Compartments"
-                    if !visibleCategories.isEmpty {
-                        envelopeCardsSection(budget: budget)
-                            .opacity(hasAppeared ? 1 : 0)
-                            .offset(y: hasAppeared ? 0 : 20)
-                    }
+                    // 2. Envelope Cards — moved into the navy hero chamber
+                    // area above (they belong on the navy vault floor, not
+                    // on the cream/white content panel).
 
                     // 3. Quick Insight Card
                     insightCard(budget: budget)
@@ -713,7 +703,7 @@ struct DashboardView: View {
         .ignoresSafeArea(edges: .top)
     }
 
-    // MARK: - 1. Hero Section — "The Vault Display"
+    // MARK: - 1. Hero Section — "Vault Door" (VaultRevamp v2.1)
 
     @ViewBuilder
     private func heroSection(
@@ -722,183 +712,303 @@ struct DashboardView: View {
         dayProgressFraction: Double,
         dayProgressText: String
     ) -> some View {
-        let spentFraction = 1.0 - budget.percentRemaining
-        // v3.2 audit B1: when there's real spending but < 1% of budget,
-        // show "<1%" instead of rounding to "0%" — which reads as
-        // "nothing logged" to first-time users.
-        let spentPercent = Int(min(spentFraction, 1.0) * 100)
-        let spentPercentLabel: String = {
-            if spentFraction > 0 && spentPercent == 0 { return "<1%" }
-            return "\(spentPercent)%"
-        }()
-        let ringSize: CGFloat = 100
+        let spentFraction = max(0, min(1.0, 1.0 - budget.percentRemaining))
+        let periodPct = Int(min(dayProgressFraction, 1.0) * 100)
+        let spentPct = Int(spentFraction * 100)
+        let displayName = vaultName.trimmingCharacters(in: .whitespaces).isEmpty ? "Your Vault" : vaultName
+        let cadenceLabel = cadenceLabel(for: budget)
+        let headerSublabel = vaultHeaderSublabel(for: budget)
+        let statusText: String = spentFraction < 0.75 ? "On track" : spentFraction < 0.9 ? "Watch it" : "Over budget"
 
-        ZStack {
-            // Full-bleed navy gradient background
+        // Full-bleed navy vault-interior gradient behind the chamber cards.
+        ZStack(alignment: .top) {
             LinearGradient(
-                colors: [BudgetVaultTheme.navyDark.opacity(0.95), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
+                colors: [BudgetVaultTheme.navyDark.opacity(0.97), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea(edges: .top)
 
-            VStack(spacing: BudgetVaultTheme.spacingLG) {
-                // Streak badge row
-                if currentStreak > 0 {
-                    HStack {
-                        Spacer()
-                        streakBadgeView
-                    }
-                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                    .padding(.top, BudgetVaultTheme.spacingSM)
-                }
+            VStack(spacing: 0) {
+                // 1. Top door-edge hinge (heavy, full-bleed)
+                HingeRule(weight: .heavy)
+                    .padding(.top, 52) // clear status bar
+                    .shadow(color: .black.opacity(0.8), radius: 0, y: 1)
 
-                // Glass card with ring + amount
-                HStack(alignment: .center, spacing: BudgetVaultTheme.spacingXL - 4) {
-                    // Neon ring with percentage
-                    ZStack {
-                        // Track
-                        Circle()
-                            .stroke(.white.opacity(0.06), lineWidth: 7)
-                            .frame(width: ringSize, height: ringSize)
-
-                        // Neon arc — color shifts green -> yellow -> red as spending increases.
-                        // v3.2 audit L1: minimum visible arc of ~4° so real
-                        // spending under 1% doesn't look like a rendering glitch.
-                        // v3.2 whimsy: on no-spend "vault close" the ring
-                        // sweeps to full green; on foreground it draws from 0.
-                        Circle()
-                            .trim(from: 0, to: vaultClosingAnimation
-                                  ? 1.0
-                                  : (ringDrawnIn
-                                     ? (spentFraction > 0 ? max(0.015, min(spentFraction, 1.0)) : 0)
-                                     : 0))
-                            .stroke(
-                                vaultClosingAnimation ? BudgetVaultTheme.positive : spendingArcColor(for: spentFraction),
-                                style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                            )
-                            .rotationEffect(.degrees(-90))
-                            .frame(width: ringSize, height: ringSize)
-                            .shadow(color: (vaultClosingAnimation ? BudgetVaultTheme.positive : spendingArcColor(for: spentFraction)).opacity(0.5), radius: 8)
-                            .animation(.spring(response: 0.6, dampingFraction: 0.75), value: spentFraction)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: vaultClosingAnimation)
-                            .animation(.easeOut(duration: 0.7), value: ringDrawnIn)
-
-                        // Outer glow layer
-                        Circle()
-                            .trim(from: 0, to: ringDrawnIn ? min(spentFraction, 1.0) : 0)
-                            .stroke(
-                                spendingArcColor(for: spentFraction).opacity(0.7),
-                                style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
-                            )
-                            .rotationEffect(.degrees(-90))
-                            .frame(width: ringSize, height: ringSize)
-                            .blur(radius: 6)
-                            .animation(.spring(duration: 0.8, bounce: 0.15), value: spentFraction)
-                            .animation(.easeOut(duration: 0.7), value: ringDrawnIn)
-
-                        // Vault tick marks
-                        VaultDialMark(size: ringSize + 10)
-                            .opacity(0.15)
-
-                        // Percentage text
-                        VStack(spacing: 0) {
-                            Text(spentPercentLabel)
-                                .font(.system(.subheadline, design: .rounded).weight(.bold))
-                                .foregroundStyle(.white.opacity(0.85))
-                            Text("used")
-                                .font(.system(.caption2, design: .rounded).weight(.medium))
-                                .foregroundStyle(.white.opacity(0.4))
-                                .tracking(0.5)
+                VStack(spacing: 16) {
+                    // 2. Vault name header row
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(displayName)
+                                .font(.system(size: 19, weight: .bold))
+                                .tracking(-0.285)
+                                .lineSpacing(0)
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Text(headerSublabel)
+                                .font(BudgetVaultTheme.engravedLabel(size: 11))
+                                .tracking(2.42)
+                                .textCase(.uppercase)
+                                .foregroundStyle(BudgetVaultTheme.titanium300)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        VStack(alignment: .trailing, spacing: 6) {
+                            BoltRow(count: 3, engaged: 3, size: .small)
+                            if currentStreak > 0 {
+                                streakBadgeView
+                            }
                         }
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 22)
 
-                    // Amount + info
-                    VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingXS) {
-                        Text("DAILY ALLOWANCE")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white.opacity(0.4))
-                            .tracking(1.5)
+                    // 3. Hero ChamberCard — daily allowance
+                    ChamberCard(padding: 22) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(alignment: .top) {
+                                Text("Daily Allowance")
+                                    .font(BudgetVaultTheme.engravedLabel(size: 11))
+                                    .textCase(.uppercase)
+                                    .tracking(2.42)
+                                    .foregroundStyle(.white.opacity(0.55))
+                                Spacer(minLength: 4)
+                                Text(cadenceLabel)
+                                    .font(BudgetVaultTheme.engravedLabel(size: 9))
+                                    .textCase(.uppercase)
+                                    .tracking(2.0)
+                                    .foregroundStyle(BudgetVaultTheme.titanium500)
+                            }
+                            .padding(.bottom, 14)
 
-                        Text(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency))
-                            .font(.system(size: heroAmountSize, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .shadow(color: spendingArcColor(for: spentFraction).opacity(0.3), radius: 16)
-                            .contentTransition(.numericText())
-                            .animation(.snappy, value: dailyAllowanceCents)
-                            .minimumScaleFactor(0.5)
-                            .lineLimit(1)
+                            HStack {
+                                Spacer(minLength: 0)
+                                FlipDigitDisplay(
+                                    amount: Decimal(dailyAllowanceCents) / 100,
+                                    style: .hero,
+                                    currencyCode: selectedCurrency
+                                )
+                                Spacer(minLength: 0)
+                            }
 
-                        Text("per day")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.55))
+                            HingeRule(weight: .thin)
+                                .padding(.top, 20)
+                                .padding(.bottom, 14)
 
-                        // Status line
-                        HStack(spacing: BudgetVaultTheme.spacingXS) {
-                            Circle()
-                                .fill(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
-                                .frame(width: 6, height: 6)
-                            Image(systemName: spentFraction < 0.75 ? "checkmark.circle.fill" : spentFraction < 0.9 ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
-                            Text(spentFraction < 0.75 ? "On Track" : spentFraction < 0.9 ? "Watch It" : "Over Budget")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(spentFraction < 0.75 ? BudgetVaultTheme.positive : spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
+                            HStack(alignment: .center, spacing: 14) {
+                                VaultDial(
+                                    size: .medium,
+                                    state: vaultClosingAnimation
+                                        ? .progress(1.0)
+                                        : .progress(spentFraction),
+                                    showNumerals: false
+                                )
+                                .frame(width: 50, height: 50)
+                                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: vaultClosingAnimation)
+                                .animation(.easeOut(duration: 0.5), value: spentFraction)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(statusText)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                                    Text("\(periodPct)% Period \u{00B7} \(spentPct)% Spent")
+                                        .font(BudgetVaultTheme.engravedLabel(size: 9))
+                                        .textCase(.uppercase)
+                                        .tracking(2.0)
+                                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                                }
+
+                                Spacer(minLength: 0)
+                            }
                         }
-                        .padding(.top, BudgetVaultTheme.spacingXS)
                     }
-                }
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                .padding(.vertical, BudgetVaultTheme.spacingXL)
-                .background {
-                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
-                        .fill(.white.opacity(0.07))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusXL)
-                                .strokeBorder(.white.opacity(0.1), lineWidth: 1)
-                        }
-                }
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    .padding(.horizontal, 20)
 
-                // v3.2 audit M6: persistent privacy chip above the stats
-                // row. The brand's #1 pillar was whispered once in 11pt —
-                // it deserves a quiet permanent presence on the hero.
-                HStack(spacing: 4) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 9))
-                    Text("On-device \u{00B7} No bank login")
-                        .font(.system(size: 10, weight: .semibold))
-                        .tracking(0.2)
-                }
-                .foregroundStyle(.white.opacity(0.5))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.06), in: Capsule())
-                .padding(.bottom, 4)
+                    // 4. Stats row — 4 small chambers
+                    statsRow(budget: budget, dayProgressFraction: dayProgressFraction)
+                        .padding(.horizontal, 20)
 
-                // Stats row below the card
-                HStack {
-                    statItem(label: "REMAINING", value: CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency))
-                    Spacer()
-                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 28)
-                    Spacer()
-                    statItem(label: "SPENT", value: CurrencyFormatter.format(cents: budget.totalSpentCents(), currencyCode: selectedCurrency))
-                    Spacer()
-                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 28)
-                    Spacer()
-                    statItem(label: "DAY", value: dayProgressText.replacingOccurrences(of: "Day ", with: ""))
-                    Spacer()
-                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 28)
-                    Spacer()
-                    bufferDaysStat(budget: budget, dayProgressFraction: dayProgressFraction)
+                    // 5. Envelopes row (navy deposit boxes) — belongs on
+                    // the navy vault floor, not on the white panel.
+                    if !visibleCategories.isEmpty {
+                        envelopeCardsSection(budget: budget)
+                            .padding(.top, 2)
+                    }
+
+                    // 6. Quiet privacy chip — preserves brand pillar
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 9))
+                        Text("On-device \u{00B7} No bank login")
+                            .font(.system(size: 10, weight: .semibold))
+                            .tracking(0.2)
+                    }
+                    .foregroundStyle(.white.opacity(0.5))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.06), in: Capsule())
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
                 }
-                .padding(.horizontal, BudgetVaultTheme.spacingXL)
             }
-            .padding(.top, BudgetVaultTheme.spacingPage + BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingLG)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) remaining. \(dayProgressText)")
+    }
+
+    // MARK: - Header helpers
+
+    /// Period-cadence label shown in the hero chamber top-right.
+    private func cadenceLabel(for budget: Budget) -> String {
+        let daysInPeriod = max(1, Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)
+        if daysInPeriod <= 7 { return "Weekly" }
+        if daysInPeriod <= 15 { return "Bi-weekly" }
+        return "Monthly"
+    }
+
+    /// "Wed · Apr 22 · Day 23 of 31" — engraved sublabel under the vault name.
+    private func vaultHeaderSublabel(for budget: Budget) -> String {
+        let now = Date()
+        let cal = Calendar.current
+        let weekdayFormatter = DateFormatter()
+        weekdayFormatter.dateFormat = "EEE"
+        let monthDayFormatter = DateFormatter()
+        monthDayFormatter.dateFormat = "MMM d"
+        let weekday = weekdayFormatter.string(from: now)
+        let monthDay = monthDayFormatter.string(from: now)
+        let daysInPeriod = max(1, cal.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)
+        let dayOfPeriod = max(1, min(daysInPeriod, (cal.dateComponents([.day], from: budget.periodStart, to: now).day ?? 0) + 1))
+        return "\(weekday) \u{00B7} \(monthDay) \u{00B7} Day \(dayOfPeriod) of \(daysInPeriod)"
+    }
+
+    // MARK: - Stats row (4 small chambers)
+
+    @ViewBuilder
+    private func statsRow(budget: Budget, dayProgressFraction: Double) -> some View {
+        let remaining = max(Int64(0), budget.remainingCents)
+        let spent = budget.totalSpentCents()
+        let savedCents = savedThisPeriodCents(budget: budget)
+
+        HStack(spacing: 8) {
+            statChamber(
+                label: "Sealed",
+                value: CurrencyFormatter.format(cents: remaining, currencyCode: selectedCurrency),
+                valueColor: BudgetVaultTheme.neonGreen
+            )
+            statChamber(
+                label: "Spent",
+                value: CurrencyFormatter.format(cents: spent, currencyCode: selectedCurrency),
+                valueColor: Color(hex: "#E8EDF5")
+            )
+            statChamber(
+                label: "Saved",
+                value: CurrencyFormatter.format(cents: savedCents, currencyCode: selectedCurrency),
+                valueColor: Color(hex: "#E8EDF5")
+            )
+            bufferChamber(budget: budget, dayProgressFraction: dayProgressFraction)
+        }
+    }
+
+    /// Single small chamber stat card — engraved label + mono value.
+    private func statChamber(label: String, value: String, valueColor: Color) -> some View {
+        ChamberCard(padding: 0) {
+            VStack(spacing: 6) {
+                Text(label)
+                    .font(BudgetVaultTheme.engravedLabel(size: 9))
+                    .textCase(.uppercase)
+                    .tracking(2.0)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                Text(value)
+                    .font(BudgetVaultTheme.flipDigitFont(size: 16))
+                    .foregroundStyle(valueColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityValue("\(CurrencyFormatter.format(cents: dailyAllowanceCents, currencyCode: selectedCurrency)) per day. \(CurrencyFormatter.format(cents: budget.remainingCents, currencyCode: selectedCurrency)) remaining. \(dayProgressText)")
+        .accessibilityLabel("\(label): \(value)")
+    }
+
+    /// Compute (text, color) for the buffer-days chamber.
+    private func bufferDaysSummary(budget: Budget, dayProgressFraction: Double) -> (text: String, color: Color) {
+        let totalSpent = budget.totalSpentCents()
+        let daysElapsed = max(Int(dayProgressFraction * Double(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)), 1)
+        let daysInPeriod = max(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30, 1)
+        let daysRemaining = daysInPeriod - daysElapsed
+
+        guard totalSpent > 0 else {
+            return ("\u{2014}", Color(hex: "#E8EDF5"))
+        }
+        let avgDailySpend = totalSpent / Int64(daysElapsed)
+        guard avgDailySpend > 0 else {
+            return ("\u{2014}", Color(hex: "#E8EDF5"))
+        }
+        let bufferDays = Int(budget.remainingCents / avgDailySpend)
+        let surplus = bufferDays - daysRemaining
+        let cap = daysInPeriod * 2
+        if surplus > cap {
+            return ("\u{221E}", Color(hex: "#E8EDF5"))
+        }
+        if surplus > 0 {
+            return ("+\(surplus)d", BudgetVaultTheme.positive)
+        }
+        if surplus == 0 {
+            return ("0d", BudgetVaultTheme.caution)
+        }
+        return ("\(surplus)d", BudgetVaultTheme.negative)
+    }
+
+    /// Buffer-days chamber — preserves the v3.2 buffer-days feature.
+    private func bufferChamber(budget: Budget, dayProgressFraction: Double) -> some View {
+        let summary = bufferDaysSummary(budget: budget, dayProgressFraction: dayProgressFraction)
+        let bufferText = summary.text
+        let bufferColor = summary.color
+
+        return Button {
+            activeSheet = .bufferInfo
+        } label: {
+            ChamberCard(padding: 0) {
+                VStack(spacing: 6) {
+                    HStack(spacing: 2) {
+                        Text("Buffer")
+                            .font(BudgetVaultTheme.engravedLabel(size: 9))
+                            .textCase(.uppercase)
+                            .tracking(2.0)
+                            .foregroundStyle(BudgetVaultTheme.titanium300)
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 9))
+                            .foregroundStyle(BudgetVaultTheme.titanium500)
+                    }
+                    Text(bufferText)
+                        .font(BudgetVaultTheme.flipDigitFont(size: 16))
+                        .foregroundStyle(bufferColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .accessibilityIdentifier("bufferStat")
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 6)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Buffer days: \(bufferText)")
+        .accessibilityHint("Shows how many extra days your budget could last at your current pace")
+    }
+
+    /// Saved-this-period value: sum of category budgeted amounts minus
+    /// their spent amounts, floored at 0. Semantically "money still in
+    /// the envelope, not yet spent" — matches the HTML's "Saved" pillar.
+    private func savedThisPeriodCents(budget: Budget) -> Int64 {
+        (budget.categories ?? []).reduce(Int64(0)) { acc, cat in
+            let budgeted = cat.budgetedAmountCents
+            let spent = cachedSpent(for: cat, in: budget)
+            return acc + max(0, budgeted - spent)
+        }
     }
 
     private func statItem(label: String, value: String) -> some View {
@@ -1016,51 +1126,74 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - 2. Envelope Cards
+    // MARK: - 2. Envelope Cards — VaultRevamp v2.1 deposit boxes
 
     @ViewBuilder
     private func envelopeCardsSection(budget: Budget) -> some View {
-        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingSM) {
-            sectionHeader(title: "Envelopes") {
+        VStack(alignment: .leading, spacing: 10) {
+            // Engraved "Envelopes" header + "Manage →"
+            HStack(alignment: .firstTextBaseline) {
+                Text("Envelopes")
+                    .font(BudgetVaultTheme.engravedLabel(size: 11))
+                    .textCase(.uppercase)
+                    .tracking(2.42)
+                    .foregroundStyle(.white.opacity(0.55))
+                Spacer()
                 NavigationLink {
                     BudgetView()
                 } label: {
-                    Text("Manage")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.accentColor)
+                    Text("Manage \u{2192}")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
                 }
             }
+            .padding(.horizontal, 20)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: BudgetVaultTheme.spacingMD) {
-                    ForEach(visibleCategories, id: \.id) { category in
+            // First 3 visible envelopes as deposit boxes in a row.
+            let visible = Array(visibleCategories.prefix(3))
+            if visible.isEmpty {
+                EmptyView()
+            } else {
+                HStack(alignment: .top, spacing: 6) {
+                    ForEach(visible, id: \.id) { category in
+                        let spentCents = cachedSpent(for: category, in: budget)
+                        let budgetedCents = category.budgetedAmountCents
                         NavigationLink {
                             CategoryDetailView(category: category, budget: budget)
                         } label: {
-                            envelopeCard(category: category, budget: budget)
+                            EnvelopeDepositBox(
+                                name: category.name,
+                                spent: Decimal(spentCents) / 100,
+                                allocated: Decimal(budgetedCents) / 100,
+                                pipColor: Color(hex: category.color)
+                            )
                         }
-                        .tint(.primary)
+                        .buttonStyle(.plain)
                         .accessibilityHint("Double tap to view category details")
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 2) // room for shadow
+                .padding(.horizontal, 20)
+
+                // If there are more than 3 categories, show an overflow affordance.
+                if visibleCategories.count > 3 {
+                    HStack {
+                        Spacer()
+                        NavigationLink {
+                            BudgetView()
+                        } label: {
+                            Text("+ \(visibleCategories.count - 3) more")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(BudgetVaultTheme.titanium300)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.05), in: Capsule())
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 4)
+                    .padding(.horizontal, 20)
+                }
             }
-            .accessibilityHint("Swipe left or right to see more envelopes")
-            // Round 7 R1: right-edge fade mask so the horizontal
-            // carousel clearly shows "more to the right" instead of
-            // appearing to clip the last card at the screen edge.
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0.0),
-                        .init(color: .black, location: 0.92),
-                        .init(color: .clear, location: 1.0)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
         }
     }
 
@@ -1775,6 +1908,95 @@ struct DashboardView: View {
         }
     }
 
+}
+
+// MARK: - Titanium + FAB (VaultRevamp v2.1)
+
+/// The VaultRevamp Home FAB: titanium bezel + faint tick ring + blue
+/// pointer at 12 + blue plus at center. Approximates the HTML reference
+/// without modifying the `VaultDial` primitive.
+private struct TitaniumPlusFAB: View {
+    var body: some View {
+        let dim: CGFloat = 68
+        ZStack {
+            // Bezel (titanium chrome ring)
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: "#E4E8EE"),
+                            Color(hex: "#A8B2C2"),
+                            Color(hex: "#5E6A7C"),
+                            Color(hex: "#1D2330")
+                        ],
+                        center: .center,
+                        startRadius: dim * 0.32,
+                        endRadius: dim / 2
+                    )
+                )
+                .frame(width: dim, height: dim)
+
+            // Inner face
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: "#E4E8EE"),
+                            Color(hex: "#A8B2C2"),
+                            Color(hex: "#434D5E")
+                        ],
+                        center: UnitPoint(x: 0.5, y: 0.4),
+                        startRadius: 0,
+                        endRadius: dim * 0.5
+                    )
+                )
+                .frame(width: dim - 12, height: dim - 12)
+
+            // Faint tick ring — 12 ticks (major @ 0/3/6/9 heavier)
+            ZStack {
+                ForEach(0..<12, id: \.self) { i in
+                    let angle = Double(i) * 30.0
+                    let isMajor = i % 3 == 0
+                    Rectangle()
+                        .fill(Color(hex: "#2E3645").opacity(0.6))
+                        .frame(width: isMajor ? 1.2 : 0.8, height: isMajor ? 4 : 3)
+                        .offset(y: -(dim / 2 - 7))
+                        .rotationEffect(.degrees(angle))
+                }
+            }
+            .frame(width: dim, height: dim)
+
+            // Blue pointer triangle at 12
+            Triangle()
+                .fill(Color(hex: "#2563EB"))
+                .frame(width: 6, height: 6)
+                .offset(y: -(dim / 2 - 7))
+
+            // Blue + glyph at center
+            ZStack {
+                Capsule()
+                    .fill(Color(hex: "#1e40af"))
+                    .frame(width: 2.5, height: 22)
+                Capsule()
+                    .fill(Color(hex: "#1e40af"))
+                    .frame(width: 22, height: 2.5)
+            }
+        }
+        .frame(width: dim, height: dim)
+        .shadow(color: .black.opacity(0.5), radius: 8, y: 8)
+    }
+}
+
+/// Simple equilateral downward triangle used for the FAB's 12-o'clock pointer.
+private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.closeSubpath()
+        return p
+    }
 }
 
 // MARK: - RoundedCorner Shape
