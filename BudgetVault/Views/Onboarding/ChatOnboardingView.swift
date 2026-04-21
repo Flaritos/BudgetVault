@@ -1287,30 +1287,42 @@ struct ChatOnboardingView: View {
 
     // MARK: - Step 3: Envelopes
 
+    // VaultRevamp Phase 3c — Envelopes step retheme. The functional core
+    // (template scroll + editable category list + Unallocated footer) is
+    // preserved; only the chrome (dial→bolt-row, engraved label, headline,
+    // CTA gradient) swaps to match the Vault aesthetic. Spec §5 does not
+    // re-spec this screen explicitly — it's treated as a data-entry step
+    // in the thorough path.
     private var envelopeStep: some View {
-        VStack(spacing: BudgetVaultTheme.spacingMD) {
-            OnboardingVaultDial(
-                size: 120,
-                progress: 0.75,
-                stepNumber: 3,
-                stepLabel: "ENVELOPES",
-                rotation: dialRotation,
-                showLock: false,
-                showUnlock: false
-            )
-            .padding(.top, BudgetVaultTheme.spacingSM)
+        let padding: CGFloat = 24
+        return VStack(spacing: 0) {
+            Spacer().frame(height: 64)
 
-            Text("Choose a template")
-                .font(.title3.bold())
-                .foregroundStyle(.white)
+            BoltRow(count: 7, engaged: 7, size: .medium)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
 
-            Text("Divide your income into spending categories. Each category gets a portion of your monthly budget.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.5))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            Spacer().frame(height: 24)
 
-            // Horizontal template scroll
+            Text("Step 5 of 7 · Envelopes")
+                .font(.system(size: 11, weight: .semibold))
+                .textCase(.uppercase)
+                .tracking(2.42)
+                .foregroundStyle(BudgetVaultTheme.titanium300)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
+
+            Spacer().frame(height: 8)
+
+            Text("Split the vault into envelopes.")
+                .font(.system(size: 24, weight: .bold))
+                .tracking(-0.6)
+                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
+
+            Spacer().frame(height: 16)
+
             templateScroll
                 .padding(.bottom, BudgetVaultTheme.spacingXS)
 
@@ -1358,24 +1370,38 @@ struct ChatOnboardingView: View {
                 .foregroundStyle(unallocated > 0 ? BudgetVaultTheme.accentSoft : .white.opacity(0.35))
                 .padding(.bottom, BudgetVaultTheme.spacingSM)
 
+            let canContinue = !editableCategories.isEmpty
             Button {
                 createBudget()
             } label: {
-                Text("Looks Good")
-                    .font(.headline)
-                    .foregroundStyle(editableCategories.isEmpty ? .white.opacity(0.3) : BudgetVaultTheme.navyDark)
+                Text("Continue")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(
+                        canContinue
+                            ? Color(hex: "#E8EDF5")
+                            : Color(hex: "#E8EDF5").opacity(0.4)
+                    )
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 17)
                     .background(
-                        editableCategories.isEmpty
-                            ? AnyShapeStyle(Color.white.opacity(0.08))
-                            : AnyShapeStyle(Color.white),
-                        in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
+                        canContinue
+                            ? AnyShapeStyle(ctaPrimaryBackground)
+                            : AnyShapeStyle(Color.white.opacity(0.08)),
+                        in: RoundedRectangle(cornerRadius: 12)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(
+                                canContinue
+                                    ? Color(hex: "#1e3a8a")
+                                    : Color.white.opacity(0.05),
+                                lineWidth: 1
+                            )
                     )
             }
-            .disabled(editableCategories.isEmpty)
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
+            .disabled(!canContinue)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
         }
         .onAppear {
             if editableCategories.isEmpty {
@@ -1516,88 +1542,99 @@ struct ChatOnboardingView: View {
         }
     }
 
-    // MARK: - Step 4: Vault Unlocked
+    // MARK: - Step 4: Vault Opens (ritual moment)
 
+    // VaultRevamp §7.6 — THE ritual screen. HTML Step 11 verbatim.
+    //   · BoltRow(count: 4, engaged: 4) — all sealed in electric blue
+    //   · VaultDial(.hero, state: .open, showGlow: true) with ticks
+    //     rotated 72° (one major-tick click past rest) and a blue aura
+    //   · Weight-split headline "The vault IS OPEN." — bold white + 300
+    //     blue-soft
+    //   · Subline "<Vault name> · $X/day"  (medium weight, text-2)
+    //   · Engraved "Day 1 of your streak"
+    //   · cta-primary "Enter the vault" — the ONE place in the app that
+    //     uses this costume phrase (spec §7.6)
+    //
+    // The Face ID opt-in toggle from v3.2 is removed from this ritual —
+    // the default stays ON (v3.2 audit H9), and users can toggle from
+    // Settings later. Ritual screens don't carry chrome.
     private var unlockedStep: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
+        let incomeCents = MoneyHelpers.parseCurrencyString(incomeText) ?? 0
+        let perDayCents = incomeCents > 0 ? Int64(Double(incomeCents) / 30.0) : 0
+        let vaultLabel = vaultName.isEmpty ? "Your vault" : "\(vaultName)'s Vault"
+        let dayLabel = perDayCents > 0
+            ? "\(vaultLabel) \u{00B7} \(CurrencyFormatter.format(cents: perDayCents, currencyCode: selectedCurrency))/day"
+            : vaultLabel
+        return VStack(spacing: 0) {
+            Spacer().frame(height: 64)
+
+            BoltRow(count: 4, engaged: 4, size: .medium)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 32)
+
             Spacer()
 
-            OnboardingVaultDial(
-                size: 220,
-                progress: 1.0,
-                stepNumber: nil,
-                stepLabel: nil,
-                rotation: dialRotation,
-                showLock: false,
-                showUnlock: true
+            VaultDial(
+                size: .hero,
+                state: .open,
+                showGlow: true,
+                faceRotationDegrees: 72
             )
+            .shadow(color: BudgetVaultTheme.accentSoft.opacity(0.30), radius: 40, x: 0, y: 0)
+            .shadow(color: .black.opacity(0.6), radius: 40, x: 0, y: 20)
+            .padding(.bottom, 36)
 
-            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                // v3.2 audit M2: was blue→purple gradient; purple is the only
-                // purple in the app so it looked off-brand. Single-hue cyan
-                // gradient keeps the palette disciplined.
-                Text("Ready to Go")
-                    .font(.system(size: 32, weight: .heavy, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.accentSoft],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+            // Weight-split headline: "The vault " bold white + "is open."
+            // light blue. The spec insists on this split — it's where the
+            // weight contrast earns its keep across the whole onboarding.
+            (
+                Text("The vault ")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(Color(hex: "#E8EDF5"))
+                +
+                Text("is open.")
+                    .font(.system(size: 32, weight: .light))
+                    .foregroundColor(BudgetVaultTheme.accentSoft)
+            )
+            .tracking(-0.96)
+            .multilineTextAlignment(.center)
+            .padding(.bottom, 10)
 
-                Text("Your budget is set. Your data is safe.")
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-            }
+            Text(dayLabel)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.7))
+                .padding(.bottom, 6)
+
+            Text("Day 1 of your streak")
+                .font(.system(size: 9, weight: .semibold))
+                .textCase(.uppercase)
+                .tracking(2.16)
+                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
 
             Spacer()
 
-            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                // v3.2 audit H9: biometric lock prompt — opt-in, on-brand,
-                // defaults to ON for users with Face ID / Touch ID enrolled.
-                Toggle(isOn: $biometricLockEnabled) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "faceid")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
-                        Text("Lock the vault with Face ID")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
+            Button {
+                // Preserve v3.2 audit H9 default — Face ID on by default
+                // unless the user is running UI tests. Users can disable
+                // it from Settings after onboarding.
+                persistedBiometricLock = biometricLockEnabled
+                withAnimation(.smooth(duration: 0.5)) {
+                    hasCompletedOnboarding = true
                 }
-                .toggleStyle(SwitchToggleStyle(tint: BudgetVaultTheme.accentSoft))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                        .fill(Color.white.opacity(0.06))
-                )
-
-                Button {
-                    // Round 7 P4: persist the user's Face ID choice.
-                    persistedBiometricLock = biometricLockEnabled
-                    withAnimation(.smooth(duration: 0.5)) {
-                        hasCompletedOnboarding = true
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "arrow.right.circle.fill")
-                        // v3.2 audit L6: "Open My Vault" collides with "Unlock
-                        // the Vault" on the premium paywall — two "vaults".
-                        // Rename to clarify this is just "enter the app".
-                        Text("Start Budgeting")
-                    }
-                    .font(.headline)
-                    .foregroundStyle(BudgetVaultTheme.navyDark)
+            } label: {
+                Text("Enter the vault")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-                }
+                    .padding(.vertical, 17)
+                    .background(ctaPrimaryBackground, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(hex: "#1e3a8a"), lineWidth: 1)
+                    )
             }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingXL)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
         }
     }
 
