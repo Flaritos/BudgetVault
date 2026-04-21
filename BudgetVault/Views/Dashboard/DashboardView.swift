@@ -214,18 +214,21 @@ struct DashboardView: View {
                             // v3.2 whimsy signature moment: "close the vault"
                             // The hero ring sweeps to full green for 600ms
                             // before the toast slides in. This is the "thunk".
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            let closingAnim: Animation? = reduceMotion
+                                ? nil
+                                : .spring(response: 0.35, dampingFraction: 0.75)
+                            withAnimation(closingAnim) {
                                 vaultClosingAnimation = true
                                 todayClosed = true
                             }
                             Task {
-                                try? await Task.sleep(for: .milliseconds(700))
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                try? await Task.sleep(for: .milliseconds(reduceMotion ? 100 : 700))
+                                withAnimation(closingAnim) {
                                     vaultClosingAnimation = false
                                     showNoSpendToast = true
                                 }
                                 try? await Task.sleep(for: .seconds(2.5))
-                                withAnimation { showNoSpendToast = false }
+                                withAnimation(reduceMotion ? nil : .default) { showNoSpendToast = false }
                             }
                         } label: {
                             VStack(spacing: 2) {
@@ -787,7 +790,8 @@ struct DashboardView: View {
                                 FlipDigitDisplay(
                                     amount: Decimal(dailyAllowanceCents) / 100,
                                     style: .hero,
-                                    currencyCode: selectedCurrency
+                                    currencyCode: selectedCurrency,
+                                    contextLabel: "Daily allowance"
                                 )
                                 Spacer(minLength: 0)
                             }
@@ -1424,7 +1428,7 @@ struct DashboardView: View {
         VStack(spacing: BudgetVaultTheme.spacingMD) {
             premiumFeatureCard(
                 icon: "brain.head.profile",
-                title: "Vault Intelligence",
+                title: "Vault Patterns",
                 subtitle: "AI-powered spending predictions and anomaly detection",
                 gradient: [BudgetVaultTheme.electricBlue, BudgetVaultTheme.brightBlue]
             )

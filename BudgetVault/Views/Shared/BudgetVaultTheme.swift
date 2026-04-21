@@ -217,6 +217,12 @@ enum BudgetVaultTheme {
     static let ledgerPaperLight = Color(hex: "#F4EFE4")
     static let ledgerPaperDark = Color(hex: "#E6DEC8")
     static let ledgerInk = Color(hex: "#1A1308")
+    /// Mid-tone ink for small engraved labels (9-11pt) on cream paper.
+    /// Contrast on ledgerPaperDark ≈ 7.4:1 — passes WCAG AA at all
+    /// sizes. Bridges the gap between `ledgerInk` (full body ink) and
+    /// `ledgerInkSecondary` (which hovers near 4.5:1 and fails small
+    /// text on warmer calibrations).
+    static let ledgerInkStrong = Color(hex: "#3A2D17")
     static let ledgerInkSecondary = Color(hex: "#5E4C2E")
     static let ledgerRule = Color(hex: "#8A764C")
 

@@ -13,6 +13,7 @@ struct HistoryView: View {
 
     @State private var searchText = ""
     @State private var searchActive = false
+    @FocusState private var searchFieldFocused: Bool
     @State private var filterMode: FilterMode = .all
     @State private var selectedCategoryID: UUID?
     @State private var editingTransaction: Transaction?
@@ -201,6 +202,13 @@ struct HistoryView: View {
                                 .padding(.horizontal, 28)
                                 .padding(.bottom, 18)
 
+                            if searchActive {
+                                ledgerSearchField
+                                    .padding(.horizontal, 28)
+                                    .padding(.bottom, 14)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+
                             monthNavigator
                                 .padding(.horizontal, 28)
                                 .padding(.bottom, 18)
@@ -215,11 +223,6 @@ struct HistoryView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .searchable(
-                text: $searchText,
-                isPresented: $searchActive,
-                prompt: "Search notes or categories"
-            )
             .onAppear {
                 if viewingMonth == 0 {
                     let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -337,16 +340,26 @@ struct HistoryView: View {
                 Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear).uppercased())
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(2.5)
-                    .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
             }
 
             Spacer()
 
             HStack(spacing: 6) {
-                ledgerIconButton(systemImage: "magnifyingglass") {
-                    searchActive = true
+                ledgerIconButton(systemImage: searchActive ? "xmark" : "magnifyingglass") {
+                    let willOpen = !searchActive
+                    searchActive = willOpen
+                    if !willOpen {
+                        searchText = ""
+                        searchFieldFocused = false
+                    } else {
+                        // Focus on next runloop tick once the field is in the hierarchy.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            searchFieldFocused = true
+                        }
+                    }
                 }
-                .accessibilityLabel("Search history")
+                .accessibilityLabel(searchActive ? "Close search" : "Search history")
 
                 Menu {
                     Section("Show") {
@@ -408,6 +421,50 @@ struct HistoryView: View {
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(BudgetVaultTheme.ledgerRule, lineWidth: 1)
             )
+            // Visible size stays 32pt; hit area bumps to 44pt per WCAG 2.5.5.
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+    }
+
+    // MARK: - Inline ledger search field (replaces .searchable, which
+    //         can't render when the nav bar is hidden)
+
+    @ViewBuilder
+    private var ledgerSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            TextField(
+                "",
+                text: $searchText,
+                prompt: Text("Search notes or categories")
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            )
+            .font(.system(size: 14))
+            .foregroundStyle(BudgetVaultTheme.ledgerInk)
+            .tint(BudgetVaultTheme.ledgerInk)
+            .focused($searchFieldFocused)
+            .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.6), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(BudgetVaultTheme.ledgerRule, lineWidth: 1)
+        )
     }
 
     // MARK: - Month navigator (chevron / month / chevron)
@@ -439,7 +496,7 @@ struct HistoryView: View {
                     } label: {
                         Text("Back to today")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                            .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
                             .underline()
                     }
                     .buttonStyle(.plain)
@@ -514,7 +571,7 @@ struct HistoryView: View {
             Text(label)
                 .font(.system(size: 9, weight: .semibold))
                 .tracking(1.8)
-                .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
             Text(value)
                 .font(.system(size: 17, weight: .medium, design: .monospaced))
                 .foregroundStyle(valueColor)
@@ -575,13 +632,13 @@ struct HistoryView: View {
         VStack(spacing: BudgetVaultTheme.spacingLG) {
             Image(systemName: "book.closed")
                 .font(.system(size: 44, weight: .light))
-                .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
             Text("Nothing logged yet")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(BudgetVaultTheme.ledgerInk)
             Text("Your transaction history will appear here.")
                 .font(.system(size: 13))
-                .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
                 .multilineTextAlignment(.center)
             Button {
                 NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
@@ -744,7 +801,7 @@ struct HistoryView: View {
             Text(dayHeadingLabel(for: date))
                 .font(.system(size: 10, weight: .semibold))
                 .tracking(2.0)
-                .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
             Spacer()
             Text(daySubtotalLedger(transactions))
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
@@ -802,7 +859,7 @@ struct HistoryView: View {
                 Text(transactionMeta(transaction))
                     .font(.system(size: 10, weight: .medium))
                     .tracking(1.2)
-                    .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
                     .lineLimit(1)
             }
 
@@ -851,7 +908,7 @@ struct HistoryView: View {
                         Text("\(Self.dayFormatter.string(from: date).uppercased()) · NO-SPEND DAY")
                             .font(.system(size: 10, weight: .semibold))
                             .tracking(2.0)
-                            .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                            .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
                         Spacer()
                         WaxSeal()
                     }
@@ -906,7 +963,7 @@ struct HistoryView: View {
         HStack(spacing: 12) {
             Image(systemName: "sun.max.fill")
                 .font(.title3)
-                .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
                 .frame(width: 30, height: 30)
                 .background(Color.white.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(
@@ -918,7 +975,7 @@ struct HistoryView: View {
                 Text("TODAY")
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(2.0)
-                    .foregroundStyle(BudgetVaultTheme.ledgerInkSecondary)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
                 Text("Nothing logged yet")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(BudgetVaultTheme.ledgerInk)

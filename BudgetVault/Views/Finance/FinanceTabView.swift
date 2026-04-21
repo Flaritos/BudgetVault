@@ -263,10 +263,6 @@ struct FinanceTabView: View {
             }
 
             Spacer(minLength: 0)
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(BudgetVaultTheme.accentSoft)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -325,7 +321,8 @@ struct FinanceTabView: View {
         // initial viewport. Scrollable content stays above.
         ScrollView {
             VStack(spacing: BudgetVaultTheme.spacingXL) {
-                VaultDialMark(size: 72)
+                VaultDial(size: .medium, state: .locked)
+                    .frame(width: 72, height: 72)
                     .padding(.top, BudgetVaultTheme.spacingLG)
 
                 VStack(spacing: BudgetVaultTheme.spacingSM) {
@@ -343,7 +340,7 @@ struct FinanceTabView: View {
                 VStack(spacing: BudgetVaultTheme.spacingMD) {
                     vaultFeatureRow(
                         icon: "brain.head.profile",
-                        title: "Vault Intelligence",
+                        title: "Vault Patterns",
                         blurb: "On-device ML predicts month-end spend and flags anomalies."
                     )
                     vaultFeatureRow(

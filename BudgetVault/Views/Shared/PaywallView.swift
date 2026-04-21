@@ -41,7 +41,7 @@ struct PaywallView: View {
                         VStack(spacing: BudgetVaultTheme.spacingMD) {
                             heroFeatureCard(
                                 icon: "brain.head.profile",
-                                title: "Vault Intelligence",
+                                title: "Vault Patterns",
                                 description: "On-device AI predicts spending, spots anomalies, and finds patterns. Your data never leaves your phone."
                             )
 
@@ -332,7 +332,7 @@ struct PaywallView: View {
                     .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
-                    unlockRow(icon: "brain.head.profile", text: "Vault Intelligence & predictions")
+                    unlockRow(icon: "brain.head.profile", text: "Vault Patterns & predictions")
                     unlockRow(icon: "square.grid.2x2", text: "Unlimited categories")
                     unlockRow(icon: "repeat", text: "Unlimited recurring expenses")
                     unlockRow(icon: "chart.xyaxis.line", text: "Advanced reports & charts")

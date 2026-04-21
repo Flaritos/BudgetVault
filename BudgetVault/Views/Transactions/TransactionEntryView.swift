@@ -32,6 +32,7 @@ struct TransactionEntryView: View {
     @State private var categoryAutoSelected = false
     @State private var categoryConfidence: Double = 0  // 0.0–1.0
     @FocusState private var noteFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let categoryLearning = CategoryLearningService()
 
@@ -163,7 +164,7 @@ struct TransactionEntryView: View {
         } label: {
             Text(label)
                 .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                .foregroundStyle(isSelected ? .white : BudgetVaultTheme.titanium300)
+                .foregroundStyle(isSelected ? .white : BudgetVaultTheme.titanium200)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
@@ -177,6 +178,10 @@ struct TransactionEntryView: View {
                             lineWidth: 1
                         )
                 )
+                // Expand tap target to 44pt per WCAG 2.5.5 / Apple HIG
+                // without inflating the visible pill.
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -224,10 +229,10 @@ struct TransactionEntryView: View {
         FlipDigitDisplay(
             amount: amount,
             style: .display,
-            currencyCode: selectedCurrency
+            currencyCode: selectedCurrency,
+            contextLabel: amountText.isEmpty ? "Amount — no value entered" : "Amount entered"
         )
         .padding(.top, BudgetVaultTheme.spacingSM)
-        .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
     }
 
     @ViewBuilder
@@ -422,7 +427,7 @@ struct TransactionEntryView: View {
                 TextField(
                     "",
                     text: $note,
-                    prompt: Text("e.g. Lunch · Sushi place downtown").foregroundStyle(BudgetVaultTheme.titanium700)
+                    prompt: Text("e.g. Lunch · Sushi place downtown").foregroundStyle(BudgetVaultTheme.titanium400)
                 )
                 .font(.system(size: 13))
                 .foregroundStyle(.white)
@@ -584,7 +589,7 @@ struct TransactionEntryView: View {
         }
         .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
         .disabled(!canSave)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: showSavedBanner)
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.75), value: showSavedBanner)
     }
 
     private var saveCTALabel: String {
@@ -774,6 +779,6 @@ struct TransactionEntryView: View {
         note = ""
         categoryAutoSelected = false
         categoryConfidence = 0
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { showSavedBanner = true }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.7)) { showSavedBanner = true }
     }
 }

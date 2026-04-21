@@ -74,6 +74,7 @@ struct VaultDial: View {
     var faceRotationDegrees: Double = 0
 
     @ScaledMetric(relativeTo: .largeTitle) private var scaleFactor: CGFloat = 1.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Outer dimension after Dynamic Type scaling.
     private var dim: CGFloat { size.dimension * scaleFactor }
@@ -152,7 +153,7 @@ struct VaultDial: View {
                 )
                 .rotationEffect(.degrees(-90))
                 .frame(width: 180 * k, height: 180 * k)
-                .animation(.easeOut(duration: 0.5), value: p)
+                .animation(reduceMotion ? .none : .easeOut(duration: 0.5), value: p)
         }
     }
 

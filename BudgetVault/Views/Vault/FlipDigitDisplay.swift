@@ -35,8 +35,14 @@ struct FlipDigitDisplay: View {
     let style: FlipStyle
     var currencyCode: String = "USD"
     var showCents: Bool = true
+    /// Optional VoiceOver label that prefixes the amount — e.g.
+    /// "Daily allowance" or "Amount entered". Without it, VoiceOver
+    /// reads just the number, which loses context when the caller
+    /// doesn't wrap the display in a labeled element.
+    var contextLabel: String? = nil
 
     @ScaledMetric(relativeTo: .title) private var scale: CGFloat = 1.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var formatted: String {
         // Use shared CurrencyFormatter for locale-aware display.
@@ -51,7 +57,7 @@ struct FlipDigitDisplay: View {
             }
         }
         .accessibilityElement()
-        .accessibilityLabel(formatted)
+        .accessibilityLabel(contextLabel.map { "\($0), \(formatted)" } ?? formatted)
     }
 
     @ViewBuilder
@@ -102,11 +108,15 @@ struct FlipDigitDisplay: View {
                 RoundedRectangle(cornerRadius: style.plateCornerRadius)
                     .strokeBorder(BudgetVaultTheme.titanium300.opacity(0.18), lineWidth: 1)
             )
-            .transition(.asymmetric(
-                insertion: .push(from: .top).combined(with: .opacity),
-                removal: .push(from: .bottom).combined(with: .opacity)
-            ))
-            .animation(.easeOut(duration: 0.3), value: digit)
+            .transition(
+                reduceMotion
+                    ? .opacity
+                    : .asymmetric(
+                        insertion: .push(from: .top).combined(with: .opacity),
+                        removal: .push(from: .bottom).combined(with: .opacity)
+                    )
+            )
+            .animation(reduceMotion ? .none : .easeOut(duration: 0.3), value: digit)
     }
 
     private func sepSpan(_ sep: String) -> some View {
