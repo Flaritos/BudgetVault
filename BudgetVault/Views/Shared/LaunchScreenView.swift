@@ -12,16 +12,21 @@ struct LaunchScreenView: View {
             BudgetVaultTheme.navyDark
                 .ignoresSafeArea()
 
-            VStack(spacing: BudgetVaultTheme.spacingLG) {
+            VStack(spacing: BudgetVaultTheme.spacingXL) {
                 // VaultRevamp v2.1: launch dial uses the canonical VaultDial
                 // primitive (shared with Home/Vault). The face rotation is
-                // animated via `tickRotation`; pointer + lock stay fixed.
+                // animated via `faceRotationDegrees`; pointer + lock stay fixed.
+                //
+                // No outer .frame here. `.hero` is intrinsically 240pt, and
+                // VaultDial already sets its own frame internally. A
+                // shrinking outer frame only clamps the VStack's layout slot
+                // without resizing the dial — which is how the wordmark
+                // below used to collide with the dial's bottom bezel.
                 VaultDial(
                     size: .hero,
                     state: .locked,
                     faceRotationDegrees: rotation
                 )
-                .frame(width: 120, height: 120)
 
                 Text("BudgetVault")
                     .font(.title.weight(.bold))
