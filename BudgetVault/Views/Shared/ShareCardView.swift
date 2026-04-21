@@ -33,9 +33,14 @@ struct ShareCardView: View {
 
             Spacer().frame(height: 8)
 
-            // Brand footer
+            // Brand footer. Phase 9 §3.2 Option B: at 16pt the synthetic
+            // dial (even with `.icon` size) renders ticks as illegible
+            // smudges. Use an SF Symbol `lock.shield.fill` at this size
+            // for guaranteed legibility next to the wordmark.
             HStack(spacing: 6) {
-                VaultDialMark(size: 16, color: .white.opacity(0.6))
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.6))
                 Text("budgetvault.io")
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.5))

@@ -72,7 +72,8 @@ struct MonthlyWrappedShareCard: View {
 
     private var watermark: some View {
         HStack(spacing: 16) {
-            VaultDialMark(size: 60, color: .white, showGlow: false, tickRotation: 0)
+            VaultDial(size: .icon, state: .locked, tint: .white)
+                .frame(width: 60, height: 60)
             Text("BUDGETVAULT")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
                 .tracking(4)

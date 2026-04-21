@@ -788,7 +788,8 @@ struct MonthlyWrappedView: View {
         VStack(spacing: BudgetVaultTheme.spacingLG) {
             // Header
             HStack(spacing: BudgetVaultTheme.spacingSM) {
-                VaultDialMark(size: 24, color: .white)
+                VaultDial(size: .icon, state: .locked, tint: .white)
+                    .frame(width: 24, height: 24)
                 Text("BUDGETVAULT WRAPPED")
                     .font(.caption.weight(.bold))
                     .tracking(2)

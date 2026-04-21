@@ -174,7 +174,8 @@ struct MonthlySummaryView: View {
 
     private var shareCardView: some View {
         VStack(spacing: 12) {
-            VaultDialMark(size: 36, color: BudgetVaultTheme.electricBlue)
+            VaultDial(size: .icon, state: .locked, tint: BudgetVaultTheme.electricBlue)
+                .frame(width: 36, height: 36)
 
             Text(DateHelpers.monthYearString(month: budget.month, year: budget.year))
                 .font(.title3.bold())
