@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1290, initial-scale=1.0">
+<title>BudgetVault App Store Composer</title>
+<style>
+  :root {
+    --navy: #0F1B33;
+    --navy-deep: #070E1F;
+    --navy-mid: #1A2744;
+    --navy-elev: #14234A;
+    --blue: #2563EB;
+    --blue-soft: #60A5FA;
+    --ti-200: #C8CFDA;
+    --ti-300: #A8B2C2;
+    --ti-400: #828D9E;
+    --ti-500: #5E6A7C;
+    --ti-700: #2E3645;
+    --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: #000;
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .slide {
+    width: 1290px;
+    height: 2796px;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 50% 12%, var(--navy-elev) 0%, var(--navy) 42%, var(--navy-deep) 100%);
+    color: white;
+    padding: 140px 80px 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top engraved hairline */
+  .slide::before {
+    content: '';
+    position: absolute;
+    top: 80px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--ti-700) 18%,
+      var(--ti-200) 50%,
+      var(--ti-700) 82%,
+      transparent 100%
+    );
+    opacity: 0.6;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: 0.42em;
+    color: var(--blue-soft);
+    text-transform: uppercase;
+    margin-bottom: 42px;
+    margin-top: 40px;
+  }
+
+  .headline {
+    font-size: 104px;
+    font-weight: 700;
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+    color: white;
+    margin-bottom: 36px;
+    max-width: 1100px;
+  }
+
+  .headline .accent { color: var(--blue-soft); }
+  .headline .soft { font-weight: 300; color: var(--ti-300); }
+
+  .subhead {
+    font-size: 32px;
+    line-height: 1.45;
+    color: var(--ti-200);
+    max-width: 1000px;
+    letter-spacing: -0.005em;
+    font-weight: 400;
+    margin-bottom: 60px;
+  }
+
+  /* Device slot — bottom 60% of slide */
+  .device {
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    margin-top: auto;
+  }
+
+  .device img {
+    width: 980px;
+    height: auto;
+    display: block;
+    border-radius: 72px;
+    box-shadow:
+      0 0 0 5px #2E3645,
+      0 0 0 6px #0A0A0A,
+      0 60px 120px rgba(0, 0, 0, 0.6),
+      0 24px 48px rgba(0, 0, 0, 0.45),
+      0 0 200px rgba(37, 99, 235, 0.18);
+    margin-bottom: -200px;  /* Let the device bleed off the bottom */
+  }
+
+  /* Brand footer — tiny watermark */
+  .brand-mark {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 16px;
+    letter-spacing: 0.28em;
+    color: var(--ti-500);
+    text-transform: uppercase;
+    font-weight: 500;
+    z-index: 10;
+  }
+
+  .brand-mark .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--blue-soft);
+    box-shadow: 0 0 12px var(--blue-soft);
+  }
+
+  /* Hash-targeted single-slide rendering for Chrome headless */
+  body { display: none; }
+  body:target,
+  body:has(.slide:target) { display: block; }
+
+  /* When rendering a specific slide, hide the others */
+  .slide { display: none; }
+  .slide:target { display: flex; }
+
+  /* Default: show all (for browsing) */
+  body.all .slide { display: flex; }
+  body.all .slide + .slide { margin-top: 40px; }
+  body.all { display: block; }
+</style>
+</head>
+<body class="all">
+
+<section class="slide" id="slide-1">
+  <div class="eyebrow">01 · Home</div>
+  <h1 class="headline">Every day,<br><span class="soft">one number.</span></h1>
+  <p class="subhead">Your daily allowance, flip-digit clear. Spent, saved, sealed — all at a glance. No bank login required.</p>
+  <div class="device"><img src="screenshots/01-home.png" alt="Home"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-2">
+  <div class="eyebrow">02 · History</div>
+  <h1 class="headline">A bound ledger<br><span class="soft">of your spending.</span></h1>
+  <p class="subhead">Cream paper, ink on page. Every transaction and no-spend day, sealed with a wax stamp.</p>
+  <div class="device"><img src="screenshots/02-history.png" alt="History"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-3">
+  <div class="eyebrow">03 · The Vault</div>
+  <h1 class="headline">Patterns <span class="accent">only you</span><br>can see.</h1>
+  <p class="subhead">100% on-device AI. Your spending stays on your iPhone — always. No cloud, no server, no compromise.</p>
+  <div class="device"><img src="screenshots/03-vault.png" alt="Vault"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-4">
+  <div class="eyebrow">04 · Milestones</div>
+  <h1 class="headline">Every habit,<br><span class="soft">a medallion.</span></h1>
+  <p class="subhead">Bronze, silver, gold — earned through consistency, not streaks-for-streaks-sake.</p>
+  <div class="device"><img src="screenshots/05-milestones.png" alt="Milestones"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-5">
+  <div class="eyebrow">05 · Move Money</div>
+  <h1 class="headline">Reallocate<br><span class="accent">in seconds.</span></h1>
+  <p class="subhead">Envelope-style budgeting without the binder. Pick from, pick to, tap the amount. Done.</p>
+  <div class="device"><img src="screenshots/07-move-money.png" alt="Move Money"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-6">
+  <div class="eyebrow">06 · Log Expense</div>
+  <h1 class="headline">Seven taps<br><span class="soft">to tracked.</span></h1>
+  <p class="subhead">Flip-digit amount. Instant category. Suggested notes. Money in, money out — nothing else.</p>
+  <div class="device"><img src="screenshots/08-log-expense.png" alt="Log Expense"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-7">
+  <div class="eyebrow">07 · Monthly Wrapped</div>
+  <h1 class="headline">Your month,<br><span class="accent">as a story.</span></h1>
+  <p class="subhead">Five shareable slides. What you saved, where it went, what it says about you. Built for finance, styled like streaming.</p>
+  <div class="device"><img src="screenshots/09-wrapped.png" alt="Monthly Wrapped"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-8">
+  <div class="eyebrow">08 · Personalize</div>
+  <h1 class="headline">Ten accents.<br><span class="soft">Zero gates.</span></h1>
+  <p class="subhead">Pick a color that's yours. Applied to every button, chart, and highlight. Free for everyone.</p>
+  <div class="device"><img src="screenshots/06-theme.png" alt="Theme Picker"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<section class="slide" id="slide-9">
+  <div class="eyebrow">09 · Settings</div>
+  <h1 class="headline">Locked, synced,<br><span class="accent">yours.</span></h1>
+  <p class="subhead">Biometric lock. Optional iCloud sync. Export when you want. Delete when you need. No servers involved.</p>
+  <div class="device"><img src="screenshots/04-settings.png" alt="Settings"></div>
+  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
+</section>
+
+<script>
+  // When URL has a hash like #slide-3, show only that slide.
+  if (window.location.hash) {
+    document.body.classList.remove('all');
+  }
+</script>
+
+</body>
+</html>
