@@ -106,34 +106,40 @@ struct MonthlySummaryView: View {
                             .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.4), lineWidth: 1)
                     )
 
-                    // Celebration
+                    // Phase 9 §9.3: "Budget Hero!" was gamified copy that
+                    // predated the VaultRevamp calm-tone pass. The amount
+                    // + positive green + confetti (elsewhere) already
+                    // carry the achievement feel; the label becomes a
+                    // quiet engraved eyebrow instead.
                     if delta > 0 {
                         VStack(spacing: 8) {
-                            Text("Budget Hero!")
-                                .font(.title3.bold())
+                            Text("SAVED THIS MONTH")
+                                .font(.system(size: 11, weight: .semibold))
+                                .tracking(2.4)
+                                .textCase(.uppercase)
+                                .foregroundStyle(BudgetVaultTheme.titanium300)
                             Text("+\(CurrencyFormatter.format(cents: delta))")
                                 .font(.system(size: 32, weight: .heavy, design: .rounded))
                                 .foregroundStyle(BudgetVaultTheme.positive)
-                            Text("saved this month")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
                             if underBudgetCount > 0 {
-                                Text("Under budget in \(underBudgetCount)/\(categories.count) categories")
+                                Text("Under budget in \(underBudgetCount) of \(categories.count) categories")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(BudgetVaultTheme.titanium400)
                             }
                         }
                         .padding()
                     } else if underBudgetCount > 0 {
-                        Text("Under budget in \(underBudgetCount)/\(categories.count) categories")
+                        Text("Under budget in \(underBudgetCount) of \(categories.count) categories")
                             .font(.headline)
                             .multilineTextAlignment(.center)
                             .padding()
                     }
 
-                    // Share button
+                    // Share button. "Share Achievement" retired to
+                    // "Share Summary" per §9.3 — less gamified, more
+                    // descriptive of what the recipient will see.
                     ShareLink(item: shareCardImage, preview: SharePreview("Monthly Summary", image: shareCardImage)) {
-                        Label("Share Achievement", systemImage: "square.and.arrow.up")
+                        Label("Share Summary", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.horizontal)
