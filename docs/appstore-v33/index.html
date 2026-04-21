@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BudgetVault v3.3 — App Store Photos</title>
+<style>
+  :root {
+    --navy: #0F1B33;
+    --navy-deep: #070E1F;
+    --navy-mid: #1A2744;
+    --navy-elev: #14234A;
+    --ink: #E8EDF5;
+    --ink-2: rgba(232, 237, 245, 0.72);
+    --ink-3: rgba(232, 237, 245, 0.45);
+    --blue: #2563EB;
+    --blue-soft: #60A5FA;
+    --ti-300: #A8B2C2;
+    --ti-400: #828D9E;
+    --ti-500: #5E6A7C;
+    --ti-700: #2E3645;
+    --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background:
+      radial-gradient(ellipse at 50% 0%, var(--navy-elev) 0%, var(--navy) 40%, var(--navy-deep) 100%);
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  body { padding: 80px 40px 140px; }
+
+  /* Document header */
+  .doc-header {
+    max-width: 900px;
+    margin: 0 auto 100px;
+    text-align: center;
+    padding: 40px 0;
+    position: relative;
+  }
+
+  .doc-header::before,
+  .doc-header::after {
+    content: '';
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--ti-700) 20%,
+      var(--ti-300) 50%,
+      var(--ti-700) 80%,
+      transparent 100%
+    );
+  }
+  .doc-header::before { top: 0; }
+  .doc-header::after { bottom: 0; }
+
+  .serial {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    color: var(--ti-400);
+    margin-bottom: 20px;
+    opacity: 0.8;
+  }
+
+  .doc-title {
+    font-size: clamp(40px, 6vw, 64px);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    margin-bottom: 16px;
+  }
+
+  .doc-title .light { font-weight: 300; color: var(--ti-300); }
+
+  .doc-subtitle {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4em;
+    color: var(--ti-400);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .doc-sub {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  /* Phone grid */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 96px 48px;
+    max-width: 1680px;
+    margin: 0 auto;
+    justify-items: center;
+  }
+
+  .phone-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  /* Phone frame — iPhone Pro style with Dynamic Island */
+  .phone {
+    width: 100%;
+    max-width: 402px;
+    aspect-ratio: 402 / 874;
+    border-radius: 56px;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+    box-shadow:
+      /* Titanium side band */
+      0 0 0 4px #2E3645,
+      /* Outer ring shadow */
+      0 0 0 5px #0A0A0A,
+      /* Drop shadow */
+      0 40px 80px rgba(0, 0, 0, 0.55),
+      0 12px 32px rgba(0, 0, 0, 0.45),
+      /* Top glow */
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .phone:hover {
+    transform: translateY(-6px);
+    box-shadow:
+      0 0 0 4px #2E3645,
+      0 0 0 5px #0A0A0A,
+      0 56px 104px rgba(37, 99, 235, 0.18),
+      0 16px 40px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* Dynamic Island */
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 36px;
+    background: #000;
+    border-radius: 22px;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .phone img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Caption block */
+  .caption {
+    margin-top: 32px;
+    width: 100%;
+    max-width: 402px;
+    text-align: left;
+  }
+
+  .caption-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--blue-soft);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .caption-title {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+
+  .caption-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  /* Hero section */
+  .hero {
+    text-align: center;
+    max-width: 900px;
+    margin: 0 auto 72px;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    color: var(--blue-soft);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  .hero-tagline {
+    font-size: clamp(24px, 3vw, 36px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+
+  .hero-tagline em {
+    font-style: normal;
+    color: var(--blue-soft);
+  }
+
+  /* Footer */
+  .doc-footer {
+    max-width: 900px;
+    margin: 140px auto 0;
+    text-align: center;
+    padding-top: 60px;
+    border-top: 1px solid rgba(168, 178, 194, 0.15);
+  }
+
+  .doc-footer .note {
+    font-size: 13px;
+    color: var(--ti-400);
+    line-height: 1.7;
+    max-width: 560px;
+    margin: 0 auto 20px;
+  }
+
+  .doc-footer .meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--ti-500);
+    text-transform: uppercase;
+  }
+
+  /* Featured treatment — home screen (larger) */
+  .phones .phone-wrap:first-child {
+    grid-column: 1 / -1;
+    max-width: 480px;
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 40px 24px 80px; }
+    .phones { gap: 64px 24px; }
+    .caption-title { font-size: 20px; }
+    .caption-body { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <div class="serial">BV · V3.3 · APP STORE</div>
+  <h1 class="doc-title">Your budget. <span class="light">Your device.</span> No one else.</h1>
+  <div class="doc-subtitle">BudgetVault v3.3 · VaultRevamp v2.1</div>
+  <p class="doc-sub">
+    Privacy-first budgeting. All insights on-device. No bank login, no subscription,
+    no analytics, no compromise. One purchase, yours forever.
+  </p>
+</div>
+
+<section class="hero">
+  <div class="hero-eyebrow">Nine Screens · v3.3.0</div>
+  <p class="hero-tagline">
+    A vault for your money — <em>designed</em> like one.
+  </p>
+</section>
+
+<div class="phones">
+
+  <!-- 01 — Home -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/01-home.png" alt="BudgetVault home dashboard showing daily allowance"></div>
+    <div class="caption">
+      <div class="caption-num">01 · HOME</div>
+      <div class="caption-title">Every day, one number.</div>
+      <div class="caption-body">Your daily allowance, flip-digit clear. Spent / saved / sealed at a glance. The status dial tells you if you're on track before the math does.</div>
+    </div>
+  </div>
+
+  <!-- 02 — History -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/02-history.png" alt="BudgetVault history view with ledger paper styling"></div>
+    <div class="caption">
+      <div class="caption-num">02 · HISTORY</div>
+      <div class="caption-title">A bound ledger of your spending.</div>
+      <div class="caption-body">Cream paper, ink-on-page. Every transaction, every no-spend day, sealed with a wax stamp. Search and filter without leaving the page.</div>
+    </div>
+  </div>
+
+  <!-- 03 — Vault -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/03-vault.png" alt="BudgetVault premium Vault tab with patterns and tools"></div>
+    <div class="caption">
+      <div class="caption-num">03 · THE VAULT</div>
+      <div class="caption-title">Patterns only you can see.</div>
+      <div class="caption-body">100% on-device AI finds your streaks, highlights anomalies, suggests moves. Your spending stays on your iPhone — always.</div>
+    </div>
+  </div>
+
+  <!-- 04 — Milestones -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/05-milestones.png" alt="BudgetVault milestones with earned achievements"></div>
+    <div class="caption">
+      <div class="caption-num">04 · MILESTONES</div>
+      <div class="caption-title">Every habit, a medallion.</div>
+      <div class="caption-body">Bronze, silver, gold — earned through consistency, not streaks-for-streaks-sake. Each one a quiet confirmation you're building something.</div>
+    </div>
+  </div>
+
+  <!-- 05 — Move Money -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/07-move-money.png" alt="BudgetVault move money between envelopes"></div>
+    <div class="caption">
+      <div class="caption-num">05 · MOVE MONEY</div>
+      <div class="caption-title">Reallocate in seconds.</div>
+      <div class="caption-body">Pick the from. Pick the to. Tap the amount. Done. Envelope-style budgeting without the binder.</div>
+    </div>
+  </div>
+
+  <!-- 06 — Log Expense -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/08-log-expense.png" alt="BudgetVault log expense with flip digit amount"></div>
+    <div class="caption">
+      <div class="caption-num">06 · LOG EXPENSE</div>
+      <div class="caption-title">Seven taps to tracked.</div>
+      <div class="caption-body">Flip-digit amount. Instant category. Suggested notes. No bank aggregator, no "connecting to your accounts" spinner. Just money in, money out.</div>
+    </div>
+  </div>
+
+  <!-- 07 — Wrapped -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/09-wrapped.png" alt="BudgetVault monthly wrapped saved ratio"></div>
+    <div class="caption">
+      <div class="caption-num">07 · MONTHLY WRAPPED</div>
+      <div class="caption-title">Your month, as a story.</div>
+      <div class="caption-body">Five slides, shareable to Stories. What you saved, where it went, what it says about you. Spotify-style, built for finance.</div>
+    </div>
+  </div>
+
+  <!-- 08 — Theme -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/06-theme.png" alt="BudgetVault accent color picker with titanium bezel"></div>
+    <div class="caption">
+      <div class="caption-num">08 · PERSONALIZE</div>
+      <div class="caption-title">Ten accents. Zero premium gates.</div>
+      <div class="caption-body">Pick a color that's yours. Applied to every button, chart, and highlight. Free for everyone — color shouldn't cost extra.</div>
+    </div>
+  </div>
+
+  <!-- 09 — Settings -->
+  <div class="phone-wrap">
+    <div class="phone"><img src="screenshots/04-settings.png" alt="BudgetVault settings with biometric lock and premium badge"></div>
+    <div class="caption">
+      <div class="caption-num">09 · SETTINGS</div>
+      <div class="caption-title">Locked, synced, yours.</div>
+      <div class="caption-body">Biometric lock. Optional iCloud sync. Export when you want. Delete everything when you need. Your data, your rules — no servers involved.</div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="doc-footer">
+  <p class="note">
+    All screenshots captured on iPhone 17 Pro running iOS 26.2.
+    BudgetVault is a privacy-first personal budgeting app — no third-party SDKs,
+    no analytics, no bank aggregators. "Data Not Collected" on the App Store.
+  </p>
+  <div class="meta">v3.3.0 · 2026-04 · budgetvault.io</div>
+</footer>
+
+</body>
+</html>
