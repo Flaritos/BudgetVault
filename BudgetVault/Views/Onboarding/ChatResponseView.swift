@@ -84,80 +84,10 @@ private struct FullCurrencyPickerSheet: View {
     }
 }
 
-// MARK: - Number Pad View
-
-struct ChatNumberPadView: View {
-    @Binding var text: String
-    let currencySymbol: String
-
-    private let keys: [[String]] = [
-        ["1", "2", "3"],
-        ["4", "5", "6"],
-        ["7", "8", "9"],
-        [".", "0", "\u{232B}"],
-    ]
-
-    var body: some View {
-        VStack(spacing: BudgetVaultTheme.spacingMD) {
-            // Display
-            Text(CurrencyFormatter.displayAmount(text: text))
-                .font(BudgetVaultTheme.amountEntry)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, BudgetVaultTheme.spacingSM)
-
-            Text("Monthly take-home pay")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.5))
-
-            // Pad
-            VStack(spacing: BudgetVaultTheme.spacingSM) {
-                ForEach(keys, id: \.self) { row in
-                    HStack(spacing: BudgetVaultTheme.spacingSM) {
-                        ForEach(row, id: \.self) { key in
-                            Button {
-                                handleKey(key)
-                            } label: {
-                                Text(key)
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 52)
-                                    .background {
-            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                .fill(Color.white.opacity(0.08))
-        }
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-        }
-    }
-
-    private func handleKey(_ key: String) {
-        if key == "\u{232B}" {
-            if !text.isEmpty {
-                text.removeLast()
-            }
-        } else if key == "." {
-            if !text.contains(".") {
-                text += text.isEmpty ? "0." : "."
-            }
-        } else {
-            // Limit decimal places to 2
-            if let dotIndex = text.firstIndex(of: ".") {
-                let decimals = text[text.index(after: dotIndex)...]
-                if decimals.count >= 2 { return }
-            }
-            // Limit total length
-            if text.count < 10 {
-                text += key
-            }
-        }
-    }
-}
+// Phase 9 §5: `ChatNumberPadView` struct deleted. It was dead code —
+// defined here but never referenced anywhere in the codebase (onboarding
+// uses `TitaniumKeypad` directly). Removing 70 lines of unused view +
+// handlers.
 
 // MARK: - Template Picker Cards
 
