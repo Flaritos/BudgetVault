@@ -44,38 +44,44 @@ struct AchievementBadgeView: View {
     var body: some View {
         VStack(spacing: BudgetVaultTheme.spacingXS) {
             ZStack {
-                // Background circle
+                // Chamber backing (recessed vault compartment) — titanium
+                // hairline ring that becomes tier-colored when unlocked.
                 Circle()
-                    .fill(isUnlocked ? tierColor.opacity(0.15) : Color(.systemGray5))
+                    .fill(BudgetVaultTheme.chamberBackground)
                     .frame(width: size, height: size)
 
-                // Border ring
                 Circle()
                     .strokeBorder(
-                        isUnlocked ? tierGradient : LinearGradient(colors: [.gray.opacity(0.3)], startPoint: .top, endPoint: .bottom),
-                        lineWidth: size * 0.05
+                        isUnlocked ? tierGradient : LinearGradient(
+                            colors: [BudgetVaultTheme.titanium700],
+                            startPoint: .top, endPoint: .bottom
+                        ),
+                        lineWidth: size * 0.04
                     )
                     .frame(width: size, height: size)
 
+                // Inner titanium hairline for chamber depth
+                Circle()
+                    .strokeBorder(BudgetVaultTheme.titanium300.opacity(0.12), lineWidth: 1)
+                    .frame(width: size - 4, height: size - 4)
+
                 if isUnlocked {
-                    // Emoji
                     Text(achievement.emoji)
-                        .font(.system(size: size * 0.4))
+                        .font(.system(size: size * 0.42))
                 } else {
-                    // Lock overlay
                     Image(systemName: "lock.fill")
-                        .font(.system(size: size * 0.25))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: size * 0.24))
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
                 }
             }
-            .shadow(color: isUnlocked ? tierColor.opacity(0.3) : .clear, radius: 4, y: 2)
+            .shadow(color: isUnlocked ? tierColor.opacity(0.35) : .black.opacity(0.3), radius: 6, y: 3)
 
-            // Title
             Text(achievement.title)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(isUnlocked ? .primary : .secondary)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(isUnlocked ? .white : BudgetVaultTheme.titanium300)
                 .lineLimit(1)
-                .frame(width: size + 10)
+                .minimumScaleFactor(0.85)
+                .frame(width: size + 12)
         }
         .onTapGesture {
             showDetail = true
@@ -94,30 +100,33 @@ struct AchievementBadgeView: View {
 
             Text(achievement.title)
                 .font(.headline)
+                .foregroundStyle(.white)
 
             Text(achievement.description)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(BudgetVaultTheme.titanium300)
 
             HStack(spacing: BudgetVaultTheme.spacingXS) {
                 Image(systemName: "star.fill")
                     .foregroundStyle(tierColor)
-                Text(achievement.tier.rawValue.capitalized)
-                    .font(.caption.weight(.semibold))
+                Text(achievement.tier.rawValue.uppercased())
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .tracking(1.5)
                     .foregroundStyle(tierColor)
             }
 
             if isUnlocked, let date = achievement.unlockedDate {
                 Text("Unlocked \(date, style: .date)")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
             } else if !isUnlocked {
                 Text("Not yet unlocked")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
             }
         }
         .padding(BudgetVaultTheme.spacingLG)
+        .background(BudgetVaultTheme.chamberBackground)
     }
 }
 
@@ -139,88 +148,108 @@ struct AchievementGridView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingLG) {
-            // Header
-            HStack {
-                Image(systemName: "trophy.fill")
-                    .foregroundStyle(BudgetVaultTheme.badgeGold)
-                Text("Achievements")
-                    .font(.headline)
-                Spacer()
-                Text("\(unlocked.count)/\(AchievementService.allAchievements.count)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        ZStack {
+            BudgetVaultTheme.navyDark.ignoresSafeArea()
 
-            // Progress bar
-            GeometryReader { geo in
-                let progress = AchievementService.allAchievements.isEmpty
-                    ? 0.0
-                    : Double(unlocked.count) / Double(AchievementService.allAchievements.count)
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemGray5))
-                        .frame(height: 6)
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [BudgetVaultTheme.badgeGold, BudgetVaultTheme.badgeGoldDark],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geo.size.width * progress, height: 6)
-                }
-            }
-            .frame(height: 6)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Achievement progress: \(unlocked.count) of \(AchievementService.allAchievements.count) unlocked")
+            ScrollView {
+                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingLG) {
+                    HingeRule(weight: .heavy)
 
-            // Grid
-            ZStack {
-                LazyVGrid(columns: columns, spacing: BudgetVaultTheme.spacingLG) {
-                    ForEach(AchievementService.allAchievements) { ach in
-                        let isAchUnlocked = unlockedIDs.contains(ach.id)
-                        let displayAch: AchievementService.Achievement = {
-                            if let match = unlocked.first(where: { $0.id == ach.id }) {
-                                return match
-                            }
-                            return ach
-                        }()
-
-                        AchievementBadgeView(
-                            achievement: displayAch,
-                            isUnlocked: isPremium ? isAchUnlocked : false,
-                            size: 60
-                        )
-                    }
-                }
-
-                // Premium overlay for free users
-                if !isPremium {
-                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                        .fill(.ultraThinMaterial)
-                        .overlay {
-                            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                                Image(systemName: "lock.fill")
-                                    .font(.title)
-                                    .foregroundStyle(.secondary)
-                                Text("Upgrade to Premium")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                Text("Unlock achievement tracking and badges")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .padding()
+                    // Header — VaultRevamp engraved typography
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Achievements")
+                                .font(.system(size: 32, weight: .bold))
+                                .tracking(-0.8)
+                                .foregroundStyle(.white)
+                            Spacer()
+                            Text("\(unlocked.count)/\(AchievementService.allAchievements.count)")
+                                .font(.system(size: 16, weight: .medium, design: .monospaced))
+                                .foregroundStyle(BudgetVaultTheme.titanium300)
                         }
+                        Text("UNLOCKED MILESTONES")
+                            .font(.system(size: 10, weight: .semibold))
+                            .tracking(2.0)
+                            .foregroundStyle(BudgetVaultTheme.titanium300)
+                    }
+                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                    // Progress bar — chamber recess with gold fill
+                    GeometryReader { geo in
+                        let progress = AchievementService.allAchievements.isEmpty
+                            ? 0.0
+                            : Double(unlocked.count) / Double(AchievementService.allAchievements.count)
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(BudgetVaultTheme.chamberBackground)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
+                                )
+                                .frame(height: 6)
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [BudgetVaultTheme.badgeGold, BudgetVaultTheme.badgeGoldDark],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: max(0, geo.size.width * progress), height: 6)
+                        }
+                    }
+                    .frame(height: 6)
+                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Achievement progress: \(unlocked.count) of \(AchievementService.allAchievements.count) unlocked")
+
+                    // Grid wrapped in ChamberCard
+                    ChamberCard(padding: BudgetVaultTheme.spacingLG) {
+                        ZStack {
+                            LazyVGrid(columns: columns, spacing: BudgetVaultTheme.spacingLG) {
+                                ForEach(AchievementService.allAchievements) { ach in
+                                    let isAchUnlocked = unlockedIDs.contains(ach.id)
+                                    let displayAch: AchievementService.Achievement = {
+                                        if let match = unlocked.first(where: { $0.id == ach.id }) {
+                                            return match
+                                        }
+                                        return ach
+                                    }()
+
+                                    AchievementBadgeView(
+                                        achievement: displayAch,
+                                        isUnlocked: isPremium ? isAchUnlocked : false,
+                                        size: 60
+                                    )
+                                }
+                            }
+
+                            if !isPremium {
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay {
+                                        VStack(spacing: BudgetVaultTheme.spacingMD) {
+                                            Image(systemName: "lock.fill")
+                                                .font(.title)
+                                                .foregroundStyle(BudgetVaultTheme.titanium300)
+                                            Text("Upgrade to Premium")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(.white)
+                                            Text("Unlock achievement tracking and badges")
+                                                .font(.caption)
+                                                .foregroundStyle(BudgetVaultTheme.titanium300)
+                                                .multilineTextAlignment(.center)
+                                        }
+                                        .padding()
+                                    }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
                 }
+                .padding(.vertical, BudgetVaultTheme.spacingLG)
             }
         }
-        .padding(BudgetVaultTheme.spacingLG)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
     }
 }
 

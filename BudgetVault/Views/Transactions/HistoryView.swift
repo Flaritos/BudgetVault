@@ -12,6 +12,8 @@ struct HistoryView: View {
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var searchText = ""
+    @State private var searchActive = false
+    @FocusState private var searchFieldFocused: Bool
     @State private var filterMode: FilterMode = .all
     @State private var selectedCategoryID: UUID?
     @State private var editingTransaction: Transaction?
@@ -64,13 +66,15 @@ struct HistoryView: View {
         cachedFilteredTransactions.count > displayLimit
     }
 
-    // MARK: - Period summary (cached in recomputeFilteredTransactions)
-
-    // MARK: - Static DateFormatter
-
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.setLocalizedDateFormatFromTemplate("EEEMMMd")
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
         return f
     }()
 
@@ -132,6 +136,23 @@ struct HistoryView: View {
             .map { (date: $0.key, transactions: $0.value.sorted { $0.date > $1.date }) }
     }
 
+    /// Days in the current period that had zero expense transactions.
+    private var noSpendDaysThisPeriod: Int {
+        guard let budget = currentBudget else { return 0 }
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: budget.periodStart)
+        let today = cal.startOfDay(for: Date())
+        let end = min(today, cal.startOfDay(for: budget.nextPeriodStart.addingTimeInterval(-1)))
+        guard end >= start else { return 0 }
+
+        let spendingDays = Set(allTransactions
+            .filter { !$0.isIncome && $0.date >= start && $0.date < (cal.date(byAdding: .day, value: 1, to: end) ?? end) }
+            .map { cal.startOfDay(for: $0.date) })
+
+        let totalDays = (cal.dateComponents([.day], from: start, to: end).day ?? 0) + 1
+        return max(0, totalDays - spendingDays.count)
+    }
+
     // MARK: - CSV
 
     private func generateCSV() -> String {
@@ -148,40 +169,60 @@ struct HistoryView: View {
         return lines.joined(separator: "\n")
     }
 
-    // MARK: - Body
+    // MARK: - Body — VaultRevamp v2.1 §7.10 "bound ledger" skin
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Compact gradient header
-                gradientHeader
+            ZStack {
+                // Cream paper gradient — the whole page is a page of the
+                // bound ledger book.
+                LinearGradient(
+                    colors: [BudgetVaultTheme.ledgerPaperLight, BudgetVaultTheme.ledgerPaperDark],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-                // Content
-                Group {
-                    if cachedFilteredTransactions.isEmpty && searchText.isEmpty && filterMode == .all && selectedCategoryID == nil {
-                        vaultEmptyState
-                    } else if cachedFilteredTransactions.isEmpty && !searchText.isEmpty {
-                        ContentUnavailableView.search(text: searchText)
-                    } else if cachedFilteredTransactions.isEmpty {
-                        EmptyStateView(
-                            icon: "line.3.horizontal.decrease",
-                            title: "No Matches",
-                            message: "No transactions match your current filters. Try changing your filters."
-                        )
-                    } else {
-                        transactionList
+                VStack(spacing: 0) {
+                    // Titanium hinge at the top (the cover's metal edge).
+                    HingeRule(weight: .heavy)
+
+                    ZStack(alignment: .top) {
+                        // L-shaped corner brackets inset 16pt on each side —
+                        // "this is a page inside a bound volume."
+                        cornerBrackets
+
+                        VStack(spacing: 0) {
+                            // Breathing room below the hinge rule so the
+                            // corner brackets live in their own margin (per
+                            // HTML: 60→80px gap before the "History" title).
+                            Spacer().frame(height: 28)
+
+                            ledgerHeader
+                                .padding(.horizontal, 28)
+                                .padding(.bottom, 18)
+
+                            if searchActive {
+                                ledgerSearchField
+                                    .padding(.horizontal, 28)
+                                    .padding(.bottom, 14)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+
+                            monthNavigator
+                                .padding(.horizontal, 28)
+                                .padding(.bottom, 18)
+
+                            statsRow
+                                .padding(.horizontal, 28)
+                                .padding(.bottom, 18)
+
+                            ledgerContent
+                        }
                     }
                 }
             }
-            // v3.2 audit K4: show an opaque navy toolbar so the system
-            // .searchable field has a visible frosted background instead
-            // of dark-on-dark invisibility. Also force dark color scheme
-            // so the placeholder text is readable.
-            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "Search notes or categories")
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 if viewingMonth == 0 {
                     let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -227,7 +268,7 @@ struct HistoryView: View {
             .onChange(of: displayLimit) { _, _ in
                 recomputeGroupedByDay()
             }
-            .tint(BudgetVaultTheme.electricBlue)
+            .tint(BudgetVaultTheme.ledgerInk)
             .sheet(isPresented: Binding(
                 get: { csvExportText != nil },
                 set: { if !$0 { csvExportText = nil } }
@@ -267,288 +308,704 @@ struct HistoryView: View {
         }
     }
 
-    // MARK: - Compact Gradient Header
+    // MARK: - Corner brackets (bound-book visual)
 
     @ViewBuilder
-    private var gradientHeader: some View {
-        VStack(spacing: 0) {
+    private var cornerBrackets: some View {
+        VStack {
             HStack {
-                // Left: back chevron with 44pt tap target
-                Button {
-                    navigateMonth(-1)
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Previous month")
-                .frame(width: 88, alignment: .leading)
-
+                CornerBracket(corner: .topLeft, size: 18)
                 Spacer()
+                CornerBracket(corner: .topRight, size: 18)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .allowsHitTesting(false)
+    }
 
-                // Center: month title + optional "Back to Today"
-                VStack(spacing: 2) {
-                    Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear))
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
+    // MARK: - Ledger header — "History" + "APRIL 2026" + icon buttons
 
-                    if !isCurrentPeriod {
-                        Button {
-                            if reduceMotion {
-                                let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
-                                viewingMonth = m
-                                viewingYear = y
-                                displayLimit = 50
-                            } else {
-                                withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
-                                    let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
-                                    viewingMonth = m
-                                    viewingYear = y
-                                    displayLimit = 50
-                                }
-                            }
-                        } label: {
-                            Text("Back to Today")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.85))
-                                .underline()
+    @ViewBuilder
+    private var ledgerHeader: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("History")
+                    .font(.system(size: 38, weight: .bold))
+                    .tracking(-1.14)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk)
+                    .lineSpacing(0)
+
+                Text(DateHelpers.monthYearString(month: viewingMonth, year: viewingYear).uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(2.5)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            }
+
+            Spacer()
+
+            HStack(spacing: 6) {
+                ledgerIconButton(systemImage: searchActive ? "xmark" : "magnifyingglass") {
+                    let willOpen = !searchActive
+                    searchActive = willOpen
+                    if !willOpen {
+                        searchText = ""
+                        searchFieldFocused = false
+                    } else {
+                        // Focus on next runloop tick once the field is in the hierarchy.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            searchFieldFocused = true
                         }
                     }
                 }
+                .accessibilityLabel(searchActive ? "Close search" : "Search history")
 
-                Spacer()
-
-                // Right: forward chevron + overflow menu
-                HStack(spacing: 0) {
-                    Button {
-                        navigateMonth(1)
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white.opacity(isCurrentPeriod ? 0.3 : 1))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .disabled(isCurrentPeriod)
-                    .accessibilityLabel("Next month")
-
-                    Menu {
-                        Section("Sort By") {
-                            ForEach(SortMode.allCases, id: \.self) { mode in
-                                Button {
-                                    sortMode = mode
-                                } label: {
-                                    HStack {
-                                        Text(mode.rawValue)
-                                        if sortMode == mode {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Section {
+                Menu {
+                    Section("Show") {
+                        ForEach(FilterMode.allCases, id: \.self) { mode in
                             Button {
-                                csvExportText = generateCSV()
+                                filterMode = mode
                             } label: {
-                                Label("Export CSV", systemImage: "square.and.arrow.up")
+                                HStack {
+                                    Text(mode.rawValue)
+                                    if filterMode == mode { Image(systemName: "checkmark") }
+                                }
                             }
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
                     }
-                    .accessibilityLabel("More options")
-                }
-                .frame(width: 88, alignment: .trailing)
-            }
-            .padding(.horizontal, BudgetVaultTheme.spacingMD)
-            .padding(.bottom, BudgetVaultTheme.spacingSM)
-        }
-        .padding(.top, BudgetVaultTheme.spacingSM)
-        // v3.2 audit H1: replaced royal-blue brandGradient (which clashed
-        // with the rest of the app and made the search field unreadable)
-        // with the same navy gradient used on Home's hero.
-        .background {
-            LinearGradient(
-                colors: [BudgetVaultTheme.navyDark.opacity(0.95), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
-        }
-    }
-
-    // MARK: - Summary Card
-
-    @ViewBuilder
-    private var summaryCard: some View {
-        HStack {
-            VStack(spacing: 2) {
-                Text("Spent")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                // v3.2 audit H2: neutral navy for normal spend totals;
-                // red (BudgetVaultTheme.negative) is reserved for overspend.
-                Text(CurrencyFormatter.format(cents: totalSpent))
-                    .font(.system(.callout, design: .rounded).weight(.bold))
-                    .foregroundStyle(.primary)
-            }
-            .frame(maxWidth: .infinity)
-
-            Divider().frame(height: 28)
-
-            VStack(spacing: 2) {
-                Text("Income")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                // v3.2 audit: only tint income green when there's actually income.
-                Text(CurrencyFormatter.format(cents: totalIncome))
-                    .font(.system(.callout, design: .rounded).weight(.bold))
-                    .foregroundStyle(totalIncome > 0 ? BudgetVaultTheme.positive : Color.primary)
-            }
-            .frame(maxWidth: .infinity)
-
-            Divider().frame(height: 28)
-
-            VStack(spacing: 2) {
-                // v3.2 audit L13: "COUNT" reads spreadsheet-y. "Entries" is warmer.
-                Text("Entries")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                Text("\(cachedFilteredTransactions.count)")
-                    .font(.system(.callout, design: .rounded).weight(.bold))
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(BudgetVaultTheme.spacingMD)
-        .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Period summary: Spent \(CurrencyFormatter.format(cents: totalSpent)), Income \(CurrencyFormatter.format(cents: totalIncome)), \(cachedFilteredTransactions.count) entries")
-        .padding(.horizontal)
-        .padding(.top, BudgetVaultTheme.spacingSM)
-    }
-
-    // MARK: - Segmented Filter
-
-    @ViewBuilder
-    private var segmentedFilter: some View {
-        Picker("Filter", selection: $filterMode) {
-            Text("All").tag(FilterMode.all)
-            Text("Expenses").tag(FilterMode.expenses)
-            Text("Income").tag(FilterMode.income)
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-        .padding(.top, BudgetVaultTheme.spacingSM)
-    }
-
-    // MARK: - Category Chips (Circular)
-
-    @ViewBuilder
-    private var categoryChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: BudgetVaultTheme.spacingSM + 2) {
-                // "All" chip
-                Button {
-                    selectedCategoryID = nil
-                    HapticManager.selection()
+                    Section("Sort by") {
+                        ForEach(SortMode.allCases, id: \.self) { mode in
+                            Button {
+                                sortMode = mode
+                            } label: {
+                                HStack {
+                                    Text(mode.rawValue)
+                                    if sortMode == mode { Image(systemName: "checkmark") }
+                                }
+                            }
+                        }
+                    }
+                    Section {
+                        Button {
+                            csvExportText = generateCSV()
+                        } label: {
+                            Label("Export CSV", systemImage: "square.and.arrow.up")
+                        }
+                    }
                 } label: {
-                    VStack(spacing: 3) {
-                        ZStack {
-                            Circle()
-                                .fill(selectedCategoryID == nil ? Color.accentColor : Color.secondary.opacity(0.06))
-                                .frame(width: 36, height: 36)
-                            Text("All")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(selectedCategoryID == nil ? .white : .secondary)
-                        }
-                        Text("All")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(selectedCategoryID == nil ? Color.accentColor : .secondary)
-                    }
-                    .frame(width: 48)
+                    ledgerIconButtonLabel(systemImage: "line.3.horizontal")
                 }
-                .accessibilityLabel("All categories")
-                .accessibilityAddTraits(selectedCategoryID == nil ? .isSelected : [])
-
-                // Category chips
-                ForEach(categories, id: \.id) { cat in
-                    let isSelected = selectedCategoryID == cat.id
-                    let catColor = Color(hex: cat.color)
-
-                    Button {
-                        selectedCategoryID = isSelected ? nil : cat.id
-                        HapticManager.selection()
-                    } label: {
-                        VStack(spacing: 3) {
-                            ZStack {
-                                Circle()
-                                    .fill(isSelected ? catColor.opacity(0.15) : Color.secondary.opacity(0.06))
-                                    .frame(width: 36, height: 36)
-                                Circle()
-                                    .strokeBorder(isSelected ? catColor : Color.clear, lineWidth: 2)
-                                    .frame(width: 36, height: 36)
-                                Text(cat.emoji)
-                                    .font(.system(size: 16))
-                            }
-                            Text(cat.name)
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(isSelected ? .primary : .secondary)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.center)
-                                .minimumScaleFactor(0.85)
-                        }
-                        .frame(width: 58) // Round 7 H11: widened so "Entertainment"/"Savings" don't truncate
-                    }
-                    .accessibilityLabel(cat.name)
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
-                }
+                .accessibilityLabel("Filter and sort")
             }
-            .padding(.horizontal)
         }
-        .padding(.top, BudgetVaultTheme.spacingSM)
     }
 
-    // MARK: - Vault Empty State
+    private func ledgerIconButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            ledgerIconButtonLabel(systemImage: systemImage)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func ledgerIconButtonLabel(systemImage: String) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(BudgetVaultTheme.ledgerInk)
+            .frame(width: 32, height: 32)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white.opacity(0.5))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(BudgetVaultTheme.ledgerRule, lineWidth: 1)
+            )
+            // Visible size stays 32pt; hit area bumps to 44pt per WCAG 2.5.5.
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+    }
+
+    // MARK: - Inline ledger search field (replaces .searchable, which
+    //         can't render when the nav bar is hidden)
 
     @ViewBuilder
-    private var vaultEmptyState: some View {
-        EmptyStateView(
-            icon: "clock.fill",
-            title: "Nothing Logged Yet",
-            message: "Your transaction history will appear here.",
-            actionLabel: "Log Expense"
-        ) {
-            NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+    private var ledgerSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            TextField(
+                "",
+                text: $searchText,
+                prompt: Text("Search notes or categories")
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            )
+            .font(.system(size: 14))
+            .foregroundStyle(BudgetVaultTheme.ledgerInk)
+            .tint(BudgetVaultTheme.ledgerInk)
+            .focused($searchFieldFocused)
+            .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.6), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(BudgetVaultTheme.ledgerRule, lineWidth: 1)
+        )
+    }
+
+    // MARK: - Month navigator (chevron / month / chevron)
+
+    @ViewBuilder
+    private var monthNavigator: some View {
+        HStack(spacing: 12) {
+            Button {
+                navigateMonth(-1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Previous month")
+
+            Spacer(minLength: 0)
+
+            VStack(spacing: 2) {
+                Text(monthOnly)
+                    .font(.system(size: 17, weight: .bold))
+                    .tracking(-0.17)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk)
+                if !isCurrentPeriod {
+                    Button {
+                        jumpToCurrentPeriod()
+                    } label: {
+                        Text("Back to today")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                navigateMonth(1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk.opacity(isCurrentPeriod ? 0.3 : 1))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .disabled(isCurrentPeriod)
+            .accessibilityLabel("Next month")
+        }
+        .padding(.vertical, 4)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(BudgetVaultTheme.ledgerRule)
+                .frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(BudgetVaultTheme.ledgerRule)
+                .frame(height: 1)
         }
     }
 
-    // MARK: - Day Label
+    private var monthOnly: String {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM"
+        let comps = DateComponents(year: viewingYear, month: viewingYear > 0 ? viewingMonth : 1)
+        if let date = Calendar.current.date(from: comps) {
+            return f.string(from: date)
+        }
+        return ""
+    }
 
-    private func dayLabel(for date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return "Today"
-        } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
+    private func jumpToCurrentPeriod() {
+        let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
+        if reduceMotion {
+            viewingMonth = m
+            viewingYear = y
+            displayLimit = 50
         } else {
-            return Self.dayFormatter.string(from: date)
+            withAnimation(.easeInOut(duration: BudgetVaultTheme.animationStandard)) {
+                viewingMonth = m
+                viewingYear = y
+                displayLimit = 50
+            }
         }
     }
 
-    // MARK: - Transaction List
+    // MARK: - Stats row — cream-tinted boxes
 
-    private var deleteConfirmationTitle: String {
-        "Delete this transaction?"
+    @ViewBuilder
+    private var statsRow: some View {
+        HStack(spacing: 8) {
+            ledgerStatBox(label: "SPENT", value: shortCurrency(totalSpent), valueColor: BudgetVaultTheme.ledgerInk)
+            ledgerStatBox(label: "ENTRIES", value: "\(cachedFilteredTransactions.count)", valueColor: BudgetVaultTheme.ledgerInk)
+            ledgerStatBox(label: "NO-SPEND", value: "\(noSpendDaysThisPeriod)", valueColor: Color(hex: "#059669"))
+        }
     }
+
+    private func ledgerStatBox(label: String, value: String, valueColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .tracking(1.8)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            Text(value)
+                .font(.system(size: 17, weight: .medium, design: .monospaced))
+                .foregroundStyle(valueColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.white.opacity(0.6))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color(hex: "#C2AD81"), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)")
+    }
+
+    /// Short currency — "$2,253" (no cents) for the stat boxes.
+    private func shortCurrency(_ cents: Int64) -> String {
+        let dollars = Int(cents / 100)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        let num = formatter.string(from: NSNumber(value: dollars)) ?? "\(dollars)"
+        return "$\(num)"
+    }
+
+    // MARK: - Ledger content (list of day groups or empty state)
+
+    @ViewBuilder
+    private var ledgerContent: some View {
+        if cachedFilteredTransactions.isEmpty && searchText.isEmpty && filterMode == .all && selectedCategoryID == nil {
+            ledgerEmptyState
+                .padding(.horizontal, 28)
+                .padding(.top, 40)
+            Spacer()
+        } else if cachedFilteredTransactions.isEmpty && !searchText.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+                .foregroundStyle(BudgetVaultTheme.ledgerInk)
+            Spacer()
+        } else if cachedFilteredTransactions.isEmpty {
+            EmptyStateView(
+                icon: "line.3.horizontal.decrease",
+                title: "No Matches",
+                message: "No transactions match your current filters. Try changing your filters."
+            )
+            Spacer()
+        } else {
+            ledgerList
+        }
+    }
+
+    @ViewBuilder
+    private var ledgerEmptyState: some View {
+        VStack(spacing: BudgetVaultTheme.spacingLG) {
+            Image(systemName: "book.closed")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            Text("Nothing logged yet")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(BudgetVaultTheme.ledgerInk)
+            Text("Your transaction history will appear here.")
+                .font(.system(size: 13))
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                .multilineTextAlignment(.center)
+            Button {
+                NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+            } label: {
+                Text("Log expense")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(BudgetVaultTheme.ledgerInk, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private var ledgerList: some View {
+        ScrollView {
+            LazyVStack(spacing: 18) {
+                // "Today" empty-state CTA if today has no transactions.
+                if isCurrentPeriod && !hasTransactionToday {
+                    todayCallout
+                        .padding(.horizontal, 28)
+                }
+
+                ForEach(cachedGroupedByDay, id: \.date) { group in
+                    dayGroupSection(for: group)
+                        .padding(.horizontal, 28)
+                }
+
+                // No-spend day rows (inferred days with zero expenses in
+                // the grouped list window).
+                if isCurrentPeriod {
+                    noSpendDayRows
+                        .padding(.horizontal, 28)
+                }
+
+                if hasMoreTransactions {
+                    Button {
+                        displayLimit += 50
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text("Load more")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(BudgetVaultTheme.ledgerInk)
+                            Spacer()
+                        }
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.white.opacity(0.5))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(BudgetVaultTheme.ledgerRule, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 28)
+                    .padding(.top, 8)
+                }
+
+                Spacer().frame(height: 40)
+            }
+            .padding(.top, 6)
+        }
+        .refreshable {
+            recomputeFilteredTransactions()
+        }
+    }
+
+    // MARK: - Day group (heading + cream card of entries)
+
+    @ViewBuilder
+    private func dayGroupSection(for group: (date: Date, transactions: [Transaction])) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            dayHeading(for: group.date, transactions: group.transactions)
+
+            VStack(spacing: 0) {
+                ForEach(Array(group.transactions.enumerated()), id: \.element.id) { index, transaction in
+                    entryRow(transaction)
+                        .contentShape(Rectangle())
+                        .onTapGesture { editingTransaction = transaction }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                duplicateTransaction(transaction)
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            .tint(BudgetVaultTheme.ledgerInk)
+
+                            Button {
+                                transaction.isReconciled.toggle()
+                                guard SafeSave.save(modelContext) else {
+                                    modelContext.rollback()
+                                    return
+                                }
+                                HapticManager.selection()
+                            } label: {
+                                Label(
+                                    transaction.isReconciled ? "Unreview" : "Reviewed",
+                                    systemImage: transaction.isReconciled ? "checkmark.circle.fill" : "checkmark.circle"
+                                )
+                            }
+                            .tint(Color(hex: "#059669"))
+                        }
+                        .contextMenu {
+                            Button {
+                                editingTransaction = transaction
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            Button {
+                                duplicateTransaction(transaction)
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .accessibilityHint("Double tap to edit. Swipe left to delete, swipe right to duplicate.")
+
+                    if index < group.transactions.count - 1 {
+                        Rectangle()
+                            .fill(Color(hex: "#C2AD81"))
+                            .frame(height: 1)
+                            .opacity(0.5)
+                            .padding(.horizontal, 14)
+                            .mask(DashedLineMask())
+                    }
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white.opacity(0.6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color(hex: "#C2AD81"), lineWidth: 1)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func dayHeading(for date: Date, transactions: [Transaction]) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(dayHeadingLabel(for: date))
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(2.0)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+            Spacer()
+            Text(daySubtotalLedger(transactions))
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundStyle(BudgetVaultTheme.ledgerInk)
+        }
+        .padding(.bottom, 4)
+        .overlay(alignment: .bottom) {
+            DashedLine()
+                .stroke(BudgetVaultTheme.ledgerRule, style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
+                .frame(height: 1)
+        }
+    }
+
+    private func dayHeadingLabel(for date: Date) -> String {
+        let cal = Calendar.current
+        let core = Self.dayFormatter.string(from: date)
+        if cal.isDateInToday(date) { return "\(core.uppercased()) · TODAY" }
+        if cal.isDateInYesterday(date) { return "\(core.uppercased()) · YESTERDAY" }
+        return core.uppercased()
+    }
+
+    private func daySubtotalLedger(_ transactions: [Transaction]) -> String {
+        let spent = transactions.filter { !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+        let earned = transactions.filter { $0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+        if earned > 0 && spent > 0 {
+            return "−\(CurrencyFormatter.format(cents: spent)) / +\(CurrencyFormatter.format(cents: earned))"
+        } else if earned > 0 {
+            return "+\(CurrencyFormatter.format(cents: earned))"
+        }
+        return "−\(CurrencyFormatter.format(cents: spent))"
+    }
+
+    // MARK: - Entry row (30pt icon square + title + meta + amount)
+
+    @ViewBuilder
+    private func entryRow(_ transaction: Transaction) -> some View {
+        let catColor = transactionCategoryColor(transaction)
+        HStack(spacing: 12) {
+            // 30pt colored icon square — category color at 15% fill, 40% border
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(catColor.opacity(0.15))
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(catColor.opacity(0.40), lineWidth: 1)
+                Text(transactionEmoji(transaction))
+                    .font(.system(size: 14))
+            }
+            .frame(width: 30, height: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transactionTitle(transaction))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk)
+                    .lineLimit(1)
+                Text(transactionMeta(transaction))
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(1.2)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 6)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(transactionLedgerAmount(transaction))
+                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk)
+                if transaction.isReconciled {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color(hex: "#059669"))
+                        .accessibilityLabel("Reviewed")
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(transactionTitle(transaction)), \(transactionLedgerAmount(transaction)), \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
+    }
+
+    private func transactionMeta(_ transaction: Transaction) -> String {
+        // "Category · 09:42" — 24-hour time (no "h" suffix), uppercase
+        // tracked for engraved-label feel.
+        let timeStr = Self.timeFormatter.string(from: transaction.date)
+        let context = transaction.isIncome ? "Income" : (transaction.category?.name ?? "")
+        return "\(context.uppercased()) · \(timeStr)"
+    }
+
+    private func transactionLedgerAmount(_ transaction: Transaction) -> String {
+        let sign = transaction.isIncome ? "+" : "−"
+        return "\(sign)\(CurrencyFormatter.format(cents: transaction.amountCents))"
+    }
+
+    // MARK: - No-spend day rows with WaxSeal
+
+    @ViewBuilder
+    private var noSpendDayRows: some View {
+        let emptyDays = inferNoSpendDaysInWindow()
+        if !emptyDays.isEmpty {
+            VStack(spacing: 10) {
+                ForEach(emptyDays, id: \.self) { date in
+                    HStack {
+                        Text("\(Self.dayFormatter.string(from: date).uppercased()) · NO-SPEND DAY")
+                            .font(.system(size: 10, weight: .semibold))
+                            .tracking(2.0)
+                            .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                        Spacer()
+                        WaxSeal()
+                    }
+                    .padding(.vertical, 6)
+                    .overlay(alignment: .bottom) {
+                        DashedLine()
+                            .stroke(BudgetVaultTheme.ledgerRule, style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
+                            .frame(height: 1)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Determine days in the current viewing period (up through today) that
+    /// had zero expense transactions AND aren't already rendered as day
+    /// groups above. We infer from the grouped list's date set.
+    private func inferNoSpendDaysInWindow() -> [Date] {
+        guard let budget = currentBudget, isCurrentPeriod else { return [] }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let start = cal.startOfDay(for: budget.periodStart)
+        guard today >= start else { return [] }
+
+        let spendingDays = Set(cachedGroupedByDay.map { cal.startOfDay(for: $0.date) })
+
+        // Only show last up to 5 empty days to avoid a wall of dashes.
+        var results: [Date] = []
+        var cursor = today
+        while cursor >= start, results.count < 5 {
+            if !spendingDays.contains(cursor) {
+                results.append(cursor)
+            }
+            guard let prev = cal.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return results
+    }
+
+    // MARK: - Today callout
+
+    private var hasTransactionToday: Bool {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        return allTransactions.contains {
+            !$0.isIncome && cal.isDate($0.date, inSameDayAs: today)
+        }
+    }
+
+    @ViewBuilder
+    private var todayCallout: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "sun.max.fill")
+                .font(.title3)
+                .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                .frame(width: 30, height: 30)
+                .background(Color.white.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(BudgetVaultTheme.ledgerRule, lineWidth: 1)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("TODAY")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(2.0)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInkStrong)
+                Text("Nothing logged yet")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk)
+            }
+            Spacer()
+            Button {
+                NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
+            } label: {
+                Text("Log")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(BudgetVaultTheme.ledgerInk, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(Color.white.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(BudgetVaultTheme.ledgerRule, lineWidth: 1)
+        )
+        .accessibilityIdentifier("todayEmptyRow")
+    }
+
+    // MARK: - Existing helpers (preserved)
+
+    private var deleteConfirmationTitle: String { "Delete this transaction?" }
 
     private func duplicateTransaction(_ transaction: Transaction) {
         let duplicate = Transaction(
@@ -566,273 +1023,6 @@ struct HistoryView: View {
         HapticManager.notification(.success)
     }
 
-    private let swipeToDeleteTip = SwipeToDeleteTip()
-
-    @ViewBuilder
-    private var transactionList: some View {
-        List {
-            // Tip
-            TipView(swipeToDeleteTip)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-                .listRowSeparator(.hidden)
-                .padding(.horizontal)
-
-            // Summary card
-            summaryCard
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-
-            // Segmented picker
-            segmentedFilter
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-
-            // Category chips (only when not income filter)
-            if filterMode != .income {
-                categoryChips
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-
-            // v3.2 Sprint 5 / audit M1: "Today" CTA only when today has
-            // no transactions. When today DOES have transactions, the
-            // existing cachedGroupedByDay renders a Today section header,
-            // so showing a second row is redundant.
-            if isCurrentPeriod && !hasTransactionToday {
-                todaySummaryRow
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-
-            // Grouped transactions by day
-            ForEach(cachedGroupedByDay, id: \.date) { group in
-                Section {
-                    // Day group card
-                    VStack(spacing: 0) {
-                        ForEach(Array(group.transactions.enumerated()), id: \.element.id) { index, transaction in
-                            Button {
-                                editingTransaction = transaction
-                            } label: {
-                                transactionRow(transaction)
-                            }
-                            .tint(.primary)
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    transactionToDelete = transaction
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    duplicateTransaction(transaction)
-                                } label: {
-                                    Label("Duplicate", systemImage: "doc.on.doc")
-                                }
-                                .tint(Color.accentColor)
-
-                                Button {
-                                    transaction.isReconciled.toggle()
-                                    guard SafeSave.save(modelContext) else {
-                                        modelContext.rollback()
-                                        return
-                                    }
-                                    HapticManager.selection()
-                                } label: {
-                                    Label(
-                                        transaction.isReconciled ? "Unreview" : "Reviewed",
-                                        systemImage: transaction.isReconciled ? "checkmark.circle.fill" : "checkmark.circle"
-                                    )
-                                }
-                                .tint(BudgetVaultTheme.positive)
-                            }
-                            .contextMenu {
-                                Button {
-                                    editingTransaction = transaction
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button {
-                                    duplicateTransaction(transaction)
-                                } label: {
-                                    Label("Duplicate", systemImage: "doc.on.doc")
-                                }
-                                Button(role: .destructive) {
-                                    transactionToDelete = transaction
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .accessibilityHint("Double tap to edit. Swipe left to delete, swipe right to duplicate.")
-
-                            if index < group.transactions.count - 1 {
-                                Divider()
-                                    .padding(.leading, 60)
-                            }
-                        }
-                    }
-                } header: {
-                    HStack {
-                        Text(dayLabel(for: group.date))
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Text(daySubtotal(group.transactions))
-                            .font(.subheadline.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, BudgetVaultTheme.spacingSM)
-                }
-            }
-
-            // Pagination: Load More
-            if hasMoreTransactions {
-                Section {
-                    Button {
-                        displayLimit += 50
-                    } label: {
-                        HStack {
-                            Spacer()
-                            Text("Load More")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(Color.accentColor)
-                            Spacer()
-                        }
-                        .padding(.vertical, BudgetVaultTheme.spacingSM)
-                    }
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-        }
-        .listStyle(.plain)
-        .refreshable {
-            recomputeFilteredTransactions()
-        }
-    }
-
-    // MARK: - Transaction Row (H1B Card Style)
-
-    /// v3.2: "Today" empty-state CTA. Only rendered when nothing has
-    /// been logged today — otherwise the existing day-group header
-    /// already shows Today's total and would be duplicated here.
-    private var hasTransactionToday: Bool {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        return allTransactions.contains {
-            !$0.isIncome && cal.isDate($0.date, inSameDayAs: today)
-        }
-    }
-
-    @ViewBuilder
-    private var todaySummaryRow: some View {
-        HStack(spacing: BudgetVaultTheme.spacingMD) {
-            Image(systemName: "sun.max.fill")
-                .font(.title3)
-                .foregroundStyle(BudgetVaultTheme.caution)
-                .frame(width: 36, height: 36)
-                .background(
-                    BudgetVaultTheme.caution.opacity(0.12),
-                    in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                )
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Today")
-                    .font(.subheadline.weight(.bold))
-                Text("Nothing logged yet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button {
-                NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
-            } label: {
-                Text("Log")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .frame(minHeight: 44)
-                    .background(Color.accentColor, in: Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, BudgetVaultTheme.spacingSM + 2)
-        .padding(.horizontal)
-        .background(
-            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                .fill(Color(.secondarySystemBackground))
-        )
-        .padding(.horizontal)
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("todayEmptyRow")
-    }
-
-    @ViewBuilder
-    private func transactionRow(_ transaction: Transaction) -> some View {
-        let catColor = transactionCategoryColor(transaction)
-
-        HStack(spacing: BudgetVaultTheme.spacingMD) {
-            // Category color bar
-            RoundedRectangle(cornerRadius: 2)
-                .fill(catColor)
-                .frame(width: 3, height: 32)
-
-            // Emoji in tinted rounded-rect
-            Text(transactionEmoji(transaction))
-                .font(.title3)
-                .frame(width: 40, height: 40)
-                .background(
-                    catColor.opacity(0.06),
-                    in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                )
-
-            // Info
-            VStack(alignment: .leading, spacing: 1) {
-                Text(transactionTitle(transaction))
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                HStack(spacing: BudgetVaultTheme.spacingXS) {
-                    Text(transaction.category?.name ?? "Income")
-                    Text("\u{00B7}")
-                    Text(transaction.date, style: .time)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            // Amount + reconciled indicator
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(transactionFormattedAmount(transaction))
-                    .font(BudgetVaultTheme.rowAmount)
-                    .foregroundStyle(transaction.isIncome ? BudgetVaultTheme.positive : .primary)
-                if transaction.isReconciled {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.caption2)
-                        .foregroundStyle(BudgetVaultTheme.positive.opacity(0.7))
-                        .accessibilityLabel("Reviewed")
-                }
-            }
-        }
-        .padding(.vertical, BudgetVaultTheme.spacingSM + 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(transactionEmoji(transaction)) \(transactionTitle(transaction)), \(transactionFormattedAmount(transaction)), \(transaction.date.formatted(date: .abbreviated, time: .omitted))")
-    }
-
-    // MARK: - Transaction Row Helpers
-
     private func transactionTitle(_ transaction: Transaction) -> String {
         if !transaction.note.isEmpty {
             return transaction.note
@@ -846,17 +1036,10 @@ struct HistoryView: View {
     }
 
     private func transactionCategoryColor(_ transaction: Transaction) -> Color {
-        if transaction.isIncome { return BudgetVaultTheme.positive }
-        guard let hex = transaction.category?.color else { return Color(.systemGray4) }
+        if transaction.isIncome { return Color(hex: "#059669") }
+        guard let hex = transaction.category?.color else { return BudgetVaultTheme.ledgerRule }
         return Color(hex: hex)
     }
-
-    private func transactionFormattedAmount(_ transaction: Transaction) -> String {
-        let sign = transaction.isIncome ? "+" : "-"
-        return "\(sign)\(CurrencyFormatter.format(cents: transaction.amountCents))"
-    }
-
-    // MARK: - Navigation
 
     private func navigateMonth(_ delta: Int) {
         if reduceMotion {
@@ -881,16 +1064,63 @@ struct HistoryView: View {
         }
         return field
     }
+}
 
-    private func daySubtotal(_ transactions: [Transaction]) -> String {
-        let spent = transactions.filter { !$0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
-        let earned = transactions.filter { $0.isIncome }.reduce(Int64(0)) { $0 + $1.amountCents }
+// MARK: - Corner bracket (bound-volume visual)
 
-        if earned > 0 && spent > 0 {
-            return "-\(CurrencyFormatter.format(cents: spent)) / +\(CurrencyFormatter.format(cents: earned))"
-        } else if earned > 0 {
-            return "+\(CurrencyFormatter.format(cents: earned))"
+private struct CornerBracket: View {
+    enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
+    let corner: Corner
+    var size: CGFloat = 24
+
+    var body: some View {
+        CornerBracketShape(corner: corner)
+            .stroke(BudgetVaultTheme.ledgerInk, lineWidth: 2)
+            .frame(width: size, height: size)
+    }
+}
+
+private struct CornerBracketShape: Shape {
+    let corner: CornerBracket.Corner
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        switch corner {
+        case .topLeft:
+            p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        case .topRight:
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        case .bottomLeft:
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        case .bottomRight:
+            p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
         }
-        return "-\(CurrencyFormatter.format(cents: spent))"
+        return p
+    }
+}
+
+// MARK: - Dashed line primitive (ledgerRule divider)
+
+private struct DashedLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return p
+    }
+}
+
+private struct DashedLineMask: View {
+    var body: some View {
+        DashedLine()
+            .stroke(Color.black, style: StrokeStyle(lineWidth: 1, dash: [2, 3]))
     }
 }

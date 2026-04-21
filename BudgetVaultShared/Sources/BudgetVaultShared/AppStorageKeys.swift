@@ -24,6 +24,7 @@ public enum AppStorageKeys {
 
     // MARK: - Security
     public static let biometricLockEnabled = "biometricLockEnabled"
+    public static let vaultName = "vaultName"
 
     // MARK: - Streak
     public static let currentStreak = "currentStreak"

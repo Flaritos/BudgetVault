@@ -13,7 +13,15 @@ struct LaunchScreenView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: BudgetVaultTheme.spacingLG) {
-                VaultDialMark(size: 120, showGlow: true, tickRotation: rotation)
+                // VaultRevamp v2.1: launch dial uses the canonical VaultDial
+                // primitive (shared with Home/Vault). The face rotation is
+                // animated via `tickRotation`; pointer + lock stay fixed.
+                VaultDial(
+                    size: .hero,
+                    state: .locked,
+                    faceRotationDegrees: rotation
+                )
+                .frame(width: 120, height: 120)
 
                 Text("BudgetVault")
                     .font(.title.weight(.bold))

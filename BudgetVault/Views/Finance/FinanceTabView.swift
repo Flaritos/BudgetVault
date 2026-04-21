@@ -114,39 +114,201 @@ struct FinanceTabView: View {
         }
     }
 
-    // MARK: - Premium Content
+    // MARK: - Premium Content — VaultRevamp v2.1 §7.9
+    //
+    // The "inner sanctum" — you're looking at the vault's interior back
+    // wall. Large faint VaultDial watermark behind content at 10% opacity
+    // anchors the view. Patterns chamber + Tools 2×2 grid.
 
     @ViewBuilder
     private var premiumContent: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                // 1. Header with Neon Ring
-                vaultHeader
+        ZStack {
+            // Radial gradient background — from spec: inner chamber,
+            // lighter at top (ambient light from above) fading to near-black.
+            RadialGradient(
+                colors: [Color(hex: "#1a2b52"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                center: UnitPoint(x: 0.5, y: 0.1),
+                startRadius: 40,
+                endRadius: 500
+            )
+            .ignoresSafeArea()
 
-                // 2. Neon Divider
-                neonDivider
+            // Dial watermark — positioned absolutely behind content,
+            // 400pt wide at 10% opacity. "Back wall of the vault."
+            VaultDial(size: .watermark, state: .locked)
+                .scaleEffect(2.0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 40)
+                .allowsHitTesting(false)
 
-                // 3. Intelligence Section
-                if !insights.isEmpty {
-                    intelligenceSection
+            ScrollView {
+                VStack(spacing: 0) {
+                    HingeRule(weight: .heavy)
+                        .padding(.bottom, BudgetVaultTheme.spacingLG)
+
+                    vaultHeaderV2
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                        .padding(.bottom, BudgetVaultTheme.spacingXL)
+
+                    patternsChamber
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                        .padding(.bottom, BudgetVaultTheme.spacingLG)
+
+                    toolsGrid
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+
+                    Spacer(minLength: BudgetVaultTheme.spacingXL)
                 }
-
-                // 4. Neon Divider
-                neonDivider
-
-                // 5. Tools Section
-                toolsSection
-
-                Spacer()
-                    .frame(height: BudgetVaultTheme.spacingXL)
             }
         }
-        .background(BudgetVaultTheme.navyDark)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $navigateToBudgetSetup) {
             BudgetView()
         }
+    }
+
+    // MARK: - VaultRevamp v2.1 Header — dial + "Vault" + "Day X of Y · Status"
+
+    @ViewBuilder
+    private var vaultHeaderV2: some View {
+        let progress = min(max(spentFraction, 0), 1)
+        HStack(alignment: .center, spacing: 16) {
+            VaultDial(
+                size: .medium,
+                state: currentBudget == nil ? .locked : .progress(progress)
+            )
+            .frame(width: 60, height: 60)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Vault")
+                    .font(.system(size: 44, weight: .bold))
+                    .tracking(-1.3)
+                    .foregroundStyle(.white)
+                    .lineSpacing(0)
+
+                Text(headerSubtitle)
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1.5)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// "DAY 23 OF 31 · ON TRACK" — engraved label style.
+    private var headerSubtitle: String {
+        guard let budget = currentBudget else { return "SET UP YOUR VAULT" }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let start = cal.startOfDay(for: budget.periodStart)
+        let end = cal.startOfDay(for: budget.nextPeriodStart)
+        let totalDays = cal.dateComponents([.day], from: start, to: end).day ?? 30
+        let elapsedDays = max(1, (cal.dateComponents([.day], from: start, to: today).day ?? 0) + 1)
+        let dayLabel = "DAY \(min(elapsedDays, totalDays)) OF \(totalDays)"
+        return "\(dayLabel) · \(healthStatus.uppercased())"
+    }
+
+    // MARK: - Patterns Chamber (renamed from "Intelligence" per spec)
+
+    @ViewBuilder
+    private var patternsChamber: some View {
+        ChamberCard(padding: 18) {
+            VStack(spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Patterns")
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(1.5)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Spacer()
+                    Text("ON-DEVICE")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(1.3)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                }
+
+                patternRow(
+                    value: "\(currentStreak)",
+                    label: "Day streak",
+                    subtitle: patternsStreakSubtitle,
+                    accent: BudgetVaultTheme.positive
+                )
+
+                patternRow(
+                    value: "\(noSpendDaysThisPeriod)",
+                    label: "No-spend days",
+                    subtitle: patternsNoSpendSubtitle,
+                    accent: BudgetVaultTheme.titanium100
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func patternRow(value: String, label: String, subtitle: String, accent: Color) -> some View {
+        HStack(spacing: 14) {
+            Text(value)
+                .font(.system(size: 26, weight: .medium, design: .monospaced))
+                .foregroundStyle(accent)
+                .frame(minWidth: 38, alignment: .trailing)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(1.2)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(accent.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(accent.opacity(0.25), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value). \(subtitle)")
+    }
+
+    private var patternsStreakSubtitle: String {
+        if currentStreak == 0 { return "THIS MONTH" }
+        if currentStreak >= 7 { return "THIS MONTH · BEST YET" }
+        return "THIS MONTH"
+    }
+
+    private var patternsNoSpendSubtitle: String {
+        let count = noSpendDaysThisPeriod
+        if count == 0 { return "THIS MONTH" }
+        if count >= 10 { return "THIS MONTH · PERSONAL BEST" }
+        return "THIS MONTH"
+    }
+
+    /// Days in the current budget period up to today that had zero
+    /// expense transactions. Computed on the fly — no separate storage.
+    private var noSpendDaysThisPeriod: Int {
+        guard let budget = currentBudget else { return 0 }
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: budget.periodStart)
+        let today = cal.startOfDay(for: Date())
+        let end = min(today, cal.startOfDay(for: budget.nextPeriodStart.addingTimeInterval(-1)))
+        guard end >= start else { return 0 }
+
+        // Collect distinct days with at least one expense.
+        let spendingDays = Set(allTransactions
+            .filter { !$0.isIncome && $0.date >= start && $0.date < cal.date(byAdding: .day, value: 1, to: end) ?? end }
+            .map { cal.startOfDay(for: $0.date) })
+
+        // Count days from start through end (inclusive).
+        let totalDays = (cal.dateComponents([.day], from: start, to: end).day ?? 0) + 1
+        return max(0, totalDays - spendingDays.count)
     }
 
     // MARK: - Non-Premium Content
@@ -159,7 +321,8 @@ struct FinanceTabView: View {
         // initial viewport. Scrollable content stays above.
         ScrollView {
             VStack(spacing: BudgetVaultTheme.spacingXL) {
-                VaultDialMark(size: 72)
+                VaultDial(size: .medium, state: .locked)
+                    .frame(width: 72, height: 72)
                     .padding(.top, BudgetVaultTheme.spacingLG)
 
                 VStack(spacing: BudgetVaultTheme.spacingSM) {
@@ -177,7 +340,7 @@ struct FinanceTabView: View {
                 VStack(spacing: BudgetVaultTheme.spacingMD) {
                     vaultFeatureRow(
                         icon: "brain.head.profile",
-                        title: "Vault Intelligence",
+                        title: "Vault Patterns",
                         blurb: "On-device ML predicts month-end spend and flags anomalies."
                     )
                     vaultFeatureRow(
@@ -271,280 +434,133 @@ struct FinanceTabView: View {
         }
     }
 
-    // MARK: - Vault Header
+    // MARK: - Tools grid (VaultRevamp v2.1 §7.9)
 
     @ViewBuilder
-    private var vaultHeader: some View {
-        HStack(alignment: .center, spacing: 14) {
-            // Mini neon vault ring showing % spent
-            ZStack {
-                Circle()
-                    .stroke(.white.opacity(0.06), lineWidth: 3)
-                    .frame(width: 44, height: 44)
-                Circle()
-                    .trim(from: 0, to: min(max(spentFraction, 0), 1))
-                    .stroke(neonBlue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 44, height: 44)
-                    .shadow(color: neonBlue.opacity(0.5), radius: 4)
-                VaultDialMark(size: 50)
-                    .opacity(0.12)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Vault")
-                    .font(.title.weight(.heavy))
-                    .foregroundStyle(.white)
-
-                if healthStatus == "Set Income" {
-                    Button {
-                        navigateToBudgetSetup = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("Set Income")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(neonBlue)
-                            Image(systemName: "arrow.right.circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(neonBlue.opacity(0.7))
-                        }
-                    }
-                    .accessibilityHint("Opens budget setup")
-                } else {
-                    Text("\(healthStatus) \u{00B7} \(daysRemaining) days left")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.65))
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.top, BudgetVaultTheme.spacingLG)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Vault. \(healthStatus). \(daysRemaining) days left.")
-    }
-
-    // MARK: - Neon Divider
-
-    @ViewBuilder
-    private var neonDivider: some View {
-        Rectangle()
-            .fill(
-                LinearGradient(colors: [.clear, neonBlue.opacity(0.2), .clear],
-                               startPoint: .leading, endPoint: .trailing)
-            )
-            .frame(height: 1)
-            .padding(.vertical, BudgetVaultTheme.spacingLG)
-    }
-
-    // MARK: - Intelligence Section
-
-    @ViewBuilder
-    private var intelligenceSection: some View {
-        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
-            Text("INTELLIGENCE")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(neonBlue.opacity(0.6))
+    private var toolsGrid: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Tools")
+                .font(.system(size: 11, weight: .semibold))
                 .tracking(1.5)
-                .padding(.horizontal)
-
-            ForEach(insights) { insight in
-                insightRow(insight)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func insightRow(_ insight: Insight) -> some View {
-        HStack(spacing: BudgetVaultTheme.spacingMD) {
-            // Severity icon with glow (replaces color-only dot for a11y)
-            Image(systemName: insight.severity.vaultIconName)
-                .font(.subheadline)
-                .foregroundStyle(insight.severity.neonColor)
-                .shadow(color: insight.severity.neonColor.opacity(0.6), radius: 4)
-                .frame(width: 20)
-
-            Text(insight.title)
-                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.white.opacity(0.85))
-                .lineLimit(1)
 
-            Spacer()
-        }
-        .padding(.horizontal, BudgetVaultTheme.spacingLG)
-        .padding(.vertical, BudgetVaultTheme.spacingMD)
-        .background(
-            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
-                .fill(.white.opacity(0.03))
-                .overlay(
-                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
-                        .strokeBorder(.white.opacity(0.05), lineWidth: 1)
-                )
-        )
-        .padding(.horizontal)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(insight.severity.rawValue) priority: \(insight.title)")
-    }
-
-    // MARK: - Tools Section
-
-    @ViewBuilder
-    private var toolsSection: some View {
-        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
-            Text("TOOLS")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.35))
-                .tracking(1.5)
-                .padding(.horizontal)
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                vaultToolTile(
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                spacing: 8
+            ) {
+                toolChamber(
                     icon: "chart.xyaxis.line",
+                    iconColor: BudgetVaultTheme.accentSoft,
                     title: "Insights",
-                    subtitle: "\(insights.count) findings",
-                    accentColor: neonBlue
+                    subtitle: insightsSubtitle,
+                    subtitleColor: BudgetVaultTheme.titanium300,
+                    borderTint: nil
                 ) {
                     InsightsView()
-                } miniViz: {
-                    GeometryReader { geo in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(.white.opacity(0.04))
-                            .frame(height: 3)
-                            .overlay(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(LinearGradient(
-                                        colors: [BudgetVaultTheme.neonBlue, BudgetVaultTheme.neonBlue.opacity(0.6)],
-                                        startPoint: .leading, endPoint: .trailing
-                                    ))
-                                    .frame(width: geo.size.width * min(max(spentFraction, 0.1), 1.0), height: 3)
-                                    .shadow(color: neonBlue.opacity(0.3), radius: 4)
-                            }
-                    }
-                    .frame(height: 3)
                 }
 
-                vaultToolTile(
-                    icon: "creditcard.fill",
-                    title: "Debt Tracker",
-                    subtitle: debtSummary,
-                    accentColor: neonGreen
+                toolChamber(
+                    icon: "wallet.bifold.fill",
+                    iconColor: BudgetVaultTheme.neonYellow,
+                    title: "Debt tracker",
+                    subtitle: debtSubtitle,
+                    subtitleColor: BudgetVaultTheme.neonYellow,
+                    borderTint: BudgetVaultTheme.neonYellow.opacity(0.3)
                 ) {
                     DebtTrackingView()
-                } miniViz: {
-                    GeometryReader { geo in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(.white.opacity(0.04))
-                            .frame(height: 3)
-                            .overlay(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(LinearGradient(
-                                        colors: [BudgetVaultTheme.neonGreen, BudgetVaultTheme.neonGreen.opacity(0.6)],
-                                        startPoint: .leading, endPoint: .trailing
-                                    ))
-                                    .frame(width: geo.size.width * (activeDebts.isEmpty ? 0 : 0.28), height: 3)
-                            }
-                    }
-                    .frame(height: 3)
                 }
 
-                vaultToolTile(
+                toolChamber(
                     icon: "envelope.fill",
-                    title: "Budget",
-                    subtitle: "\(categoryCount) envelopes",
-                    accentColor: neonOrange
+                    iconColor: BudgetVaultTheme.titanium100,
+                    title: "Envelopes",
+                    subtitle: envelopeSubtitle,
+                    subtitleColor: BudgetVaultTheme.titanium300,
+                    borderTint: nil
                 ) {
                     BudgetView()
-                } miniViz: {
-                    HStack(spacing: 3) {
-                        let heights: [CGFloat] = [14, 10, 12, 6, 8, 4]
-                        ForEach(0..<min(categoryCount, 6), id: \.self) { i in
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(categoryColors[i % categoryColors.count])
-                                .frame(width: 4, height: heights[i % heights.count])
-                        }
-                    }
                 }
 
-                vaultToolTile(
-                    icon: "star.circle.fill",
+                toolChamber(
+                    icon: "star.fill",
+                    iconColor: BudgetVaultTheme.neonPurple,
                     title: "Wrapped",
                     subtitle: wrappedSubtitle,
-                    accentColor: neonPurple
+                    subtitleColor: BudgetVaultTheme.neonPurple,
+                    borderTint: BudgetVaultTheme.neonPurple.opacity(0.3)
                 ) {
                     MonthlyWrappedShell()
-                } miniViz: {
-                    if wrappedIsNew {
-                        Text("NEW")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(neonPurple.opacity(0.5))
-                    }
                 }
             }
-            .padding(.horizontal)
         }
+    }
+
+    private func toolChamber<Dest: View>(
+        icon: String,
+        iconColor: Color,
+        title: String,
+        subtitle: String,
+        subtitleColor: Color,
+        borderTint: Color?,
+        @ViewBuilder destination: () -> Dest
+    ) -> some View {
+        NavigationLink { destination() } label: {
+            ChamberCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(iconColor)
+                        .frame(height: 20)
+                    Spacer(minLength: 4)
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(subtitle)
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(1.0)
+                        .foregroundStyle(subtitleColor)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .aspectRatio(1.0, contentMode: .fit)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(borderTint ?? Color.clear, lineWidth: borderTint == nil ? 0 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(subtitle)")
+    }
+
+    // MARK: - Tool subtitles
+
+    private var insightsSubtitle: String {
+        let count = insights.count
+        return count == 1 ? "1 FINDING" : "\(count) FINDINGS"
+    }
+
+    private var debtSubtitle: String {
+        if activeDebts.isEmpty { return "TRACK DEBTS" }
+        let count = activeDebts.count
+        return count == 1 ? "1 ACTIVE" : "\(count) ACTIVE"
+    }
+
+    private var envelopeSubtitle: String {
+        let count = categoryCount
+        return count == 1 ? "1 ACTIVE" : "\(count) ACTIVE"
+    }
+
+    private var wrappedSubtitle: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM"
+        let month = formatter.string(from: Date()).uppercased()
+        return wrappedIsNew ? "\(month) READY" : "\(month)"
     }
 
     private var wrappedIsNew: Bool {
         guard let budget = currentBudget else { return false }
         let key = "\(budget.year)-\(budget.month)"
         return lastWrappedViewed != key
-    }
-
-    private var wrappedSubtitle: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM"
-        return "\(formatter.string(from: Date())) ready"
-    }
-
-    // MARK: - Vault Tool Tile
-
-    private func vaultToolTile<Dest: View, Viz: View>(
-        icon: String,
-        title: String,
-        subtitle: String,
-        accentColor: Color,
-        @ViewBuilder destination: () -> Dest,
-        @ViewBuilder miniViz: () -> Viz
-    ) -> some View {
-        NavigationLink { destination() } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundStyle(accentColor.opacity(0.7))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(accentColor.opacity(0.3))
-                }
-                .padding(.bottom, BudgetVaultTheme.spacingSM)
-
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.65))
-                    .padding(.bottom, BudgetVaultTheme.spacingSM)
-
-                Spacer()
-
-                miniViz()
-            }
-            .padding(BudgetVaultTheme.spacingLG)
-            .background(
-                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                    .fill(.white.opacity(0.04))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                            .strokeBorder(.white.opacity(0.06), lineWidth: 1)
-                    )
-            )
-        }
-        .tint(.primary)
-        .accessibilityLabel("\(title), \(subtitle)")
     }
 }
 

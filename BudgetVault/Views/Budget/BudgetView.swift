@@ -604,7 +604,7 @@ struct BudgetView: View {
                     .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                     .padding(.top, BudgetVaultTheme.spacing2XL)
 
-                NumberPadView(text: $incomeText)
+                QuietKeypad(text: $incomeText)
                     .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                 Spacer()
@@ -649,7 +649,7 @@ struct BudgetView: View {
                         .lineLimit(1)
                         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
 
-                    NumberPadView(text: $categoryAmountText)
+                    QuietKeypad(text: $categoryAmountText)
                         .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
                     Divider()

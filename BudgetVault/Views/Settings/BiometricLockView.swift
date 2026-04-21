@@ -4,44 +4,55 @@ struct BiometricLockView: View {
     let authService: BiometricAuthService
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        ZStack {
+            // VaultRevamp v2.1: radial ambient glow from the top of the
+            // chamber — same language as the Vault tab inner sanctum.
+            RadialGradient(
+                colors: [Color(hex: "#1a2b52"), BudgetVaultTheme.navyDark, Color(hex: "#070E1F")],
+                center: UnitPoint(x: 0.5, y: 0.15),
+                startRadius: 40,
+                endRadius: 600
+            )
+            .ignoresSafeArea()
 
-            VaultDialMark(size: 100, showGlow: true)
+            VStack(spacing: 32) {
+                Spacer()
 
-            Text("BudgetVault")
-                .font(.largeTitle.bold())
-                .foregroundStyle(.white)
+                // Canonical VaultDial at hero size — shared primitive.
+                VaultDial(size: .hero, state: .locked)
+                    .frame(width: 140, height: 140)
 
-            Text("Authenticate to open your vault")
-                .font(.body)
-                .foregroundStyle(.white.opacity(0.7))
+                Text("BudgetVault")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
 
-            Button {
-                Task { await authService.authenticate() }
-            } label: {
-                Label("Unlock with \(authService.biometricName)", systemImage: authService.biometricIcon)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.white, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(BudgetVaultTheme.electricBlue)
+                Text("Authenticate to open your vault")
+                    .font(.body)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+
+                Button {
+                    Task { await authService.authenticate() }
+                } label: {
+                    Label("Unlock with \(authService.biometricName)", systemImage: authService.biometricIcon)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(BudgetVaultTheme.accentSoft, in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 40)
+                .accessibilityHint("Authenticate to open your vault")
+
+                if let error = authService.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                }
+
+                Spacer()
+                Spacer()
             }
-            .padding(.horizontal, 40)
-            .accessibilityHint("Authenticate to open your vault")
-
-            if let error = authService.errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.8))
-            }
-
-            Spacer()
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(BudgetVaultTheme.brandGradient)
-        .ignoresSafeArea()
         .task {
             await authService.authenticate()
         }

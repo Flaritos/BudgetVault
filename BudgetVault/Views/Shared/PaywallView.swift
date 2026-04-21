@@ -41,7 +41,7 @@ struct PaywallView: View {
                         VStack(spacing: BudgetVaultTheme.spacingMD) {
                             heroFeatureCard(
                                 icon: "brain.head.profile",
-                                title: "Vault Intelligence",
+                                title: "Vault Patterns",
                                 description: "On-device AI predicts spending, spots anomalies, and finds patterns. Your data never leaves your phone."
                             )
 
@@ -88,7 +88,11 @@ struct PaywallView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, BudgetVaultTheme.spacingLG)
-                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                            .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                                    .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
+                            )
                             .padding(.horizontal, BudgetVaultTheme.spacingLG)
                         }
 
@@ -303,7 +307,7 @@ struct PaywallView: View {
                     VStack(spacing: BudgetVaultTheme.spacingXS) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 28))
-                        Text("Vault Unlocked!")
+                        Text("The vault is open.")
                             .font(.subheadline.bold())
                     }
                 }
@@ -332,7 +336,7 @@ struct PaywallView: View {
                     .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
-                    unlockRow(icon: "brain.head.profile", text: "Vault Intelligence & predictions")
+                    unlockRow(icon: "brain.head.profile", text: "Vault Patterns & predictions")
                     unlockRow(icon: "square.grid.2x2", text: "Unlimited categories")
                     unlockRow(icon: "repeat", text: "Unlimited recurring expenses")
                     unlockRow(icon: "chart.xyaxis.line", text: "Advanced reports & charts")

@@ -29,8 +29,18 @@ struct CategoryDetailView: View {
                     Text(category.name)
                         .font(.title2.bold())
 
-                    BudgetRingView(spent: category.spentCents(in: budget), budgeted: category.budgetedAmountCents)
-                        .frame(width: 80, height: 80)
+                    // VaultRevamp v2.1: progress expressed via VaultDial
+                    // instead of the retired BudgetRingView. Shows spent /
+                    // budgeted as an arc inside the titanium bezel.
+                    VaultDial(
+                        size: .medium,
+                        state: .progress(
+                            category.budgetedAmountCents > 0
+                                ? min(max(Double(category.spentCents(in: budget)) / Double(category.budgetedAmountCents), 0), 1)
+                                : 0
+                        )
+                    )
+                    .frame(width: 80, height: 80)
 
                     HStack {
                         Text("Spent: \(CurrencyFormatter.format(cents: category.spentCents(in: budget)))")

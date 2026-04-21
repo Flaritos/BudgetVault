@@ -6,9 +6,6 @@ struct TransactionEntryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @ScaledMetric(relativeTo: .body) private var chipSize: CGFloat = 44
-    @ScaledMetric(relativeTo: .body) private var chipWidth: CGFloat = 56
-
     let budget: Budget
     let categories: [Category]
     var prefillAmount: Double?
@@ -33,7 +30,9 @@ struct TransactionEntryView: View {
     @State private var lastSavedAmount: String = ""
     @State private var didApplyIntentPrefill = false
     @State private var categoryAutoSelected = false
-    @FocusState private var isInputFocused: Bool
+    @State private var categoryConfidence: Double = 0  // 0.0–1.0
+    @FocusState private var noteFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let categoryLearning = CategoryLearningService()
 
@@ -42,108 +41,34 @@ struct TransactionEntryView: View {
         Array(allRecentTransactions.prefix(200))
     }
 
+    // MARK: - Body
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Brand accent stripe
-                LinearGradient(
-                    colors: [Color.accentColor.opacity(0.8), Color.accentColor],
-                    startPoint: .leading, endPoint: .trailing
-                )
-                .frame(height: 4)
+            ZStack {
+                BudgetVaultTheme.navyDark.ignoresSafeArea()
 
-                formContent
-            } // end outer VStack
-            // v3.2 audit M16: was "Add Expense"/"Add Income", duplicating
-            // the segmented picker. Neutral title lets the picker drive.
-            .navigationTitle("New Transaction")
+                VStack(spacing: 0) {
+                    // Titanium hairline at the top — the "deposit box lid"
+                    // seam on the bottom sheet. Visible right under the
+                    // system drag handle.
+                    Rectangle()
+                        .fill(BudgetVaultTheme.titanium300.opacity(0.55))
+                        .frame(height: 1)
+
+                    formContent
+                }
+            }
+            .navigationTitle(isIncome ? "New income" : "New expense")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .onAppear { applyIntentPrefillIfNeeded() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                }
-            }
-        }
-    }
-
-    /// Extracted to keep `body` under the Swift 6 type-checker timeout.
-    /// Was previously a single 280-line ViewBuilder that timed out under iOS 18 SDK.
-    @ViewBuilder
-    private var formContent: some View {
-            VStack(spacing: BudgetVaultTheme.spacingLG) {
-                typePicker
-                // Scrollable middle section for small phone support
-                ScrollView {
-                    VStack(spacing: BudgetVaultTheme.spacingLG) {
-                        amountDisplay
-                        budgetContextHint
-                        suggestedAmountButton
-                        if !isIncome {
-                            quickAmountChips
-                            quickAddTemplatesRow
-                            categoryPickerSection
-                        } else {
-                            // Round 7 H12: Income mode previously left a ~180pt
-                            // empty gap where expense categories used to be.
-                            // Now shows a calm caption instead.
-                            HStack(spacing: 6) {
-                                Image(systemName: "arrow.down.circle.fill")
-                                    .foregroundStyle(BudgetVaultTheme.positive)
-                                Text("Income goes into your monthly budget pool.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal)
-                        }
-                        dateAndNoteSection
-                    }
-                }
-                // Pinned bottom: number pad + save actions
-                NumberPadView(text: $amountText)
-                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
-                savedBanner
-                // v3.2 audit K3: inline hint so users know WHY Save is
-                // disabled. Previously the button just sat grey silently
-                // and blocked the 5-second log loop for first-time users.
-                saveHelperText
-                // v3.2 whimsy: button briefly collapses to a check before dismiss.
-                Button {
-                    HapticManager.notification(.success)
-                    saveTransaction()
-                } label: {
-                    if showSavedBanner {
-                        Image(systemName: "checkmark")
-                            .font(.title3.weight(.bold))
-                            .transition(.scale.combined(with: .opacity))
-                    } else {
-                        Text("Save")
-                            .transition(.opacity)
-                    }
-                }
-                .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
-                .disabled(!canSave)
-                .padding(.horizontal)
-                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: showSavedBanner)
-
-                // Round 7 R5: was a second filled blue button competing
-                // with Save. Now a quiet text link so there's exactly ONE
-                // primary CTA in the sheet.
-                Button {
-                    saveAndAddAnother()
-                } label: {
-                    Text("Save & Add Another")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(canSave ? Color.accentColor : Color.secondary)
-                }
-                .disabled(!canSave)
-                .padding(.horizontal)
-                .padding(.bottom, BudgetVaultTheme.spacingSM)
-            }
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { isInputFocused = false }
+                        .tint(BudgetVaultTheme.accentSoft)
                 }
             }
             .alert("Save Failed", isPresented: $showSaveError) {
@@ -156,38 +81,157 @@ struct TransactionEntryView: View {
                     UIAccessibility.post(notification: .announcement, argument: "Transaction saved")
                 }
             }
+        }
     }
 
-    private var typePicker: some View {
+    @ViewBuilder
+    private var formContent: some View {
+        VStack(spacing: 0) {
+            // Scrollable interior — date chips, flip amount, auto-sorted
+            // badge, deposit-box categories, note chamber.
+            ScrollView {
+                VStack(spacing: BudgetVaultTheme.spacingLG) {
+                    typeToggle
+                    dateChipRow
+                    amountDisplay
+                    budgetContextHint
+                    suggestedAmountButton
+                    autoSortedBadge
+                    if !isIncome {
+                        depositBoxCategoryRow
+                    } else {
+                        incomeHint
+                    }
+                    noteChamber
+                    if showNoteSuggestions && !noteSuggestions.isEmpty {
+                        noteSuggestionStrip
+                    }
+                    if !isIncome { quickAmountChips }
+                }
+                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                .padding(.top, BudgetVaultTheme.spacingMD)
+                .padding(.bottom, BudgetVaultTheme.spacingSM)
+            }
+
+            // Pinned bottom: QuietKeypad + Save CTA. Log is a fast
+            // recurring task — no ceremony, no titanium keys.
+            VStack(spacing: BudgetVaultTheme.spacingSM) {
+                QuietKeypad(text: $amountText)
+                savedBanner
+                saveHelperText
+                saveCTA
+                saveAndAddAnotherLink
+            }
+            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            .padding(.bottom, BudgetVaultTheme.spacingMD)
+        }
+    }
+
+    // MARK: - Type toggle (Expense ⇄ Income)
+
+    private var typeToggle: some View {
         Picker("Type", selection: $isIncome) {
             Text("Expense").tag(false)
             Text("Income").tag(true)
         }
         .pickerStyle(.segmented)
-        .tint(BudgetVaultTheme.navyDark)
-        .padding(.horizontal)
+        .onChange(of: isIncome) { _, newValue in
+            if newValue {
+                selectedCategory = nil
+                categoryAutoSelected = false
+            }
+        }
     }
+
+    // MARK: - Date chip row (Today / Yesterday / 2 days ago / picker)
+
+    private var dateChipRow: some View {
+        HStack(spacing: 6) {
+            dateChip(offset: 0, label: "Today")
+            dateChip(offset: -1, label: "Yesterday")
+            dateChip(offset: -2, label: "2 days ago")
+            datePickerChip
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func dateChip(offset: Int, label: String) -> some View {
+        let targetDate = Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+        let isSelected = Calendar.current.isDate(date, inSameDayAs: targetDate)
+        return Button {
+            date = targetDate
+            HapticManager.selection()
+        } label: {
+            Text(label)
+                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                .foregroundStyle(isSelected ? .white : BudgetVaultTheme.titanium200)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isSelected ? BudgetVaultTheme.accentSoft : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(
+                            isSelected ? BudgetVaultTheme.accentSoft : BudgetVaultTheme.titanium700,
+                            lineWidth: 1
+                        )
+                )
+                // Expand tap target to 44pt per WCAG 2.5.5 / Apple HIG
+                // without inflating the visible pill.
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var datePickerChip: some View {
+        let previousPeriodStart = Calendar.current.date(byAdding: .month, value: -1, to: budget.periodStart) ?? budget.periodStart
+        let isCustomDate = ![0, -1, -2].contains { offset in
+            let target = Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+            return Calendar.current.isDate(date, inSameDayAs: target)
+        }
+        return HStack(spacing: 4) {
+            Image(systemName: "calendar")
+                .font(.caption)
+            DatePicker("Date",
+                       selection: $date,
+                       in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
+                       displayedComponents: .date)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .tint(BudgetVaultTheme.accentSoft)
+                .scaleEffect(0.85)
+                .frame(width: isCustomDate ? 110 : 28, alignment: .leading)
+                .clipped()
+        }
+        .foregroundStyle(isCustomDate ? .white : BudgetVaultTheme.titanium300)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(
+                    isCustomDate ? BudgetVaultTheme.accentSoft : BudgetVaultTheme.titanium700,
+                    lineWidth: 1
+                )
+        )
+        .accessibilityLabel("Pick a date")
+    }
+
+    // MARK: - Flip-digit amount display (replaces plain Text)
 
     @ViewBuilder
     private var amountDisplay: some View {
-        let foreground: Color = amountText.isEmpty
-            ? Color.secondary
-            : (isIncome ? BudgetVaultTheme.positive : .primary)
-        ZStack {
-            if let suggestedAmount = suggestedAmountText, amountText.isEmpty {
-                Text(CurrencyFormatter.displayAmount(text: suggestedAmount))
-                    .font(BudgetVaultTheme.amountEntry)
-                    .foregroundStyle(Color.secondary.opacity(0.3))
-            }
-
-            Text(CurrencyFormatter.displayAmount(text: amountText))
-                .font(BudgetVaultTheme.amountEntry)
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-                .foregroundStyle(foreground)
-                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
-        }
-        .accessibilityValue(amountText.isEmpty ? "No amount entered" : "\(CurrencyFormatter.currencySymbol()) \(amountText)")
+        let cents = MoneyHelpers.parseCurrencyString(amountText) ?? 0
+        let amount = Decimal(cents) / 100
+        FlipDigitDisplay(
+            amount: amount,
+            style: .display,
+            currencyCode: selectedCurrency,
+            contextLabel: amountText.isEmpty ? "Amount — no value entered" : "Amount entered"
+        )
         .padding(.top, BudgetVaultTheme.spacingSM)
     }
 
@@ -200,7 +244,7 @@ struct TransactionEntryView: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(remaining > 0 ? BudgetVaultTheme.positive : BudgetVaultTheme.negative)
                 Text(remaining > 0 ? "left in \(cat.name)" : "over in \(cat.name)")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
             }
             .font(.caption)
         }
@@ -215,192 +259,295 @@ struct TransactionEntryView: View {
             } label: {
                 Text("Use suggested amount")
                     .font(.caption)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
                     .padding(.horizontal, BudgetVaultTheme.spacingMD)
                     .padding(.vertical, BudgetVaultTheme.spacingXS)
-                    .background(Color.accentColor.opacity(0.1), in: Capsule())
+                    .background(BudgetVaultTheme.accentSoft.opacity(0.12), in: Capsule())
             }
         }
     }
 
+    // MARK: - Auto-sorted badge (spec §7.8: "Auto-sorted · 94% CONFIDENT")
+
     @ViewBuilder
-    private var quickAddTemplatesRow: some View {
-        if !frequentTemplates.isEmpty && !isIncome {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: BudgetVaultTheme.spacingSM) {
-                    ForEach(Array(frequentTemplates.enumerated()), id: \.offset) { _, template in
-                        Button {
-                            note = template.note
-                            selectedCategory = template.category
-                            amountText = CurrencyFormatter.formatRaw(cents: template.amountCents)
-                            manualCategorySelection = true
-                        } label: {
-                            HStack(spacing: BudgetVaultTheme.spacingXS) {
-                                Text(template.category?.emoji ?? "")
-                                Text(template.note).lineLimit(1)
-                            }
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.accentColor.opacity(0.1), in: Capsule())
-                        }
-                        .tint(.primary)
-                        .accessibilityLabel("Quick add: \(template.category?.emoji ?? "") \(template.note), \(CurrencyFormatter.format(cents: template.amountCents))")
-                    }
-                }
-                .padding(.horizontal)
+    private var autoSortedBadge: some View {
+        if !isIncome && categoryAutoSelected && selectedCategory != nil && categoryConfidence >= 0.80 {
+            let pct = Int((categoryConfidence * 100).rounded())
+            HStack(spacing: 8) {
+                Text("Auto-sorted")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                Text("\(pct)% CONFIDENT")
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .tracking(0.8)
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(BudgetVaultTheme.accentSoft.opacity(0.15))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.4), lineWidth: 1)
+                    )
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Auto-sorted, \(pct) percent confident")
         }
     }
 
+    // MARK: - Category row — mini deposit-box cards (spec §7.8)
+
     @ViewBuilder
-    private var categoryPickerSection: some View {
-        if !isIncome && categories.isEmpty {
+    private var depositBoxCategoryRow: some View {
+        if categories.isEmpty {
             Text("Create a category in Settings first.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-        } else if !isIncome {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: BudgetVaultTheme.spacingMD) {
-                    ForEach(categories, id: \.id) { category in
-                        Button {
-                            selectedCategory = category
-                            manualCategorySelection = true
-                            categoryAutoSelected = false
-                            HapticManager.selection()
-                        } label: {
-                            let isAutoSuggested = categoryAutoSelected && selectedCategory?.id == category.id
-                            VStack(spacing: 2) {
-                                ZStack(alignment: .topTrailing) {
-                                    CategoryChipView(
-                                        emoji: category.emoji,
-                                        name: category.name,
-                                        isSelected: selectedCategory?.id == category.id,
-                                        chipSize: chipSize,
-                                        chipWidth: chipWidth
-                                    )
-                                    if isAutoSuggested {
-                                        Image(systemName: "sparkle")
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(Color.accentColor)
-                                            .offset(x: 2, y: -2)
-                                    }
-                                }
-                                if isAutoSuggested {
-                                    Text("Suggested")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .tint(.primary) // v3.2 M3: prevent button tint bleed into chip label
-                        .accessibilityLabel(categoryAutoSelected && selectedCategory?.id == category.id ? "Suggested: \(category.name)" : category.name)
-                        .accessibilityAddTraits(selectedCategory?.id == category.id ? .isSelected : [])
+                .foregroundStyle(BudgetVaultTheme.titanium300)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            let visible = Array(categories.prefix(4))
+            let overflow = categories.count > 4
+            VStack(spacing: BudgetVaultTheme.spacingSM) {
+                HStack(spacing: 6) {
+                    ForEach(visible, id: \.id) { category in
+                        depositBoxCard(for: category)
                     }
                 }
-                .padding(.horizontal)
+                if overflow {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(categories.dropFirst(4), id: \.id) { category in
+                                depositBoxCard(for: category)
+                                    .frame(width: 88)
+                            }
+                        }
+                    }
+                    .mask(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .black, location: 0.0),
+                                .init(color: .black, location: 0.9),
+                                .init(color: .clear, location: 1.0)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                }
             }
-            // v3.2 audit H4: right-edge fade mask so horizontal overflow
-            // is discoverable instead of silently cut off.
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0.0),
-                        .init(color: .black, location: 0.9),
-                        .init(color: .clear, location: 1.0)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+        }
+    }
+
+    private func depositBoxCard(for category: Category) -> some View {
+        let isSelected = selectedCategory?.id == category.id
+        let pipColor = Color(hex: category.color)
+        return Button {
+            selectedCategory = category
+            manualCategorySelection = true
+            categoryAutoSelected = false
+            categoryConfidence = 0
+            HapticManager.selection()
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                // Titanium top lid — 3pt when selected, 3pt titanium600 when not
+                Rectangle()
+                    .fill(isSelected ? BudgetVaultTheme.titanium300 : BudgetVaultTheme.titanium700)
+                    .frame(height: 3)
+
+                VStack(spacing: 4) {
+                    HStack {
+                        Spacer()
+                        Circle()
+                            .fill(pipColor)
+                            .frame(width: 5, height: 5)
+                    }
+                    HStack(spacing: 3) {
+                        Text(category.emoji)
+                            .font(.system(size: 13))
+                        Text(category.name)
+                            .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                            .foregroundStyle(isSelected ? .white : BudgetVaultTheme.titanium300)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(
+                        LinearGradient(
+                            colors: isSelected
+                                ? [Color(hex: "#1a2744"), Color(hex: "#0F1B33")]
+                                : [Color.clear, Color.clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(
+                        isSelected ? BudgetVaultTheme.accentSoft : BudgetVaultTheme.titanium700,
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            .opacity(isSelected ? 1.0 : 0.55)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(categoryAutoSelected && selectedCategory?.id == category.id ? "Suggested: \(category.name)" : category.name)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var incomeHint: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(BudgetVaultTheme.positive)
+            Text("Income goes into your monthly budget pool.")
+                .font(.caption)
+                .foregroundStyle(BudgetVaultTheme.titanium300)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Note chamber (wraps TextField in ChamberCard)
+
+    private var noteChamber: some View {
+        ChamberCard(padding: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("NOTE")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                TextField(
+                    "",
+                    text: $note,
+                    prompt: Text("e.g. Lunch · Sushi place downtown").foregroundStyle(BudgetVaultTheme.titanium400)
+                )
+                .font(.system(size: 13))
+                .foregroundStyle(.white)
+                .tint(BudgetVaultTheme.accentSoft)
+                .focused($noteFocused)
+                .submitLabel(.done)
+                .onSubmit { noteFocused = false }
+                .onChange(of: note) { _, newValue in
+                    showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
+                    if !manualCategorySelection {
+                        if let suggestion = categoryLearning.suggestCategory(for: newValue),
+                           let match = categories.first(where: { $0.name == suggestion.categoryName }) {
+                            selectedCategory = match
+                            categoryAutoSelected = true
+                            categoryConfidence = suggestion.confidence
+                        } else if let suggested = suggestedCategory {
+                            selectedCategory = suggested
+                            categoryAutoSelected = true
+                            categoryConfidence = 0.80
+                        } else {
+                            categoryAutoSelected = false
+                            categoryConfidence = 0
+                        }
+                    }
+                }
+            }
         }
     }
 
     @ViewBuilder
-    private var dateAndNoteSection: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXS) {
-            let previousPeriodStart = Calendar.current.date(byAdding: .month, value: -1, to: budget.periodStart) ?? budget.periodStart
-            HStack {
-                // v3.2 audit L5: added a calendar glyph so the date pill
-                // reads as a picker, not a category chip.
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    DatePicker("Date", selection: $date,
-                               in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
-                               displayedComponents: .date)
-                        .labelsHidden()
-                }
-                TextField("Add a note", text: $note)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($isInputFocused)
-                    .onChange(of: note) { _, newValue in
-                        showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
+    private var noteSuggestionStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(noteSuggestions, id: \.self) { suggestion in
+                    Button {
+                        note = suggestion
+                        showNoteSuggestions = false
+                        noteFocused = false
                         if !manualCategorySelection {
-                            if let suggestion = categoryLearning.suggestCategory(for: newValue),
-                               let match = categories.first(where: { $0.name == suggestion.categoryName }) {
+                            if let learned = categoryLearning.suggestCategory(for: suggestion),
+                               let match = categories.first(where: { $0.name == learned.categoryName }) {
                                 selectedCategory = match
                                 categoryAutoSelected = true
+                                categoryConfidence = learned.confidence
                             } else if let suggested = suggestedCategory {
                                 selectedCategory = suggested
                                 categoryAutoSelected = true
-                            } else {
-                                categoryAutoSelected = false
+                                categoryConfidence = 0.80
                             }
                         }
+                    } label: {
+                        Text(suggestion)
+                            .font(.caption)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(BudgetVaultTheme.titanium300.opacity(0.12), in: Capsule())
                     }
-            }
-            .padding(.horizontal)
-
-            if date < budget.periodStart {
-                HStack(spacing: 4) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption2)
-                        .foregroundStyle(BudgetVaultTheme.caution)
-                    Text("This date is in last month's budget period")
-                        .font(.caption)
-                        .foregroundStyle(BudgetVaultTheme.caution)
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal)
             }
+        }
+        .frame(height: 28)
+    }
 
-            if showNoteSuggestions && !noteSuggestions.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(noteSuggestions, id: \.self) { suggestion in
-                            Button {
-                                note = suggestion
-                                showNoteSuggestions = false
-                                if !manualCategorySelection {
-                                    if let learned = categoryLearning.suggestCategory(for: suggestion),
-                                       let match = categories.first(where: { $0.name == learned.categoryName }) {
-                                        selectedCategory = match
-                                        categoryAutoSelected = true
-                                    } else if let suggested = suggestedCategory {
-                                        selectedCategory = suggested
-                                        categoryAutoSelected = true
-                                    }
-                                }
-                            } label: {
-                                Text(suggestion)
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.secondary.opacity(0.12), in: Capsule())
-                            }
-                            .tint(.primary)
+    // MARK: - Quick-amount chips (kept; restyled as quiet pills)
+
+    private static let zeroDecimalCurrencies: Set<String> = ["JPY", "KRW", "VND", "CLP", "ISK", "UGX"]
+
+    private var quickAmounts: [Int64] {
+        if Self.zeroDecimalCurrencies.contains(selectedCurrency) {
+            return [50_000, 100_000, 200_000, 500_000]
+        }
+        return [500, 1000, 2000, 5000]
+    }
+
+    @ViewBuilder
+    private var quickAmountChips: some View {
+        let symbol = CurrencyFormatter.currencySymbol(for: selectedCurrency)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(quickAmounts, id: \.self) { cents in
+                    let dollars = cents / 100
+                    let isActive = amountText == "\(dollars)"
+                    Button {
+                        amountText = "\(dollars)"
+                        HapticManager.selection()
+                        if selectedCategory == nil, let mru = mostRecentlyUsedCategory {
+                            selectedCategory = mru
+                            manualCategorySelection = true
+                            categoryAutoSelected = true
+                            categoryConfidence = 0.80
                         }
+                    } label: {
+                        Text("\(symbol)\(dollars)")
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(isActive ? .white : BudgetVaultTheme.titanium300)
+                            .frame(minWidth: 56, minHeight: 32)
+                            .padding(.horizontal, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(isActive ? BudgetVaultTheme.accentSoft.opacity(0.15) : Color.clear)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(
+                                        isActive ? BudgetVaultTheme.accentSoft : BudgetVaultTheme.titanium700,
+                                        lineWidth: 1
+                                    )
+                            )
                     }
-                    .padding(.horizontal)
+                    .buttonStyle(.plain)
                 }
-                .frame(height: 28)
+                Spacer(minLength: 0)
             }
         }
     }
 
-    /// Audit K3: tells the user exactly why Save is disabled, if it is.
+    // MARK: - Save helpers + CTAs
+
     @ViewBuilder
     private var saveHelperText: some View {
         if !canSave {
@@ -416,12 +563,52 @@ struct TransactionEntryView: View {
             if !msg.isEmpty {
                 Text(msg)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
                     .frame(maxWidth: .infinity)
-                    .padding(.bottom, 4)
                     .transition(.opacity)
             }
         }
+    }
+
+    private var saveCTA: some View {
+        Button {
+            HapticManager.notification(.success)
+            saveTransaction()
+        } label: {
+            HStack {
+                if showSavedBanner {
+                    Image(systemName: "checkmark")
+                        .font(.title3.weight(.bold))
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Text(saveCTALabel)
+                        .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(PrimaryButtonStyle(isEnabled: canSave))
+        .disabled(!canSave)
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.75), value: showSavedBanner)
+    }
+
+    private var saveCTALabel: String {
+        guard let cents = MoneyHelpers.parseCurrencyString(amountText), cents > 0 else {
+            return "Save"
+        }
+        return "Save · \(CurrencyFormatter.format(cents: cents, currencyCode: selectedCurrency))"
+    }
+
+    private var saveAndAddAnotherLink: some View {
+        Button {
+            saveAndAddAnother()
+        } label: {
+            Text("Save & add another")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(canSave ? BudgetVaultTheme.accentSoft : BudgetVaultTheme.titanium700)
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSave)
     }
 
     @ViewBuilder
@@ -434,7 +621,7 @@ struct TransactionEntryView: View {
                     Text("Saved!")
                         .font(.subheadline.bold())
                     if let cat = lastSavedCategory {
-                        Text("\(lastSavedAmount) \u{00B7} \(cat)")
+                        Text("\(lastSavedAmount) · \(cat)")
                             .font(.caption)
                             .opacity(0.85)
                     }
@@ -459,6 +646,8 @@ struct TransactionEntryView: View {
         }
     }
 
+    // MARK: - Intent prefill
+
     private func applyIntentPrefillIfNeeded() {
         guard !didApplyIntentPrefill else { return }
         didApplyIntentPrefill = true
@@ -475,62 +664,6 @@ struct TransactionEntryView: View {
         }
         if let prefillNote, !prefillNote.isEmpty {
             note = prefillNote
-        }
-    }
-
-    // MARK: - Quick Amount Chips
-
-    /// Zero-decimal currencies store 1 yen = 100 internal cents,
-    /// so quick-amount chips need 100x larger cent values to show
-    /// sensible round numbers (500, 1000, 2000, 5000 yen).
-    private static let zeroDecimalCurrencies: Set<String> = ["JPY", "KRW", "VND", "CLP", "ISK", "UGX"]
-
-    private var quickAmounts: [Int64] {
-        if Self.zeroDecimalCurrencies.contains(selectedCurrency) {
-            return [50_000, 100_000, 200_000, 500_000] // 500, 1000, 2000, 5000 in whole units
-        }
-        return [500, 1000, 2000, 5000] // $5, $10, $20, $50 in cents
-    }
-
-    @ViewBuilder
-    private var quickAmountChips: some View {
-        let symbol = CurrencyFormatter.currencySymbol(for: selectedCurrency)
-
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: BudgetVaultTheme.spacingSM) {
-                ForEach(quickAmounts, id: \.self) { cents in
-                    let dollars = cents / 100
-                    Button {
-                        amountText = "\(dollars)"
-                        HapticManager.selection()
-                        // Round 7 R4: auto-pick the most-recently-used
-                        // category when a quick chip is tapped so Save
-                        // isn't stuck waiting for a second tap.
-                        if selectedCategory == nil, let mru = mostRecentlyUsedCategory {
-                            selectedCategory = mru
-                            manualCategorySelection = true
-                            categoryAutoSelected = true
-                        }
-                    } label: {
-                        // v3.2 audit H7: bumped to 44pt min tap target (WCAG).
-                        Text("\(symbol)\(dollars)")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(amountText == "\(dollars)" ? Color.accentColor : Color.primary)
-                            .frame(minWidth: 56, minHeight: 44)
-                            .padding(.horizontal, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                    .fill(Color.accentColor.opacity(amountText == "\(dollars)" ? 0.15 : 0.07))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                    .strokeBorder(amountText == "\(dollars)" ? Color.accentColor : Color.clear, lineWidth: 1.5)
-                            )
-                    }
-                    .tint(.primary)
-                }
-            }
-            .padding(.horizontal)
         }
     }
 
@@ -581,7 +714,6 @@ struct TransactionEntryView: View {
         let allNotes = recentTransactions
             .filter { !$0.note.isEmpty && $0.note.lowercased().hasPrefix(lowered) && $0.note.lowercased() != lowered }
             .map { $0.note }
-        // Unique, preserving order
         var seen = Set<String>()
         var unique: [String] = []
         for n in allNotes {
@@ -593,21 +725,6 @@ struct TransactionEntryView: View {
             if unique.count >= 5 { break }
         }
         return unique
-    }
-
-    // MARK: - Frequent Templates
-
-    private var frequentTemplates: [(note: String, category: Category?, amountCents: Int64)] {
-        let expenses = recentTransactions.filter { !$0.isIncome && !$0.note.isEmpty }
-        let grouped = Dictionary(grouping: expenses) { "\($0.note.lowercased())|\($0.category?.id.uuidString ?? "")" }
-        return grouped
-            .filter { $0.value.count >= 2 }
-            .sorted { $0.value.count > $1.value.count }
-            .prefix(5)
-            .compactMap { (_, txs) -> (String, Category?, Int64)? in
-                guard let first = txs.first else { return nil }
-                return (first.note, first.category, first.amountCents)
-            }
     }
 
     // MARK: - Actions
@@ -633,7 +750,6 @@ struct TransactionEntryView: View {
             return nil
         }
 
-        // Record category learning
         if !isIncome, let category = selectedCategory {
             categoryLearning.recordMapping(note: note, categoryName: category.name)
         }
@@ -642,8 +758,6 @@ struct TransactionEntryView: View {
         StreakService.recordLogEntry()
         WidgetDataService.update(from: modelContext, resetDay: UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay))
         UserDefaults.standard.set(true, forKey: AppStorageKeys.hasLoggedFirstTransaction)
-
-        // Update last active date and reschedule re-engagement notifications
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.lastActiveDate)
         NotificationService.scheduleReengagementNotifications()
 
@@ -658,15 +772,13 @@ struct TransactionEntryView: View {
     private func saveAndAddAnother() {
         guard let cents = performSave() else { return }
 
-        // Capture saved info for banner display
         lastSavedAmount = CurrencyFormatter.format(cents: cents)
         lastSavedCategory = isIncome ? "Income" : selectedCategory?.name
 
-        // Reset form but preserve selected category
         amountText = ""
         note = ""
         categoryAutoSelected = false
-        // Keep selectedCategory and manualCategorySelection as-is
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { showSavedBanner = true }
+        categoryConfidence = 0
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.7)) { showSavedBanner = true }
     }
 }
