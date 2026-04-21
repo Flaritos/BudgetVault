@@ -260,13 +260,23 @@ struct DashboardView: View {
                         .accessibilityHint("Closes today's vault without logging a transaction")
                         .accessibilityIdentifier("noSpendButton")
 
-                        // VaultRevamp v2.1 FAB — titanium dial with blue pointer + blue plus
+                        // VaultRevamp v2.1 FAB — titanium dial with blue "+"
+                        // glyph at center. Uses the shared VaultDialButton
+                        // primitive so the FAB and no-spend button are the
+                        // same mechanical object, different glyphs.
                         Spacer(minLength: 0)
-                        Button {
+                        VaultDialButton(action: {
                             HapticManager.impact(.medium)
                             activeSheet = .transactionEntry
-                        } label: {
-                            TitaniumPlusFAB()
+                        }) {
+                            ZStack {
+                                Capsule()
+                                    .fill(BudgetVaultTheme.electricBlue)
+                                    .frame(width: 3, height: 22)
+                                Capsule()
+                                    .fill(BudgetVaultTheme.electricBlue)
+                                    .frame(width: 22, height: 3)
+                            }
                         }
                         .accessibilityLabel("Log expense")
                         .accessibilityHint("Opens the transaction entry form")
@@ -1915,95 +1925,6 @@ struct DashboardView: View {
         }
     }
 
-}
-
-// MARK: - Titanium + FAB (VaultRevamp v2.1)
-
-/// The VaultRevamp Home FAB: titanium bezel + faint tick ring + blue
-/// pointer at 12 + blue plus at center. Approximates the HTML reference
-/// without modifying the `VaultDial` primitive.
-private struct TitaniumPlusFAB: View {
-    var body: some View {
-        let dim: CGFloat = 68
-        ZStack {
-            // Bezel (titanium chrome ring)
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color(hex: "#E4E8EE"),
-                            Color(hex: "#A8B2C2"),
-                            Color(hex: "#5E6A7C"),
-                            Color(hex: "#1D2330")
-                        ],
-                        center: .center,
-                        startRadius: dim * 0.32,
-                        endRadius: dim / 2
-                    )
-                )
-                .frame(width: dim, height: dim)
-
-            // Inner face
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color(hex: "#E4E8EE"),
-                            Color(hex: "#A8B2C2"),
-                            Color(hex: "#434D5E")
-                        ],
-                        center: UnitPoint(x: 0.5, y: 0.4),
-                        startRadius: 0,
-                        endRadius: dim * 0.5
-                    )
-                )
-                .frame(width: dim - 12, height: dim - 12)
-
-            // Faint tick ring — 12 ticks (major @ 0/3/6/9 heavier)
-            ZStack {
-                ForEach(0..<12, id: \.self) { i in
-                    let angle = Double(i) * 30.0
-                    let isMajor = i % 3 == 0
-                    Rectangle()
-                        .fill(Color(hex: "#2E3645").opacity(0.6))
-                        .frame(width: isMajor ? 1.2 : 0.8, height: isMajor ? 4 : 3)
-                        .offset(y: -(dim / 2 - 7))
-                        .rotationEffect(.degrees(angle))
-                }
-            }
-            .frame(width: dim, height: dim)
-
-            // Blue pointer triangle at 12
-            Triangle()
-                .fill(Color(hex: "#2563EB"))
-                .frame(width: 6, height: 6)
-                .offset(y: -(dim / 2 - 7))
-
-            // Blue + glyph at center
-            ZStack {
-                Capsule()
-                    .fill(Color(hex: "#1e40af"))
-                    .frame(width: 2.5, height: 22)
-                Capsule()
-                    .fill(Color(hex: "#1e40af"))
-                    .frame(width: 22, height: 2.5)
-            }
-        }
-        .frame(width: dim, height: dim)
-        .shadow(color: .black.opacity(0.5), radius: 8, y: 8)
-    }
-}
-
-/// Simple equilateral downward triangle used for the FAB's 12-o'clock pointer.
-private struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        p.closeSubpath()
-        return p
-    }
 }
 
 // MARK: - RoundedCorner Shape
