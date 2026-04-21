@@ -46,19 +46,38 @@ struct MonthlyWrappedView: View {
         return Double(topCategorySpent) / Double(totalSpentCents) * 100
     }
 
+    /// Audit fix: was `calendar.range(of: .day, in: .month)` which
+    /// returns calendar-month length. But a budget period can span two
+    /// calendar months when `resetDay` is ≠ 1 — so the right length is
+    /// `periodStart → nextPeriodStart`, not the calendar month of the
+    /// budget's year/month. Using the budget's actual period length
+    /// fixes the "two different days-16 collide into one bucket" bug
+    /// and produces correct length at month boundaries (28–31) without
+    /// depending on month/year.
     private var daysInMonth: Int {
-        let comps = DateComponents(year: budget.year, month: budget.month)
-        guard let date = calendar.date(from: comps),
-              let range = calendar.range(of: .day, in: .month, for: date) else { return 30 }
-        return range.count
+        let comps = calendar.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart)
+        return comps.day ?? 30
     }
 
-    /// Daily spending totals keyed by day-of-month
+    /// Days elapsed within the period (clamped so future days don't
+    /// count toward "under allowance" until the month actually ends).
+    private var daysElapsed: Int {
+        let now = Date()
+        let end = min(now, budget.nextPeriodStart)
+        let elapsed = calendar.dateComponents([.day], from: budget.periodStart, to: end).day ?? 0
+        return max(0, min(elapsed, daysInMonth))
+    }
+
+    /// Daily spending totals keyed by day-offset-from-period-start
+    /// (1-based). Keys survive across calendar-month boundaries and
+    /// stay stable for custom `resetDay` users.
     private var dailySpending: [Int: Int64] {
         var result: [Int: Int64] = [:]
         for tx in periodTransactions {
-            let day = calendar.component(.day, from: tx.date)
-            result[day, default: 0] += tx.amountCents
+            let offset = calendar.dateComponents([.day], from: budget.periodStart, to: tx.date).day ?? 0
+            let dayIndex = offset + 1
+            guard dayIndex >= 1, dayIndex <= daysInMonth else { continue }
+            result[dayIndex, default: 0] += tx.amountCents
         }
         return result
     }
@@ -83,9 +102,14 @@ struct MonthlyWrappedView: View {
         return budget.totalIncomeCents / Int64(daysInMonth)
     }
 
+    /// Audit fix: previously counted every day 1...daysInMonth even if
+    /// the month wasn't over yet, inflating "under allowance" days. Cap
+    /// the scan at daysElapsed so future days don't pre-emptively count
+    /// as under-allowance. Once the period ends, daysElapsed == daysInMonth.
     private var daysUnderAllowance: Int {
+        guard daysElapsed > 0 else { return 0 }
         var count = 0
-        for day in 1...daysInMonth {
+        for day in 1...daysElapsed {
             let spent = dailySpending[day] ?? 0
             if spent <= dailyAllowanceCents {
                 count += 1
@@ -95,7 +119,7 @@ struct MonthlyWrappedView: View {
     }
 
     private var daysOverAllowance: Int {
-        daysInMonth - daysUnderAllowance
+        daysElapsed - daysUnderAllowance
     }
 
     private var currentStreak: Int {

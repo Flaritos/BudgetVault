@@ -17,6 +17,18 @@ enum CSVFormat {
 
 enum CSVImporter {
 
+    /// Banker's rounding for Decimal-to-Int64-cents conversion. Matches
+    /// `MoneyHelpers.dollarsToCents` conventions so imported amounts
+    /// round identically to in-app entries.
+    private static let bankersRounding = NSDecimalNumberHandler(
+        roundingMode: .bankers,
+        scale: 0,
+        raiseOnExactness: false,
+        raiseOnOverflow: false,
+        raiseOnUnderflow: false,
+        raiseOnDivideByZero: false
+    )
+
     // MARK: - Format Detection
 
     static func detectFormat(header: String) -> CSVFormat {
@@ -145,10 +157,22 @@ enum CSVImporter {
                 category = newCat
             }
 
-            let cents = Int64((row.amount * 100).rounded())
+            // Audit fix: Double-arithmetic money loses precision on values
+            // that don't round-trip cleanly through binary floats. Route
+            // through Decimal for exact cents.
+            let cents = Int64(truncating: (Decimal(row.amount) * 100 as NSDecimalNumber)
+                .rounding(accordingToBehavior: Self.bankersRounding))
 
-            // Deduplication: skip if a transaction with the same date, amount, and note already exists in this budget
-            let txDate = row.date
+            // Deduplication: skip if a transaction with the same day (not
+            // exact timestamp — DST-sensitive), amount, and note already
+            // exists in this budget.
+            //
+            // Audit fix: exact `date == txDate` comparison broke dedup
+            // when a re-import crossed a DST boundary. Normalize both
+            // sides to the same day window.
+            let calendar = Calendar.current
+            let txStartOfDay = calendar.startOfDay(for: row.date)
+            let txNextDay = calendar.date(byAdding: .day, value: 1, to: txStartOfDay) ?? row.date
             let txNote = row.note
             let txCents = cents
             let budgetStart = budget.periodStart
@@ -159,7 +183,8 @@ enum CSVImporter {
                     $0.note == txNote &&
                     $0.date >= budgetStart &&
                     $0.date < budgetEnd &&
-                    $0.date == txDate
+                    $0.date >= txStartOfDay &&
+                    $0.date < txNextDay
                 }
             )
             if let existingCount = try? context.fetchCount(dupDescriptor), existingCount > 0 {

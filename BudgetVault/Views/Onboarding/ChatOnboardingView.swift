@@ -1540,10 +1540,17 @@ struct ChatOnboardingView: View {
             Spacer()
 
             Button {
-                // Preserve v3.2 audit H9 default — Face ID on by default
-                // unless the user is running UI tests. Users can disable
-                // it from Settings after onboarding.
-                persistedBiometricLock = biometricLockEnabled
+                // Audit remediation: v3.2 audit H9 defaulted Face ID ON
+                // for all users, but Quick Start users never see the
+                // biometric toggle step — silently enabling biometric
+                // lock triggers a system passcode prompt on the very
+                // next app foreground, contradicting Quick Start's
+                // "minimal setup" promise. Fix: only honor the
+                // `biometricLockEnabled` state for Thorough Setup (where
+                // the user actually saw the toggle). Quick Start
+                // defaults to OFF — users can enable lock from
+                // Settings → Security when ready.
+                persistedBiometricLock = (chosePath == .thorough) && biometricLockEnabled
                 withAnimation(.smooth(duration: 0.5)) {
                     hasCompletedOnboarding = true
                 }

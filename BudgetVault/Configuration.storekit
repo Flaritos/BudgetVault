@@ -1,8 +1,5 @@
 {
   "identifier" : "BudgetVault Products",
-  "nonRenewingSubscriptions" : [
-
-  ],
   "products" : [
     {
       "displayPrice" : "14.99",
@@ -49,9 +46,6 @@
       }
     ]
   },
-  "subscriptionGroups" : [
-
-  ],
   "version" : {
     "major" : 4,
     "minor" : 0

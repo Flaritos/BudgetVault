@@ -53,6 +53,11 @@ enum DateHelpers {
 
     private static let dateStringFormatter: DateFormatter = {
         let f = DateFormatter()
+        // Audit fix: fixed-format `yyyy-MM-dd` requires en_US_POSIX —
+        // without it, locales with non-Arabic numerals (ar, fa, my)
+        // emit different digit glyphs which then break string
+        // equality comparisons in StreakService.
+        f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()

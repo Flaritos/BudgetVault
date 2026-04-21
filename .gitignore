@@ -30,3 +30,7 @@ scripts/cron.log
 *.dSYM
 *.mobileprovision
 .claude/worktrees/
+
+# Design spec + mockup staging (reference only, not app code)
+VaultRevamp/
+mockups/
