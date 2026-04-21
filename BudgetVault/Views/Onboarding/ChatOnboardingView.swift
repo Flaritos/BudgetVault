@@ -47,86 +47,6 @@ enum OnboardingStep: Int, CaseIterable {
 /// Which branch the user chose at the Depth Fork (step 3).
 enum OnboardingPath { case quick, thorough }
 
-// MARK: - Onboarding Vault Dial
-
-/// A vault dial with a progress arc that fills as the user advances through onboarding steps.
-private struct OnboardingVaultDial: View {
-    let size: CGFloat
-    let progress: Double // 0.0 to 1.0
-    let stepNumber: Int?
-    let stepLabel: String?
-    let rotation: Double
-    let showLock: Bool
-    let showUnlock: Bool
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        ZStack {
-            VaultDialMark(size: size, showGlow: progress >= 1.0, tickRotation: rotation)
-                .opacity(0.2 + progress * 0.1)
-
-            // Track circle
-            Circle()
-                .stroke(.white.opacity(0.06), lineWidth: max(size * 0.04, 3))
-                .frame(width: size * 0.82, height: size * 0.82)
-
-            // Progress arc
-            if progress > 0 {
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        BudgetVaultTheme.accentSoft,
-                        style: StrokeStyle(lineWidth: max(size * 0.04, 3), lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: size * 0.82, height: size * 0.82)
-                    .shadow(color: BudgetVaultTheme.accentSoft.opacity(0.5), radius: 8)
-
-                // Extra glow ring when fully unlocked
-                if progress >= 1.0 {
-                    Circle()
-                        .trim(from: 0, to: 1.0)
-                        .stroke(
-                            BudgetVaultTheme.accentSoft,
-                            style: StrokeStyle(lineWidth: 2, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: size * 0.82, height: size * 0.82)
-                        .blur(radius: 8)
-                }
-            }
-
-            // Center content
-            VStack(spacing: 2) {
-                if showLock {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: size * 0.12))
-                        .foregroundStyle(.white.opacity(0.3))
-                } else if showUnlock {
-                    Image(systemName: "lock.open.fill")
-                        .font(.system(size: size * 0.12))
-                        .foregroundStyle(.white.opacity(0.5))
-                } else if let stepNumber, let stepLabel {
-                    Text("STEP \(stepNumber) OF 4")
-                        .font(.system(size: max(size * 0.06, 8), weight: .bold))
-                        .foregroundStyle(.white.opacity(0.25))
-                        .tracking(1.5)
-                    Text(stepLabel)
-                        .font(.system(size: max(size * 0.09, 11), weight: .bold))
-                        .foregroundStyle(.white)
-                }
-            }
-        }
-        .frame(width: size * 1.4, height: size * 1.4)
-        .animation(
-            reduceMotion ? .none : .spring(duration: 0.8, bounce: 0.15),
-            value: progress
-        )
-        .accessibilityHidden(true)
-    }
-}
-
 // MARK: - Vault Unlocking Ceremony (ChatOnboardingView)
 
 struct ChatOnboardingView: View {
@@ -155,7 +75,6 @@ struct ChatOnboardingView: View {
     // Default to .quick — the Quick start card is visually labeled
     // "Recommended" per HTML design; the default selection must match.
     @State private var chosePath: OnboardingPath = .quick
-    @State private var dialRotation: Double = 0
     @State private var tempCurrency = "USD"
     @State private var incomeText = ""
     @State private var selectedTemplate: BudgetTemplates.OnboardingTemplate = .single
@@ -1693,7 +1612,6 @@ struct ChatOnboardingView: View {
             : .spring(duration: 0.6)
 
         withAnimation(animation) {
-            dialRotation += reduceMotion ? 0 : 90
             if let next = OnboardingStep(rawValue: currentStep.rawValue + 1) {
                 currentStep = next
             }
@@ -1744,7 +1662,6 @@ struct ChatOnboardingView: View {
             : .spring(duration: 0.6)
 
         withAnimation(animation) {
-            dialRotation += reduceMotion ? 0 : 90
             currentStep = .unlocked
         }
     }
