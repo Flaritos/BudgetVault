@@ -71,7 +71,7 @@ struct TransactionRowView: View {
 
     private var categoryColor: Color {
         if transaction.isIncome { return BudgetVaultTheme.positive }
-        guard let hex = transaction.category?.color else { return Color(.systemGray4) }
+        guard let hex = transaction.category?.color else { return BudgetVaultTheme.titanium500 }
         return Color(hex: hex)
     }
 

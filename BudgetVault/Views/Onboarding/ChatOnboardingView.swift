@@ -1271,7 +1271,7 @@ struct ChatOnboardingView: View {
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.7))
                             .padding(BudgetVaultTheme.spacingMD)
-                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+                            .background(BudgetVaultTheme.titanium300.opacity(0.08), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
                         }
                     }
 

@@ -60,7 +60,8 @@ struct SettingsView: View {
         // render on top of list content when scrolling (iOS default
         // behavior leaves it transparent with translucent-on-scroll).
         .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color(.systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showRecurring) {
             NavigationStack {
                 RecurringExpenseListView()

@@ -82,7 +82,7 @@ struct MoveMoneyView: View {
                             .frame(width: pickerSize, height: pickerSize)
                             .background(
                                 RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
+                                    .fill(isSelected ? BudgetVaultTheme.electricBlue.opacity(0.18) : BudgetVaultTheme.titanium700.opacity(0.3))
                             )
                         }
                         .tint(.primary)
@@ -118,7 +118,7 @@ struct MoveMoneyView: View {
                             .frame(width: pickerSize, height: pickerSize)
                             .background(
                                 RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
+                                    .fill(isSelected ? BudgetVaultTheme.electricBlue.opacity(0.18) : BudgetVaultTheme.titanium700.opacity(0.3))
                             )
                         }
                         .tint(.primary)

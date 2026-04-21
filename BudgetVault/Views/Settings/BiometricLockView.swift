@@ -8,7 +8,7 @@ struct BiometricLockView: View {
             // VaultRevamp v2.1: radial ambient glow from the top of the
             // chamber — same language as the Vault tab inner sanctum.
             RadialGradient(
-                colors: [Color(hex: "#1a2b52"), BudgetVaultTheme.navyDark, Color(hex: "#070E1F")],
+                colors: [BudgetVaultTheme.navyElevated, BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                 center: UnitPoint(x: 0.5, y: 0.15),
                 startRadius: 40,
                 endRadius: 600

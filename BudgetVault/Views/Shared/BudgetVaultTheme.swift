@@ -6,6 +6,12 @@ enum BudgetVaultTheme {
     // MARK: - Brand Colors
     static let navyDark = Color(hex: "#0F1B33")
     static let navyMid = Color(hex: "#1A2744")
+    /// Elevated navy — lifted/highlighted surfaces (biometric lock top,
+    /// premium card glow). One shade above navyDark.
+    static let navyElevated = Color(hex: "#1A2B52")
+    /// Deep navy — bottom of gradients, modal base, abyss layer.
+    /// One shade below navyDark.
+    static let navyAbyss = Color(hex: "#070E1F")
     static let electricBlue = Color(hex: "#2563EB")
     static let brightBlue = Color(hex: "#3B82F6")
 

@@ -853,7 +853,7 @@ struct DashboardView: View {
                     .foregroundStyle(.white.opacity(0.5))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.06), in: Capsule())
+                    .background(BudgetVaultTheme.titanium300.opacity(0.08), in: Capsule())
                     .padding(.top, 4)
                     .padding(.bottom, 16)
                 }
@@ -1192,7 +1192,7 @@ struct DashboardView: View {
                                 .foregroundStyle(BudgetVaultTheme.titanium300)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.05), in: Capsule())
+                                .background(BudgetVaultTheme.titanium300.opacity(0.07), in: Capsule())
                         }
                         Spacer()
                     }
@@ -1521,10 +1521,10 @@ struct DashboardView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+            .background(BudgetVaultTheme.titanium300.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    .strokeBorder(BudgetVaultTheme.titanium300.opacity(0.14), lineWidth: 1)
             )
 
             // Freeze indicator
@@ -1567,7 +1567,7 @@ struct DashboardView: View {
                         Circle()
                             .fill(weekDots[i] == .logged ? BudgetVaultTheme.positive :
                                   weekDots[i] == .frozen ? BudgetVaultTheme.info :
-                                  Color(.systemGray5))
+                                  BudgetVaultTheme.titanium500)
                             .frame(width: 8, height: 8)
                             .accessibilityLabel("\(dayNames[i]): \(weekDots[i] == .logged ? "logged" : weekDots[i] == .frozen ? "freeze used" : "not logged")")
                     }
