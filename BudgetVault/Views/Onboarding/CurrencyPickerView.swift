@@ -27,19 +27,25 @@ struct CurrencyPickerView: View {
                                 .foregroundStyle(.primary)
                             Text("\(currency.code) (\(currency.symbol))")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(BudgetVaultTheme.titanium300)
                         }
                         Spacer()
                         if selectedCurrency == currency.code {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(BudgetVaultTheme.accentSoft)
                         }
                     }
                 }
                 .accessibilityLabel("\(currency.name), \(currency.code)")
                 .accessibilityAddTraits(selectedCurrency == currency.code ? .isSelected : [])
+                .listRowBackground(BudgetVaultTheme.chamberDeep)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(BudgetVaultTheme.navyDark)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .searchable(text: $searchText, prompt: "Search currencies")
     }
 

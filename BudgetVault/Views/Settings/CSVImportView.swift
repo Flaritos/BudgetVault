@@ -39,15 +39,24 @@ struct CSVImportView: View {
                     categorySelectionView
                 case .importing:
                     ProgressView("Importing...")
+                        .tint(BudgetVaultTheme.accentSoft)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .done:
                     doneView
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(BudgetVaultTheme.navyDark)
             .navigationTitle("Import CSV")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .tint(BudgetVaultTheme.accentSoft)
                 }
             }
             .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [UTType.commaSeparatedText, UTType.plainText]) { result in
@@ -63,12 +72,13 @@ struct CSVImportView: View {
             Spacer()
             Image(systemName: "doc.text")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(BudgetVaultTheme.titanium300)
             Text("Import transactions from a CSV file")
                 .font(.headline)
+                .foregroundStyle(.white)
             Text("Supports YNAB exports and generic CSV formats.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(BudgetVaultTheme.titanium400)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
@@ -92,23 +102,26 @@ struct CSVImportView: View {
                     Text("Format Detected")
                     Spacer()
                     Text(formatName)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
                 }
+                .listRowBackground(BudgetVaultTheme.chamberDeep)
                 HStack {
                     Text("Transactions")
                     Spacer()
                     Text("\(parsedRows.count)")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
                 }
+                .listRowBackground(BudgetVaultTheme.chamberDeep)
                 HStack {
                     Text("Categories")
                     Spacer()
                     Text("\(uniqueCategories.count)")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
                 }
+                .listRowBackground(BudgetVaultTheme.chamberDeep)
             }
 
-            Section("Preview (first 5 rows)") {
+            Section {
                 ForEach(Array(parsedRows.prefix(5).enumerated()), id: \.offset) { _, row in
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
@@ -122,15 +135,18 @@ struct CSVImportView: View {
                         HStack {
                             Text(row.note)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(BudgetVaultTheme.titanium400)
                                 .lineLimit(1)
                             Spacer()
                             Text(row.date, style: .date)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(BudgetVaultTheme.titanium400)
                         }
                     }
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
                 }
+            } header: {
+                EngravedSectionHeader(title: "Preview (first 5 rows)")
             }
 
             Section {
@@ -141,8 +157,11 @@ struct CSVImportView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(PrimaryButtonStyle())
+                .listRowBackground(Color.clear)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(BudgetVaultTheme.navyDark)
     }
 
     // MARK: - Category Selection (Free tier)
@@ -152,34 +171,39 @@ struct CSVImportView: View {
             Section {
                 Text("Your import has \(uniqueCategories.count) categories. Free accounts support 4. Select which to keep.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
             }
 
-            Section("Select up to 4 categories") {
+            Section {
                 ForEach(uniqueCategories, id: \.self) { cat in
                     Button {
                         toggleCategory(cat)
                     } label: {
                         HStack {
                             Image(systemName: selectedCategories.contains(cat) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(selectedCategories.contains(cat) ? Color.accentColor : .secondary)
+                                .foregroundStyle(selectedCategories.contains(cat) ? BudgetVaultTheme.accentSoft : BudgetVaultTheme.titanium400)
                             Text(cat)
                                 .foregroundStyle(.primary)
                             Spacer()
                             let count = parsedRows.filter { $0.category == cat }.count
                             Text("\(count) txns")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(BudgetVaultTheme.titanium400)
                         }
                     }
                     .accessibilityLabel("\(cat), \(selectedCategories.contains(cat) ? "selected" : "not selected")")
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
                 }
+            } header: {
+                EngravedSectionHeader(title: "Select up to 4 categories")
             }
 
             Section {
                 Text("Unselected categories will be merged into \"Other\".")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
 
                 Button {
                     performImport()
@@ -189,8 +213,11 @@ struct CSVImportView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(selectedCategories.isEmpty)
+                .listRowBackground(Color.clear)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(BudgetVaultTheme.navyDark)
     }
 
     // MARK: - Done
@@ -203,10 +230,11 @@ struct CSVImportView: View {
                 .foregroundStyle(BudgetVaultTheme.positive)
             Text("Import Complete")
                 .font(.title2.bold())
+                .foregroundStyle(.white)
             if let result = importResult {
                 Text("Imported \(result.transactions) transactions across \(result.months) months.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
                     .multilineTextAlignment(.center)
             }
             Button("Done") { dismiss() }
