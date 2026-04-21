@@ -14,19 +14,35 @@ struct FeedbackView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Type") {
+                Section {
                     Picker("Category", selection: $category) {
                         ForEach(FeedbackService.Category.allCases) { cat in
                             Label(cat.rawValue, systemImage: cat.symbol).tag(cat)
                         }
                     }
                     .pickerStyle(.menu)
+                    .tint(BudgetVaultTheme.accentSoft)
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
+                } header: {
+                    EngravedSectionHeader(title: "Type")
                 }
 
-                Section("Your message") {
+                Section {
+                    // Phase 8.2 §5.5: TextEditor resists `.background()`
+                    // alone — the iOS 16+ override is
+                    // `.scrollContentBackground(.hidden)` plus an
+                    // explicit `.background(...)`. Without both, the
+                    // editor keeps its default white fill under forced
+                    // dark mode.
                     TextEditor(text: $message)
                         .frame(minHeight: 140)
                         .accessibilityLabel("Feedback message")
+                        .scrollContentBackground(.hidden)
+                        .background(BudgetVaultTheme.chamberDeep)
+                        .foregroundStyle(.white)
+                        .listRowBackground(BudgetVaultTheme.chamberDeep)
+                } header: {
+                    EngravedSectionHeader(title: "Your message")
                 }
 
                 Section {
@@ -35,7 +51,8 @@ struct FeedbackView: View {
                     // not hedge with "we can't read unless…"
                     Text("Stored on this device. Only sent if you choose Email to BudgetVault below.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                        .listRowBackground(BudgetVaultTheme.chamberDeep)
                 }
 
                 // v3.2 audit H10: Email button always visible so the
@@ -52,12 +69,20 @@ struct FeedbackView: View {
                         Label("Email to BudgetVault", systemImage: "envelope.fill")
                     }
                     .disabled(!didSave && FeedbackService.count() == 0)
+                    .tint(BudgetVaultTheme.accentSoft)
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
                 } footer: {
                     Text("Opens Mail with your feedback log attached as text. Nothing is sent until you hit Send.")
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(BudgetVaultTheme.navyDark)
             .navigationTitle("Send Feedback")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
