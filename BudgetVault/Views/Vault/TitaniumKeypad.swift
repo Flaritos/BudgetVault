@@ -7,7 +7,7 @@ import SwiftUI
 /// Binding pattern: appends digits/decimal to `text`, backspace trims
 /// the last character. Enforces max one decimal point. Decorative chrome
 /// is accessibility-hidden; only the 12 buttons are exposed with digit-
-/// word labels (per existing NumberPadView pattern: "One", "Two", etc.)
+/// word labels ("One", "Two", etc.) for VoiceOver.
 struct TitaniumKeypad: View {
     @Binding var text: String
     var allowDecimal: Bool = true

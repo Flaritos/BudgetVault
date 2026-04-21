@@ -30,8 +30,8 @@ struct CategoryDetailView: View {
                         .font(.title2.bold())
 
                     // VaultRevamp v2.1: progress expressed via VaultDial
-                    // instead of the retired BudgetRingView. Shows spent /
-                    // budgeted as an arc inside the titanium bezel.
+                    // with `.progress(ratio)` state. Shows spent / budgeted
+                    // as an arc inside the titanium bezel.
                     VaultDial(
                         size: .medium,
                         state: .progress(

@@ -455,7 +455,7 @@ struct DashboardView: View {
                 }
 
                 // Proactive modal paywalls removed in v3.1.1 — they interrupted habit formation.
-                // Premium upsell now lives in (1) the inline LaunchPricingDashboardBanner,
+                // Premium upsell now lives in (1) the Vault tab LaunchPricingCardView,
                 // (2) intent-based triggers (tapping a Premium-locked feature), and
                 // (3) a future delayed prompt at day 14 (see ROADMAP_v3.2 Sprint 1).
                 if !isPremium {

@@ -40,6 +40,11 @@ struct VaultDial: View {
         case medium     // 56pt  — FAB, Vault tab header
         case small      // 40pt  — section eyebrows
         case watermark  // 200pt at 10% opacity — Vault tab background
+        case icon       // 24pt  — share-card watermarks, inline badges.
+                        // Rendered via SwiftUI shapes (not PNG assets)
+                        // so the glyph stays legible at 16–60pt when
+                        // scaled via .frame(). The PNG-based sizes lose
+                        // tick detail below ~40pt.
 
         var dimension: CGFloat {
             switch self {
@@ -48,11 +53,16 @@ struct VaultDial: View {
             case .medium: return 56
             case .small: return 40
             case .watermark: return 200
+            case .icon: return 24
             }
         }
 
         var watermarkOpacity: Double {
             self == .watermark ? 0.10 : 1.0
+        }
+
+        fileprivate var isSynthetic: Bool {
+            self == .icon
         }
     }
 
@@ -66,6 +76,13 @@ struct VaultDial: View {
     let state: DialState
     var showNumerals: Bool = true
     var showGlow: Bool = false
+
+    /// Tint color for the `.icon` size only. PNG-based sizes (hero /
+    /// large / medium / small / watermark) ignore this — they're
+    /// titanium by design. Share-card and inline-badge callers pass
+    /// a tint (white, electric blue, etc.) so the glyph reads on
+    /// whatever backdrop the share card uses.
+    var tint: Color = .white
 
     /// Rotation applied to the DIAL FACE (ticks + numerals) only. Bezel,
     /// chamber, pointer, and center boss stay fixed — matches how a real
@@ -93,45 +110,98 @@ struct VaultDial: View {
 
     var body: some View {
         ZStack {
-            // 1. Plate — bezel + chamber. Locked uses titanium chrome with
-            //    deep navy chamber; open swaps to electric-blue tinted
-            //    chamber with an outer aura glow.
-            Image("\(assetPrefix)Plate")
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .frame(width: dim, height: dim)
+            if size.isSynthetic {
+                syntheticIconBody
+            } else {
+                pngDialBody
+            }
 
-            // 2. Ticks layer — rotates like a real combination dial, sliding
-            //    past the fixed pointer above it. Locked set has major +
-            //    minor ticks + 0/20/40/60/80 numerals; open set has just
-            //    the 10 major ticks (the numerals have served their purpose
-            //    once the vault is open).
-            Image("\(assetPrefix)Ticks")
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .frame(width: dim, height: dim)
-                .rotationEffect(.degrees(faceRotationDegrees))
-
-            // 3. Top — pointer at 12 o'clock + center boss + lock glyph.
-            //    Fixed. Locked is titanium; open swaps to electric blue
-            //    with an OPEN padlock (shackle detached on one side).
-            Image("\(assetPrefix)Top")
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .frame(width: dim, height: dim)
-
-            // 4. Progress arc overlay (only when state = .progress).
             progressArc
 
-            // 5. Open-state glow (when state = .open or showGlow forced).
             openGlow
         }
         .frame(width: dim, height: dim)
         .opacity(size.watermarkOpacity)
         .accessibilityHidden(true)
+    }
+
+    /// PNG-asset dial — the canonical vault chrome used by every size
+    /// except `.icon`. Three stacked raster layers animate independently.
+    @ViewBuilder
+    private var pngDialBody: some View {
+        // 1. Plate — bezel + chamber.
+        Image("\(assetPrefix)Plate")
+            .resizable()
+            .interpolation(.high)
+            .antialiased(true)
+            .frame(width: dim, height: dim)
+
+        // 2. Ticks layer — rotates on combination changes.
+        Image("\(assetPrefix)Ticks")
+            .resizable()
+            .interpolation(.high)
+            .antialiased(true)
+            .frame(width: dim, height: dim)
+            .rotationEffect(.degrees(faceRotationDegrees))
+
+        // 3. Top — pointer + boss + lock glyph.
+        Image("\(assetPrefix)Top")
+            .resizable()
+            .interpolation(.high)
+            .antialiased(true)
+            .frame(width: dim, height: dim)
+    }
+
+    /// SwiftUI-synthesized brand glyph used for `.icon` size. Ring +
+    /// simplified tick marks + pointer + lock symbol. Stays legible
+    /// at 16pt (share-card footer) through 60pt (Stories watermark)
+    /// when callers scale via `.frame()`. The `tint` parameter colors
+    /// the whole glyph for flexibility against varied share-card
+    /// backgrounds.
+    @ViewBuilder
+    private var syntheticIconBody: some View {
+        let ringWidth = max(dim * 0.02, 1.2)
+        let tickWidth = max(dim * 0.013, 0.8)
+        let tickHeight = dim * 0.065
+        let tickOffset = -(dim * 0.45)
+        let pointerWidth = dim * 0.075
+        let pointerHeight = dim * 0.06
+        let pointerOffset = -(dim * 0.53)
+
+        // Ring
+        Circle()
+            .strokeBorder(
+                LinearGradient(
+                    colors: [tint.opacity(0.35), tint.opacity(0.12)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                lineWidth: ringWidth
+            )
+            .frame(width: dim, height: dim)
+
+        // Ticks (12 around; only the ticks rotate under faceRotationDegrees)
+        ZStack {
+            ForEach(0..<12, id: \.self) { i in
+                RoundedRectangle(cornerRadius: tickWidth / 2)
+                    .fill(tint.opacity(0.5))
+                    .frame(width: tickWidth, height: tickHeight)
+                    .offset(y: tickOffset)
+                    .rotationEffect(.degrees(Double(i) * 30))
+            }
+        }
+        .rotationEffect(.degrees(faceRotationDegrees))
+
+        // Pointer (fixed at 12 o'clock)
+        VaultIconPointer()
+            .fill(tint)
+            .frame(width: pointerWidth, height: pointerHeight)
+            .offset(y: pointerOffset)
+
+        // Lock glyph
+        Image(systemName: isOpenState ? "lock.open.fill" : "lock.fill")
+            .font(.system(size: dim * 0.35, weight: .semibold))
+            .foregroundStyle(tint.opacity(0.9))
     }
 
     // MARK: - Progress arc (only for .progress state)
@@ -171,6 +241,22 @@ struct VaultDial: View {
     }
 }
 
+// MARK: - Icon-only shapes
+
+/// Pointer triangle used by the synthetic `.icon` dial. Standalone
+/// shape (not shared with the PNG-based sizes, which bake the pointer
+/// into their Top asset).
+private struct VaultIconPointer: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 #Preview("VaultDial — sizes & states") {
     ScrollView {
         VStack(spacing: 40) {
@@ -193,6 +279,17 @@ struct VaultDial: View {
 
                 Text("watermark · 10% opacity").font(.caption).foregroundStyle(.white.opacity(0.7))
                 VaultDial(size: .watermark, state: .locked)
+
+                Text("icon · 24pt white").font(.caption).foregroundStyle(.white.opacity(0.7))
+                VaultDial(size: .icon, state: .locked, tint: .white)
+
+                Text("icon · scaled to 60pt (share card)").font(.caption).foregroundStyle(.white.opacity(0.7))
+                VaultDial(size: .icon, state: .locked, tint: .white)
+                    .frame(width: 60, height: 60)
+
+                Text("icon · 36pt electric blue").font(.caption).foregroundStyle(.white.opacity(0.7))
+                VaultDial(size: .icon, state: .locked, tint: BudgetVaultTheme.electricBlue)
+                    .frame(width: 36, height: 36)
             }
         }
         .padding()
