@@ -45,23 +45,39 @@ struct SettingsView: View {
     @State private var showFeedback = false
 
     var body: some View {
-        Form {
-            premiumBadge
-            securitySection
-            profileSection
-            dataSection
-            notificationsSection
-            premiumSection
-            iCloudSection
-            aboutSection
+        // Phase 8.2 §5.4: free users see an upgrade ChamberCard above
+        // the Form (full-bleed brand treatment unconstrained by Form
+        // row geometry). Premium users see a slim inline badge as the
+        // Form's first section. The split lets the upgrade CTA earn
+        // its visual weight without making the rest of Settings feel
+        // heavy.
+        VStack(spacing: 0) {
+            if !(isPremium || storeKit.isPremium) {
+                premiumUpgradeCard
+                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    .padding(.top, BudgetVaultTheme.spacingMD)
+            }
+
+            Form {
+                if isPremium || storeKit.isPremium {
+                    premiumActiveBadge
+                }
+                securitySection
+                profileSection
+                dataSection
+                notificationsSection
+                premiumSection
+                iCloudSection
+                aboutSection
+            }
+            // Phase 8.2 §5.1: the Form structure stays (iOS Settings
+            // convention) but its surfaces switch to the VaultRevamp
+            // chamber palette. `.scrollContentBackground(.hidden)` hides
+            // the default grouped-list backdrop so our navy can show
+            // through; each section's rows then pin their backdrop via
+            // `.listRowBackground(chamberDeep)`.
+            .scrollContentBackground(.hidden)
         }
-        // Phase 8.2 §5.1: the Form structure stays (iOS Settings
-        // convention) but its surfaces switch to the VaultRevamp
-        // chamber palette. `.scrollContentBackground(.hidden)` hides
-        // the default grouped-list backdrop so our navy can show
-        // through; each section's rows then pin their backdrop via
-        // `.listRowBackground(chamberDeep)`.
-        .scrollContentBackground(.hidden)
         .background(BudgetVaultTheme.navyDark)
         .navigationTitle("Settings")
         // v3.2 audit H13: opaque nav bar background so the title doesn't
@@ -163,50 +179,60 @@ struct SettingsView: View {
 
     // MARK: - Premium Badge
 
-    private var premiumBadge: some View {
-        Section {
-            if isPremium || storeKit.isPremium {
-                HStack(spacing: 8) {
-                    // Phase 8.2 §5.3: VaultDialMark is retired; use the
-                    // shared VaultDial primitive sized down via .frame()
-                    // until a first-class .icon size lands in Phase 7.
+    /// Full-bleed ChamberCard upgrade CTA rendered above the Form for
+    /// free users. Escapes Form row geometry so the dial + copy get
+    /// proper breathing room and the chevron-right reads as a clear
+    /// "tap to open paywall" affordance.
+    @ViewBuilder
+    private var premiumUpgradeCard: some View {
+        Button {
+            showPaywall = true
+        } label: {
+            ChamberCard(padding: 16) {
+                HStack(spacing: 14) {
                     VaultDial(size: .small, state: .locked, showNumerals: false)
-                        .frame(width: 22, height: 22)
-                    Text("BudgetVault Premium")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(BudgetVaultTheme.electricBlue)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .listRowBackground(BudgetVaultTheme.electricBlue.opacity(0.08))
-            } else {
-                Button {
-                    showPaywall = true
-                } label: {
-                    HStack(spacing: 10) {
-                        VaultDial(size: .small, state: .locked, showNumerals: false)
-                            .frame(width: 28, height: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("BudgetVault Premium")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.white)
-                            Text("Open the full vault")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.bold())
-                            .foregroundStyle(.white.opacity(0.7))
+                        .frame(width: 44, height: 44)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("BudgetVault Premium")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text("Open the full vault")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(BudgetVaultTheme.titanium300)
                     }
-                    .padding(.vertical, 4)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
                 }
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(BudgetVaultTheme.brandGradient)
-                        .padding(.vertical, 2)
-                )
-                .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")
             }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")
+    }
+
+    /// Slim active-state badge for premium users. Lives inside the
+    /// Form as the first section so the nav-title-to-first-row rhythm
+    /// stays consistent with iOS Settings convention.
+    @ViewBuilder
+    private var premiumActiveBadge: some View {
+        Section {
+            HStack(spacing: 10) {
+                VaultDial(size: .small, state: .locked, showNumerals: false)
+                    .frame(width: 20, height: 20)
+                Text("BudgetVault Premium")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(BudgetVaultTheme.electricBlue)
+                Spacer()
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.caption)
+                    .foregroundStyle(BudgetVaultTheme.positive)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowBackground(BudgetVaultTheme.electricBlue.opacity(0.12))
         }
     }
 
