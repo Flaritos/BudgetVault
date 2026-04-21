@@ -1,143 +1,19 @@
 import SwiftUI
 import BudgetVaultShared
 
-// MARK: - Single Achievement Badge
+// MARK: - Milestones List (opened from Settings → Milestones)
 
-struct AchievementBadgeView: View {
-    let achievement: AchievementService.Achievement
-    var isUnlocked: Bool = true
-    var size: CGFloat = 60
-
-    @State private var showDetail = false
-
-    private var tierColor: Color {
-        switch achievement.tier {
-        case .bronze: return BudgetVaultTheme.badgeBronze
-        case .silver: return BudgetVaultTheme.badgeSilver
-        case .gold: return BudgetVaultTheme.badgeGold
-        }
-    }
-
-    private var tierGradient: LinearGradient {
-        switch achievement.tier {
-        case .bronze:
-            return LinearGradient(
-                colors: [BudgetVaultTheme.badgeBronze, BudgetVaultTheme.badgeBronzeDark],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case .silver:
-            return LinearGradient(
-                colors: [BudgetVaultTheme.badgeSilver, BudgetVaultTheme.badgeSilverDark],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case .gold:
-            return LinearGradient(
-                colors: [BudgetVaultTheme.badgeGold, BudgetVaultTheme.badgeGoldDark],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-    }
-
-    var body: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXS) {
-            ZStack {
-                // Chamber backing (recessed vault compartment) — titanium
-                // hairline ring that becomes tier-colored when unlocked.
-                Circle()
-                    .fill(BudgetVaultTheme.chamberBackground)
-                    .frame(width: size, height: size)
-
-                Circle()
-                    .strokeBorder(
-                        isUnlocked ? tierGradient : LinearGradient(
-                            colors: [BudgetVaultTheme.titanium700],
-                            startPoint: .top, endPoint: .bottom
-                        ),
-                        lineWidth: size * 0.04
-                    )
-                    .frame(width: size, height: size)
-
-                // Inner titanium hairline for chamber depth
-                Circle()
-                    .strokeBorder(BudgetVaultTheme.titanium300.opacity(0.12), lineWidth: 1)
-                    .frame(width: size - 4, height: size - 4)
-
-                if isUnlocked {
-                    Text(achievement.emoji)
-                        .font(.system(size: size * 0.42))
-                } else {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: size * 0.24))
-                        .foregroundStyle(BudgetVaultTheme.titanium300)
-                }
-            }
-            .shadow(color: isUnlocked ? tierColor.opacity(0.35) : .black.opacity(0.3), radius: 6, y: 3)
-
-            Text(achievement.title)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(isUnlocked ? .white : BudgetVaultTheme.titanium300)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-                .frame(width: size + 12)
-        }
-        .onTapGesture {
-            showDetail = true
-        }
-        .popover(isPresented: $showDetail) {
-            achievementDetail
-                .presentationCompactAdaptation(.popover)
-        }
-        .accessibilityLabel("\(achievement.title): \(achievement.description). \(isUnlocked ? "Unlocked" : "Locked")")
-    }
-
-    private var achievementDetail: some View {
-        VStack(spacing: BudgetVaultTheme.spacingMD) {
-            Text(achievement.emoji)
-                .font(.system(size: 40))
-
-            Text(achievement.title)
-                .font(.headline)
-                .foregroundStyle(.white)
-
-            Text(achievement.description)
-                .font(.subheadline)
-                .foregroundStyle(BudgetVaultTheme.titanium300)
-
-            HStack(spacing: BudgetVaultTheme.spacingXS) {
-                Image(systemName: "star.fill")
-                    .foregroundStyle(tierColor)
-                Text(achievement.tier.rawValue.uppercased())
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .tracking(1.5)
-                    .foregroundStyle(tierColor)
-            }
-
-            if isUnlocked, let date = achievement.unlockedDate {
-                Text("Unlocked \(date, style: .date)")
-                    .font(.caption2)
-                    .foregroundStyle(BudgetVaultTheme.titanium300)
-            } else if !isUnlocked {
-                Text("Not yet unlocked")
-                    .font(.caption2)
-                    .foregroundStyle(BudgetVaultTheme.titanium300)
-            }
-        }
-        .padding(BudgetVaultTheme.spacingLG)
-        .background(BudgetVaultTheme.chamberBackground)
-    }
-}
-
-// MARK: - Achievement Grid
-
+/// VaultRevamp v2.1 Phase 8.3 §8.5.
+///
+/// The old AchievementGridView was a LazyVGrid of 60pt badges with a
+/// premium-gate overlay on top. Phase 8.3 replaces it with a row-based
+/// list that groups Earned and Locked into chamber-cards with per-row
+/// progress bars. The premium gate stays — free users see the structure
+/// but can't unlock — it just lives inside the chamber cohesion now.
 struct AchievementGridView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
-
-    private let columns = [
-        GridItem(.adaptive(minimum: 80, maximum: 100), spacing: BudgetVaultTheme.spacingMD)
-    ]
+    @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
+    @Environment(\.dismiss) private var dismiss
 
     private var unlocked: [AchievementService.Achievement] {
         AchievementService.unlockedAchievements()
@@ -147,109 +23,283 @@ struct AchievementGridView: View {
         Set(unlocked.map(\.id))
     }
 
+    private var earnedCount: Int { isPremium ? unlocked.count : 0 }
+    private var totalCount: Int { AchievementService.allAchievements.count }
+
+    private var earnedAchievements: [AchievementService.Achievement] {
+        AchievementService.allAchievements.filter { unlockedIDs.contains($0.id) }
+    }
+
+    private var lockedAchievements: [AchievementService.Achievement] {
+        AchievementService.allAchievements.filter { !unlockedIDs.contains($0.id) }
+    }
+
     var body: some View {
-        ZStack {
-            BudgetVaultTheme.navyDark.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                BudgetVaultTheme.navyDark.ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingLG) {
-                    HingeRule(weight: .heavy)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingLG) {
+                        summaryStrip
+                            .padding(.top, BudgetVaultTheme.spacingMD)
 
-                    // Header — VaultRevamp engraved typography
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("Achievements")
-                                .font(.system(size: 32, weight: .bold))
-                                .tracking(-0.8)
-                                .foregroundStyle(.white)
-                            Spacer()
-                            Text("\(unlocked.count)/\(AchievementService.allAchievements.count)")
-                                .font(.system(size: 16, weight: .medium, design: .monospaced))
-                                .foregroundStyle(BudgetVaultTheme.titanium300)
+                        if !earnedAchievements.isEmpty && isPremium {
+                            milestonesSection(
+                                title: "Earned",
+                                count: earnedAchievements.count,
+                                achievements: earnedAchievements,
+                                isLocked: false
+                            )
                         }
-                        Text("UNLOCKED MILESTONES")
-                            .font(.system(size: 10, weight: .semibold))
-                            .tracking(2.0)
-                            .foregroundStyle(BudgetVaultTheme.titanium300)
-                    }
-                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
 
-                    // Progress bar — chamber recess with gold fill
-                    GeometryReader { geo in
-                        let progress = AchievementService.allAchievements.isEmpty
-                            ? 0.0
-                            : Double(unlocked.count) / Double(AchievementService.allAchievements.count)
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(BudgetVaultTheme.chamberBackground)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
-                                )
-                                .frame(height: 6)
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [BudgetVaultTheme.badgeGold, BudgetVaultTheme.badgeGoldDark],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: max(0, geo.size.width * progress), height: 6)
-                        }
-                    }
-                    .frame(height: 6)
-                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Achievement progress: \(unlocked.count) of \(AchievementService.allAchievements.count) unlocked")
+                        milestonesSection(
+                            title: "Locked",
+                            count: lockedAchievements.count,
+                            achievements: isPremium ? lockedAchievements : AchievementService.allAchievements,
+                            isLocked: true
+                        )
 
-                    // Grid wrapped in ChamberCard
-                    ChamberCard(padding: BudgetVaultTheme.spacingLG) {
-                        ZStack {
-                            LazyVGrid(columns: columns, spacing: BudgetVaultTheme.spacingLG) {
-                                ForEach(AchievementService.allAchievements) { ach in
-                                    let isAchUnlocked = unlockedIDs.contains(ach.id)
-                                    let displayAch: AchievementService.Achievement = {
-                                        if let match = unlocked.first(where: { $0.id == ach.id }) {
-                                            return match
-                                        }
-                                        return ach
-                                    }()
-
-                                    AchievementBadgeView(
-                                        achievement: displayAch,
-                                        isUnlocked: isPremium ? isAchUnlocked : false,
-                                        size: 60
-                                    )
-                                }
-                            }
-
-                            if !isPremium {
-                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay {
-                                        VStack(spacing: BudgetVaultTheme.spacingMD) {
-                                            Image(systemName: "lock.fill")
-                                                .font(.title)
-                                                .foregroundStyle(BudgetVaultTheme.titanium300)
-                                            Text("Upgrade to Premium")
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(.white)
-                                            Text("Unlock achievement tracking and badges")
-                                                .font(.caption)
-                                                .foregroundStyle(BudgetVaultTheme.titanium300)
-                                                .multilineTextAlignment(.center)
-                                        }
-                                        .padding()
-                                    }
-                            }
+                        if !isPremium {
+                            premiumPromptCard
                         }
                     }
                     .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                    .padding(.bottom, BudgetVaultTheme.spacingXL)
                 }
-                .padding(.vertical, BudgetVaultTheme.spacingLG)
+            }
+            .navigationTitle("Milestones")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .tint(BudgetVaultTheme.accentSoft)
+                }
             }
         }
+    }
+
+    // MARK: - Summary Strip
+
+    @ViewBuilder
+    private var summaryStrip: some View {
+        HStack(spacing: 10) {
+            summaryCell(value: "\(earnedCount)", label: "EARNED", color: BudgetVaultTheme.badgeGold)
+            summaryCell(value: "\(totalCount)", label: "TOTAL", color: .white)
+            summaryCell(value: "\(currentStreak)", label: "STREAK", color: BudgetVaultTheme.accentSoft)
+        }
+    }
+
+    @ViewBuilder
+    private func summaryCell(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 22, weight: .bold, design: .monospaced))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .tracking(2.0)
+                .foregroundStyle(BudgetVaultTheme.titanium400)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(BudgetVaultTheme.chamberDeep)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.4), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: - Sections
+
+    @ViewBuilder
+    private func milestonesSection(
+        title: String,
+        count: Int,
+        achievements: [AchievementService.Achievement],
+        isLocked: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .lastTextBaseline) {
+                EngravedSectionHeader(title: title)
+                Spacer()
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .tracking(1.5)
+                    .foregroundStyle(BudgetVaultTheme.titanium500)
+                    .padding(.top, 20)
+            }
+
+            ChamberCard(padding: 0) {
+                VStack(spacing: 0) {
+                    ForEach(Array(achievements.enumerated()), id: \.element.id) { index, ach in
+                        milestoneRow(ach, isLocked: isLocked)
+
+                        if index < achievements.count - 1 {
+                            HingeRule(weight: .thin)
+                                .padding(.horizontal, 16)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Row
+
+    @ViewBuilder
+    private func milestoneRow(_ achievement: AchievementService.Achievement, isLocked: Bool) -> some View {
+        let tier = badgeTier(for: achievement.tier)
+        let isAchUnlocked = unlockedIDs.contains(achievement.id) && isPremium
+
+        HStack(spacing: 14) {
+            AchievementBadge(
+                tier: tier,
+                glyph: .emoji(achievement.emoji),
+                size: 42,
+                isLocked: !isAchUnlocked
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(achievement.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isAchUnlocked ? .white : BudgetVaultTheme.titanium400)
+
+                Text(achievement.description)
+                    .font(.system(size: 12))
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            if isAchUnlocked, let date = achievement.unlockedDate {
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("Earned")
+                        .font(.system(size: 10, weight: .semibold))
+                        .tracking(1.2)
+                        .foregroundStyle(tierColor(for: achievement.tier))
+                    Text(date, style: .date)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                }
+            } else if isLocked {
+                Text("Locked")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(BudgetVaultTheme.titanium500)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(achievement.title), \(isAchUnlocked ? "earned" : "locked")")
+        .accessibilityHint("\(achievement.description). \(tierLabel(for: achievement.tier)) tier.")
+    }
+
+    // MARK: - Premium Prompt
+
+    @ViewBuilder
+    private var premiumPromptCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(BudgetVaultTheme.caution)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Unlock milestone tracking")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("Premium members earn badges as they build habits.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(
+            LinearGradient(
+                colors: [Color(hex: "#1A2A4F"), BudgetVaultTheme.navyDark],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.25), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    // MARK: - Helpers
+
+    private func badgeTier(for tier: AchievementService.Achievement.Tier) -> AchievementBadge.Tier {
+        switch tier {
+        case .bronze: return .bronze
+        case .silver: return .silver
+        case .gold:   return .gold
+        }
+    }
+
+    private func tierColor(for tier: AchievementService.Achievement.Tier) -> Color {
+        switch tier {
+        case .bronze: return BudgetVaultTheme.badgeBronze
+        case .silver: return BudgetVaultTheme.badgeSilver
+        case .gold:   return BudgetVaultTheme.badgeGold
+        }
+    }
+
+    private func tierLabel(for tier: AchievementService.Achievement.Tier) -> String {
+        switch tier {
+        case .bronze: return "Bronze"
+        case .silver: return "Silver"
+        case .gold:   return "Gold"
+        }
+    }
+}
+
+// MARK: - Legacy AchievementBadgeView shim
+//
+// The old grid rendered individual AchievementBadgeView cells. That
+// view is kept as a thin compatibility wrapper in case any other call
+// site still references it (so removal doesn't break sources outside
+// this file). It now composes the new AchievementBadge primitive.
+
+struct AchievementBadgeView: View {
+    let achievement: AchievementService.Achievement
+    var isUnlocked: Bool = true
+    var size: CGFloat = 60
+
+    private var tier: AchievementBadge.Tier {
+        switch achievement.tier {
+        case .bronze: return .bronze
+        case .silver: return .silver
+        case .gold:   return .gold
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: BudgetVaultTheme.spacingXS) {
+            AchievementBadge(
+                tier: tier,
+                glyph: .emoji(achievement.emoji),
+                size: size,
+                isLocked: !isUnlocked
+            )
+
+            Text(achievement.title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(isUnlocked ? .white : BudgetVaultTheme.titanium400)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .frame(width: size + 12)
+        }
+        .accessibilityLabel("\(achievement.title): \(achievement.description). \(isUnlocked ? "Unlocked" : "Locked")")
     }
 }
 
@@ -259,19 +309,10 @@ struct AchievementGridView: View {
         isUnlocked: true,
         size: 80
     )
+    .padding(40)
+    .background(BudgetVaultTheme.navyDark)
 }
 
-#Preview("Badge - Locked") {
-    AchievementBadgeView(
-        achievement: AchievementService.allAchievements[0],
-        isUnlocked: false,
-        size: 80
-    )
-}
-
-#Preview("Grid") {
-    ScrollView {
-        AchievementGridView()
-            .padding()
-    }
+#Preview("Milestones list") {
+    AchievementGridView()
 }

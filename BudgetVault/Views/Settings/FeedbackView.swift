@@ -28,31 +28,72 @@ struct FeedbackView: View {
                 }
 
                 Section {
-                    // Phase 8.2 §5.5: TextEditor resists `.background()`
-                    // alone — the iOS 16+ override is
-                    // `.scrollContentBackground(.hidden)` plus an
-                    // explicit `.background(...)`. Without both, the
-                    // editor keeps its default white fill under forced
-                    // dark mode.
-                    TextEditor(text: $message)
-                        .frame(minHeight: 140)
-                        .accessibilityLabel("Feedback message")
-                        .scrollContentBackground(.hidden)
-                        .background(BudgetVaultTheme.chamberDeep)
-                        .foregroundStyle(.white)
-                        .listRowBackground(BudgetVaultTheme.chamberDeep)
+                    // Phase 8.3 §5.1: TextEditor has no native placeholder,
+                    // so overlay an italic titanium400 Text when the
+                    // binding is empty. `.allowsHitTesting(false)` lets
+                    // taps fall through to the editor beneath so the
+                    // user can start typing immediately. The chamberDeep
+                    // background + titanium700 stroke wrap makes the
+                    // editor read as a recessed chamber, not a floating
+                    // white field under forced dark mode.
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $message)
+                            .scrollContentBackground(.hidden)
+                            .background(BudgetVaultTheme.chamberDeep)
+                            .foregroundStyle(.white)
+                            .padding(10)
+                            .frame(minHeight: 160)
+                            .accessibilityLabel("Feedback message")
+
+                        if message.isEmpty {
+                            Text("Tell us what you'd like to see, or what isn't working the way you'd expect\u{2026}")
+                                .font(.system(size: 15))
+                                .foregroundStyle(BudgetVaultTheme.titanium400)
+                                .italic()
+                                .padding(16)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.4), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
                 } header: {
                     EngravedSectionHeader(title: "Your message")
                 }
 
                 Section {
-                    // v3.2 audit M8: rewritten to sound confident instead of
-                    // defensive. Privacy-first brand should assert the rule,
-                    // not hedge with "we can't read unless…"
-                    Text("Stored on this device. Only sent if you choose Email to BudgetVault below.")
-                        .font(.caption)
-                        .foregroundStyle(BudgetVaultTheme.titanium400)
-                        .listRowBackground(BudgetVaultTheme.chamberDeep)
+                    // Mockup lines 143–144: subtle blue-tinted privacy
+                    // card that reads as "trust marker" — not a normal
+                    // row. Gradient fill + accentSoft border at 20%.
+                    // v3.2 audit M8: confident phrasing preserved.
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "envelope.badge.shield.half.filled")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(BudgetVaultTheme.accentSoft)
+                        Text("Stored on this device. Only sent if you choose Email to BudgetVault below.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(BudgetVaultTheme.titanium300)
+                    }
+                    .padding(12)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                BudgetVaultTheme.accentSoft.opacity(0.06),
+                                BudgetVaultTheme.accentSoft.opacity(0.02)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.2), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .listRowBackground(BudgetVaultTheme.chamberDeep)
                 }
 
                 // v3.2 audit H10: Email button always visible so the

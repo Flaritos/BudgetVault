@@ -2,6 +2,19 @@ import SwiftUI
 import SwiftData
 import BudgetVaultShared
 
+/// Recurring Expenses list — VaultRevamp v2.1 Phase 8.3 §7.
+///
+/// ScrollView of ChamberCard sections with HingeRule(.thin) dividers
+/// between rows inside each card. Sections:
+///   1. Upcoming  (active expenses, sorted by next due date)
+///   2. Recently Posted (last 5 transactions flagged `isRecurring`)
+///   3. Inactive (deactivated expenses, rendered at 0.6 opacity as a
+///      recessed group)
+///
+/// Swipe actions retired per §7 trade-off (SwiftUI's ScrollView doesn't
+/// support them natively). Active/inactive toggling moves to a
+/// contextMenu (long-press) on each row — tap still opens the edit
+/// sheet, so the primary interaction is unchanged.
 struct RecurringExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
@@ -22,28 +35,17 @@ struct RecurringExpenseListView: View {
     }
 
     private var recentRecurringTransactions: [Transaction] {
-        recentTransactions
-            .filter { $0.isRecurring }
-            .prefix(5)
-            .map { $0 }
+        Array(recentTransactions.filter { $0.isRecurring }.prefix(5))
     }
 
     var body: some View {
         ZStack {
             BudgetVaultTheme.navyDark.ignoresSafeArea()
 
-            Group {
-                if allExpenses.isEmpty {
-                    EmptyStateView(
-                        icon: "repeat",
-                        title: "No Recurring Expenses",
-                        message: "Add bills like Netflix or rent to auto-track them.",
-                        actionLabel: "Add Recurring Expense",
-                        action: { showForm = true }
-                    )
-                } else {
-                    expenseList
-                }
+            if allExpenses.isEmpty {
+                emptyState
+            } else {
+                expenseScroll
             }
         }
         .navigationTitle("Recurring Expenses")
@@ -62,13 +64,14 @@ struct RecurringExpenseListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .tint(BudgetVaultTheme.accentSoft)
                 .accessibilityLabel("Add recurring expense")
             }
             if !isPremium {
                 ToolbarItem(placement: .bottomBar) {
                     Text("\(activeExpenses.count)/3 active")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
                 }
             }
         }
@@ -91,111 +94,218 @@ struct RecurringExpenseListView: View {
         }
     }
 
+    // MARK: - Scroll view
+
     @ViewBuilder
-    private var expenseList: some View {
-        List {
-            if !activeExpenses.isEmpty {
-                Section {
-                    ForEach(activeExpenses, id: \.id) { expense in
-                        Button {
-                            editingExpense = expense
-                        } label: {
-                            chamberRow(RecurringExpenseRowView(expense: expense))
-                        }
-                        .tint(.primary)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: BudgetVaultTheme.spacingLG, bottom: 4, trailing: BudgetVaultTheme.spacingLG))
-                        .swipeActions(edge: .trailing) {
-                            Button("Deactivate") {
-                                expense.isActive = false
-                                guard SafeSave.save(modelContext) else {
-                                    modelContext.rollback()
-                                    return
-                                }
+    private var expenseScroll: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingLG) {
+                if !activeExpenses.isEmpty {
+                    section(
+                        title: "Upcoming",
+                        count: activeExpenses.count,
+                        content: {
+                            ForEach(Array(activeExpenses.enumerated()), id: \.element.id) { index, expense in
+                                expenseRow(expense, isLast: index == activeExpenses.count - 1)
                             }
-                            .tint(BudgetVaultTheme.caution)
                         }
-                        .accessibilityHint("Double tap to edit. Swipe left to deactivate.")
-                    }
-                } header: {
-                    engravedSectionHeader("UPCOMING")
+                    )
+                }
+
+                if !recentRecurringTransactions.isEmpty {
+                    section(
+                        title: "Recently Posted",
+                        count: recentRecurringTransactions.count,
+                        content: {
+                            ForEach(Array(recentRecurringTransactions.enumerated()), id: \.element.id) { index, tx in
+                                transactionRow(tx, isLast: index == recentRecurringTransactions.count - 1)
+                            }
+                        }
+                    )
+                }
+
+                if !inactiveExpenses.isEmpty {
+                    section(
+                        title: "Inactive",
+                        count: inactiveExpenses.count,
+                        content: {
+                            ForEach(Array(inactiveExpenses.enumerated()), id: \.element.id) { index, expense in
+                                expenseRow(expense, isLast: index == inactiveExpenses.count - 1)
+                            }
+                        },
+                        dimmed: true
+                    )
                 }
             }
+            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            .padding(.top, BudgetVaultTheme.spacingMD)
+            .padding(.bottom, BudgetVaultTheme.spacingXL)
+        }
+    }
 
-            if !recentRecurringTransactions.isEmpty {
-                Section {
-                    ForEach(recentRecurringTransactions, id: \.id) { tx in
-                        chamberRow(TransactionRowView(transaction: tx))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 4, leading: BudgetVaultTheme.spacingLG, bottom: 4, trailing: BudgetVaultTheme.spacingLG))
-                    }
-                } header: {
-                    engravedSectionHeader("RECENTLY POSTED")
-                }
+    // MARK: - Section builder
+
+    @ViewBuilder
+    private func section<Content: View>(
+        title: String,
+        count: Int,
+        @ViewBuilder content: @escaping () -> Content,
+        dimmed: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .lastTextBaseline) {
+                EngravedSectionHeader(title: title)
+                Spacer()
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .tracking(1.5)
+                    .foregroundStyle(BudgetVaultTheme.titanium500)
+                    .padding(.top, 20)
             }
 
-            if !inactiveExpenses.isEmpty {
-                Section {
-                    ForEach(inactiveExpenses, id: \.id) { expense in
-                        Button {
-                            editingExpense = expense
-                        } label: {
-                            chamberRow(RecurringExpenseRowView(expense: expense))
-                                .opacity(0.6)
-                        }
-                        .tint(.primary)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: BudgetVaultTheme.spacingLG, bottom: 4, trailing: BudgetVaultTheme.spacingLG))
-                        .swipeActions(edge: .trailing) {
-                            Button("Activate") {
-                                if !isPremium && activeExpenses.count >= 3 {
-                                    showPaywall = true
-                                } else {
-                                    expense.isActive = true
-                                    guard SafeSave.save(modelContext) else {
-                                        modelContext.rollback()
-                                        return
-                                    }
-                                }
-                            }
-                            .tint(BudgetVaultTheme.positive)
+            ChamberCard(padding: 0) {
+                VStack(spacing: 0) {
+                    content()
+                }
+            }
+            .opacity(dimmed ? 0.6 : 1.0)
+        }
+    }
+
+    // MARK: - Rows
+
+    @ViewBuilder
+    private func expenseRow(_ expense: RecurringExpense, isLast: Bool) -> some View {
+        Button {
+            editingExpense = expense
+        } label: {
+            RecurringExpenseRowView(expense: expense)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                editingExpense = expense
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            if expense.isActive {
+                Button {
+                    expense.isActive = false
+                    if !SafeSave.save(modelContext) {
+                        modelContext.rollback()
+                    }
+                } label: {
+                    Label("Deactivate", systemImage: "pause.circle")
+                }
+            } else {
+                Button {
+                    if !isPremium && activeExpenses.count >= 3 {
+                        showPaywall = true
+                    } else {
+                        expense.isActive = true
+                        if !SafeSave.save(modelContext) {
+                            modelContext.rollback()
                         }
                     }
-                } header: {
-                    engravedSectionHeader("INACTIVE")
+                } label: {
+                    Label("Activate", systemImage: "play.circle")
                 }
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(BudgetVaultTheme.navyDark)
+        .accessibilityHint("Double tap to edit. Press and hold for more actions.")
+
+        if !isLast {
+            HingeRule(weight: .thin)
+                .padding(.horizontal, 16)
+        }
     }
 
-    /// Wraps any row content in a chamber-surface background so the
-    /// preserved List swipe-actions still live inside navy/titanium
-    /// chrome instead of default iOS grouped rows.
     @ViewBuilder
-    private func chamberRow<Content: View>(_ content: Content) -> some View {
-        content
-            .padding(.horizontal, 14)
+    private func transactionRow(_ tx: Transaction, isLast: Bool) -> some View {
+        TransactionRowView(transaction: tx)
+            .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
-            )
+
+        if !isLast {
+            HingeRule(weight: .thin)
+                .padding(.horizontal, 16)
+        }
     }
 
-    private func engravedSectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 10, weight: .semibold))
-            .tracking(2.0)
-            .foregroundStyle(BudgetVaultTheme.titanium300)
-            .padding(.top, BudgetVaultTheme.spacingMD)
-            .padding(.bottom, BudgetVaultTheme.spacingXS)
-            .listRowInsets(EdgeInsets(top: 0, leading: BudgetVaultTheme.spacingLG, bottom: 0, trailing: BudgetVaultTheme.spacingLG))
+    // MARK: - Empty state
+
+    @ViewBuilder
+    private var emptyState: some View {
+        VStack(spacing: BudgetVaultTheme.spacingLG) {
+            Spacer()
+
+            // Titanium bolt-head hero glyph per §7 empty state
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                BudgetVaultTheme.titanium200,
+                                BudgetVaultTheme.titanium500,
+                                BudgetVaultTheme.titanium800
+                            ],
+                            center: UnitPoint(x: 0.35, y: 0.30),
+                            startRadius: 0,
+                            endRadius: 48
+                        )
+                    )
+                    .overlay(
+                        Circle()
+                            .strokeBorder(BudgetVaultTheme.titanium800, lineWidth: 2)
+                    )
+                    .frame(width: 88, height: 88)
+                    .shadow(color: .black.opacity(0.4), radius: 6, y: 4)
+
+                Image(systemName: "repeat")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundStyle(BudgetVaultTheme.titanium900)
+            }
+
+            VStack(spacing: 8) {
+                Text("No recurring expenses yet")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                Text("Add the bills that show up every month — subscriptions, rent, utilities — and BudgetVault will track them automatically.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            }
+
+            Button {
+                showForm = true
+            } label: {
+                Label("Add your first", systemImage: "plus")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(14)
+            }
+            .background(
+                LinearGradient(
+                    colors: [BudgetVaultTheme.brightBlue, BudgetVaultTheme.electricBlue],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.4), radius: 12, y: 4)
+            .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            .padding(.top, BudgetVaultTheme.spacingSM)
+
+            Spacer()
+            Spacer()
+        }
+        .padding(.horizontal, BudgetVaultTheme.spacingLG)
     }
 }

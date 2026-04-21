@@ -188,27 +188,69 @@ struct SettingsView: View {
         Button {
             showPaywall = true
         } label: {
-            ChamberCard(padding: 16) {
-                HStack(spacing: 14) {
-                    VaultDial(size: .small, state: .locked, showNumerals: false)
-                        .frame(width: 44, height: 44)
+            // Phase 8.3 §3.4: uses a custom gradient + blue-tinted
+            // border rather than the standard ChamberCard. The elevated
+            // navy + blue-soft accent stroke give it enough visual
+            // weight to earn its position above the Form without
+            // feeling heavy. If a third Chamber variant shows up, pull
+            // this out into ChamberCard(variant: .premium).
+            HStack(spacing: 14) {
+                VaultDial(size: .small, state: .locked, showNumerals: false)
+                    .frame(width: 44, height: 44)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("BudgetVault Premium")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text("Open the full vault")
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundStyle(BudgetVaultTheme.titanium300)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(BudgetVaultTheme.accentSoft)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("BudgetVault Premium")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Open the full vault")
+                        .font(.system(size: 13))
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
                 }
+
+                Spacer()
+
+                // §3.2 confirms the chevron is a styled text glyph, not
+                // an SF Symbol — weight reads lighter and the color is
+                // accentSoft (not titanium500) to signal "tappable."
+                Text("\u{203A}")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
             }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "#1A2A4F"),
+                                BudgetVaultTheme.navyDark
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.25), lineWidth: 1)
+            )
+            // Mockup line 163–165: inset 0 1px 0 rgba(96,165,250,0.12)
+            // inner highlight at top — a thin "lip" that catches light.
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .inset(by: 1)
+                    .stroke(BudgetVaultTheme.accentSoft.opacity(0.12), lineWidth: 1)
+                    .mask(
+                        LinearGradient(
+                            colors: [.white, .clear],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
+            )
+            // And: 0 4px 14px rgba(37,99,235,0.15) outer blue drop
+            // shadow so the card lifts off the navy Form below.
+            .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.15), radius: 14, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")

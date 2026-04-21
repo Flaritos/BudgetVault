@@ -1,131 +1,85 @@
 import SwiftUI
 import StoreKit
 
+/// Paywall — VaultRevamp v2.1 Phase 8.3 §4.
+///
+/// Two states on a single dial-centered layout:
+/// - Ready: locked `.hero` VaultDial above a price chamber, four
+///   titanium bolt-head feature rows, and an "Unlock · $14.99" CTA.
+/// - Success: open `.hero` VaultDial with positive-green glow, "The
+///   vault is open." line, green purchase-complete chip, and a single
+///   "Enter the vault" CTA.
+///
+/// The dial + chamber language is the shared ritual with Onboarding's
+/// Vault-Opens screen — by the time a user reaches the paywall they've
+/// seen this visual before, and the success state closes the metaphor.
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StoreKitManager.self) private var storeKit
-    @State private var showWelcomePremium = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @ScaledMetric(relativeTo: .body) private var heroIconSize: CGFloat = 44
+    @State private var dialFaceRotation: Double = 0
+    @State private var chipVisible: Bool = false
+
+    private var isSuccess: Bool {
+        storeKit.purchaseState == .success
+    }
 
     private var displayPrice: String? {
         storeKit.premiumProduct?.displayPrice
     }
 
+    private var priceDecimal: Decimal {
+        storeKit.premiumProduct?.price ?? Decimal(14.99)
+    }
+
+    private var currencyCode: String {
+        storeKit.premiumProduct?.priceFormatStyle.currencyCode ?? "USD"
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // MARK: - Navy Gradient Hero
-                    heroSection
+            ZStack {
+                // Radial chamber backdrop. In success state the radial
+                // shifts from titanium→navy to navy→positive-green so
+                // the open dial sits in a "lit" chamber.
+                RadialGradient(
+                    colors: isSuccess
+                        ? [BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss]
+                        : [BudgetVaultTheme.navyMid, BudgetVaultTheme.navyAbyss],
+                    center: .top,
+                    startRadius: 0,
+                    endRadius: 500
+                )
+                .ignoresSafeArea()
 
-                    // MARK: - Launch Pricing Countdown (removed Round 5 — now EmptyView)
-                    LaunchPricingBannerView()
-
-                    // MARK: - Content on white/system background
+                ScrollView {
                     VStack(spacing: BudgetVaultTheme.spacingXL) {
-                        // One-time purchase badge
-                        HStack(spacing: 6) {
-                            Image(systemName: "tag.fill")
-                                .foregroundStyle(BudgetVaultTheme.positive)
-                            Text("One-time purchase \u{2014} no subscription")
-                                .font(.caption.bold())
-                                .foregroundStyle(BudgetVaultTheme.positive)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(BudgetVaultTheme.positive.opacity(0.12), in: Capsule())
-                        .padding(.top, BudgetVaultTheme.spacingXL)
+                        heroDial
+                            .padding(.top, BudgetVaultTheme.spacingHero)
 
-                        // MARK: - Hero Feature Cards
-                        VStack(spacing: BudgetVaultTheme.spacingMD) {
-                            heroFeatureCard(
-                                icon: "brain.head.profile",
-                                title: "Vault Patterns",
-                                description: "On-device AI predicts spending, spots anomalies, and finds patterns. Your data never leaves your phone."
-                            )
+                        titleBlock
 
-                            heroFeatureCard(
-                                icon: "square.grid.2x2",
-                                title: "Unlimited Envelopes & Bills",
-                                description: "Build the budget you actually need. No limits on categories or recurring expenses."
-                            )
-
-                            heroFeatureCard(
-                                icon: "chart.xyaxis.line",
-                                title: "Advanced Reports",
-                                description: "Full CSV import/export, spending heatmaps, and category forecasts."
-                            )
-                        }
-                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
-
-                        // MARK: - Bonus Features
-                        VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
-                            Text("Also included")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-
-                            bonusRow(icon: "arrow.triangle.branch", text: "Debt payoff tracker (Snowball & Avalanche)")
-                            bonusRow(icon: "arrow.forward.circle", text: "Per-category rollover rules")
-                            bonusRow(icon: "star.circle.fill", text: "Monthly Wrapped spending recap")
-                            bonusRow(icon: "square.and.arrow.up", text: "Shareable insight cards")
-                        }
-                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-
-                        // MARK: - Own-value statement
-                        // v3.2 audit M4: removed the competitor shamefile
-                        // (YNAB/Monarch/Copilot yearly pricing table).
-                        // Confident brands state their own value; they don't
-                        // name-and-shame competitors.
-                        if let price = displayPrice {
-                            VStack(spacing: BudgetVaultTheme.spacingXS) {
-                                Text(price)
-                                    .font(.system(.largeTitle, design: .rounded).weight(.heavy))
-                                    .foregroundStyle(.primary)
-                                Text("Once. Yours forever.")
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, BudgetVaultTheme.spacingLG)
-                            .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                                    .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
-                            )
-                            .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                        if isSuccess {
+                            purchaseCompleteChip
+                                .opacity(chipVisible ? 1 : 0)
+                                .scaleEffect(chipVisible ? 1 : 0.9)
+                        } else {
+                            priceChamber
+                            featureList
                         }
 
-                        // MARK: - Purchase Area
-                        purchaseArea
+                        ctaStack
+                            .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
-                        // MARK: - Footer
-                        // v3.2 audit M5: stated once, not 4×. Repetition reads insecure.
-                        VStack(spacing: BudgetVaultTheme.spacingXS) {
-                            Text("Family Sharing included. All data stays on your device.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        if !isSuccess {
+                            trustRow
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, BudgetVaultTheme.spacingXL)
-
-                        HStack(spacing: BudgetVaultTheme.spacingLG) {
-                            Link("Privacy Policy", destination: URL(string: "https://budgetvault.io/privacy")!)
-                            Link("Terms of Service", destination: URL(string: "https://budgetvault.io/terms")!)
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, BudgetVaultTheme.spacingXL)
                     }
+                    .padding(.bottom, BudgetVaultTheme.spacingXL)
+                    .frame(maxWidth: .infinity)
                 }
             }
-            // v3.2 K8/H6: circular Close in top-right (not blue text next
-            // to the blue CTA).
-            // Round 8 RR4: toolbarBackground is now hidden so the navy
-            // hero extends flush to the top of the sheet without a
-            // white nav bar strip above it.
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
@@ -136,7 +90,7 @@ struct PaywallView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7), .white.opacity(0.15))
+                            .foregroundStyle(.white.opacity(0.75), .white.opacity(0.12))
                     }
                     .accessibilityLabel("Close")
                 }
@@ -164,12 +118,9 @@ struct PaywallView: View {
             }
             .onChange(of: storeKit.purchaseState) { _, newState in
                 if newState == .success {
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    showWelcomePremium = true
+                    HapticManager.notification(.success)
+                    runSuccessAnimation()
                 }
-            }
-            .sheet(isPresented: $showWelcomePremium) {
-                postPurchaseWelcomeView
             }
             .onAppear {
                 LocalMetricsService.increment(.paywallViews)
@@ -177,116 +128,253 @@ struct PaywallView: View {
         }
     }
 
-    // MARK: - Hero Section
+    // MARK: - Hero Dial
 
     @ViewBuilder
-    private var heroSection: some View {
-        VStack(spacing: BudgetVaultTheme.spacingMD) {
-            VaultDialMark(size: 72)
-                .padding(.top, BudgetVaultTheme.spacingXL + BudgetVaultTheme.spacingLG)
-
-            Text("Unlock the Full Vault")
-                .font(.title2.bold())
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-
-            Text("One-time purchase. Yours forever.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.8))
-        }
-        .padding(.bottom, BudgetVaultTheme.spacingXL)
-        .frame(maxWidth: .infinity)
-        // Round 7: use a taller navy band that extends past the sheet
-        // grabber area, eliminating the white gap above the hero.
-        .background(
-            LinearGradient(colors: [BudgetVaultTheme.navyDark.opacity(0.95), BudgetVaultTheme.navyDark, BudgetVaultTheme.navyMid], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea(edges: .top)
-        )
-    }
-
-    // MARK: - Hero Feature Card
-
-    @ViewBuilder
-    private func heroFeatureCard(icon: String, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: BudgetVaultTheme.spacingMD) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(.white)
-                .frame(width: heroIconSize, height: heroIconSize)
-                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline.bold())
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+    private var heroDial: some View {
+        // Phase 8.3 §4.2: Ready state uses the locked .hero dial; Success
+        // swaps to .open with positive-green halo and a 72° face rotation.
+        // Reduce Motion skips the rotation and the scale swell.
+        ZStack {
+            if isSuccess {
+                VaultDial(
+                    size: .hero,
+                    state: .open,
+                    showGlow: true,
+                    faceRotationDegrees: dialFaceRotation
+                )
+                .shadow(color: BudgetVaultTheme.positive.opacity(0.35), radius: 40)
+                .shadow(color: .black.opacity(0.6), radius: 20, y: 20)
+                .transition(.opacity)
+            } else {
+                VaultDial(size: .hero, state: .locked)
+                    .shadow(color: BudgetVaultTheme.accentSoft.opacity(0.25), radius: 40)
+                    .shadow(color: .black.opacity(0.6), radius: 20, y: 20)
+                    .transition(.opacity)
             }
         }
-        .padding(BudgetVaultTheme.spacingLG)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
-        .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Bonus Row
+    // MARK: - Title Block
 
     @ViewBuilder
-    private func bonusRow(icon: String, text: String) -> some View {
-        HStack(spacing: BudgetVaultTheme.spacingSM) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(BudgetVaultTheme.positive)
-                .font(.caption)
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 20)
-            Text(text)
-                .font(.caption)
+    private var titleBlock: some View {
+        VStack(spacing: BudgetVaultTheme.spacingSM) {
+            if isSuccess {
+                Text("The vault is open.")
+                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+
+                Text("Every premium feature is yours. Nothing expires.")
+                    .font(.subheadline)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            } else {
+                Text("Unlock the full vault.")
+                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+
+                Text("One purchase. Everything in. Nothing ever renews.")
+                    .font(.subheadline)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            }
+        }
+    }
+
+    // MARK: - Price Chamber (Ready)
+
+    @ViewBuilder
+    private var priceChamber: some View {
+        ChamberCard(padding: 20) {
+            VStack(spacing: 10) {
+                Text("ONE-TIME PRICE")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(2.8)
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
+
+                FlipDigitDisplay(
+                    amount: priceDecimal,
+                    style: .large,
+                    currencyCode: currencyCode,
+                    contextLabel: "Price"
+                )
+
+                Text("No subscription \u{00B7} No renewals")
+                    .font(.system(size: 12))
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
+                    .tracking(0.5)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: 320)
+        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+    }
+
+    // MARK: - Feature List (Ready)
+
+    @ViewBuilder
+    private var featureList: some View {
+        // Phase 8.3 §4.4: titanium bolt-head checkmarks, not green. The
+        // visual ties back to the onboarding Pledge screen — "earned
+        // and sealed," not "task complete."
+        let features: [(String, String)] = [
+            ("Full history & export", "Unlimited CSV import and export"),
+            ("Debt tracker", "Snowball and avalanche payoff projection"),
+            ("Monthly Wrapped", "Your month in a shareable recap"),
+            ("Budget templates", "Save and reuse setups across months")
+        ]
+
+        VStack(spacing: 0) {
+            ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
+                featureRow(title: feature.0, subtitle: feature.1, isLast: index == features.count - 1)
+            }
+        }
+        .frame(maxWidth: 320)
+        .padding(.horizontal, BudgetVaultTheme.spacingXL)
+    }
+
+    @ViewBuilder
+    private func featureRow(title: String, subtitle: String, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            boltHeadCheck
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 12)
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Rectangle()
+                    .fill(BudgetVaultTheme.titanium700.opacity(0.4))
+                    .frame(height: 1)
+            }
         }
         .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Purchase Area
+    /// Titanium bolt-head with checkmark — the "earned/sealed" glyph.
+    @ViewBuilder
+    private var boltHeadCheck: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            BudgetVaultTheme.titanium200,
+                            BudgetVaultTheme.titanium400,
+                            BudgetVaultTheme.titanium700
+                        ],
+                        center: UnitPoint(x: 0.35, y: 0.30),
+                        startRadius: 0,
+                        endRadius: 12
+                    )
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(BudgetVaultTheme.titanium800, lineWidth: 1)
+                )
+                .frame(width: 22, height: 22)
+
+            Image(systemName: "checkmark")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundStyle(BudgetVaultTheme.titanium800)
+        }
+    }
+
+    // MARK: - Purchase Complete Chip (Success)
 
     @ViewBuilder
-    private var purchaseArea: some View {
-        // Product load error
-        if let loadError = storeKit.productLoadError, storeKit.premiumProduct == nil {
+    private var purchaseCompleteChip: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(BudgetVaultTheme.positive)
+            Text("Purchase complete")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(BudgetVaultTheme.positive)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .background(BudgetVaultTheme.positive.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(BudgetVaultTheme.positive.opacity(0.3), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .accessibilityLabel("Purchase complete")
+    }
+
+    // MARK: - CTA Stack
+
+    @ViewBuilder
+    private var ctaStack: some View {
+        if isSuccess {
+            Button {
+                dismiss()
+            } label: {
+                Text("Enter the vault")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(17)
+            }
+            .background(
+                LinearGradient(
+                    colors: [BudgetVaultTheme.brightBlue, BudgetVaultTheme.electricBlue],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.45), radius: 14, y: 4)
+            .accessibilityLabel("Enter the vault")
+        } else if let loadError = storeKit.productLoadError, storeKit.premiumProduct == nil {
             VStack(spacing: BudgetVaultTheme.spacingMD) {
                 Text(loadError)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
                     .multilineTextAlignment(.center)
                 Button("Try Again") {
                     storeKit.retryLoadProducts()
                 }
                 .buttonStyle(PrimaryButtonStyle())
             }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
         } else if storeKit.premiumProduct == nil {
-            // Products still loading
-            ProgressView("Loading products...")
+            ProgressView()
+                .tint(BudgetVaultTheme.accentSoft)
                 .padding(.vertical, 8)
         } else {
-            // Purchase button
-            purchaseButton
-                .padding(.horizontal, BudgetVaultTheme.spacingXL)
-        }
+            VStack(spacing: 4) {
+                purchasePrimaryButton
 
-        // Restore
-        Button("Restore Purchases") {
-            Task { await storeKit.restorePurchases() }
+                Button {
+                    Task { await storeKit.restorePurchases() }
+                } label: {
+                    Text("Restore Purchases")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                        .padding(12)
+                }
+            }
         }
-        .font(.subheadline)
     }
 
-    // MARK: - Purchase Button
-
     @ViewBuilder
-    private var purchaseButton: some View {
+    private var purchasePrimaryButton: some View {
         Button {
             if let product = storeKit.premiumProduct {
                 Task { await storeKit.purchase(product) }
@@ -294,84 +382,67 @@ struct PaywallView: View {
         } label: {
             Group {
                 switch storeKit.purchaseState {
-                case .idle, .error:
-                    // v3.2 audit M2: removed "Launch pricing — increases
-                    // after July 1" countdown-style subtitle. Calm brands
-                    // don't use ticking clocks as conversion pressure.
-                    Text("Unlock the Vault\(displayPrice.map { " for \($0)" } ?? "")")
-                        .font(.headline)
                 case .loading:
                     ProgressView()
                         .tint(.white)
                 case .success:
-                    VStack(spacing: BudgetVaultTheme.spacingXS) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 28))
-                        Text("The vault is open.")
-                            .font(.subheadline.bold())
-                    }
+                    // Should not render — success state swaps to
+                    // "Enter the vault" CTA above. Belt-and-suspenders.
+                    Text("The vault is open.")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                default:
+                    Text("Unlock \u{00B7} \(displayPrice ?? "$14.99")")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(17)
         }
-        .buttonStyle(PrimaryButtonStyle(isEnabled: storeKit.purchaseState != .loading && storeKit.purchaseState != .success))
+        .background(
+            LinearGradient(
+                colors: [BudgetVaultTheme.brightBlue, BudgetVaultTheme.electricBlue],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.45), radius: 14, y: 4)
         .disabled(storeKit.purchaseState == .loading || storeKit.purchaseState == .success)
+        .accessibilityLabel("Unlock the vault for \(displayPrice ?? "14 dollars and 99 cents")")
     }
 
-    // MARK: - Post-Purchase Welcome
+    // MARK: - Trust Row (Ready)
 
     @ViewBuilder
-    private var postPurchaseWelcomeView: some View {
-        NavigationStack {
-            VStack(spacing: BudgetVaultTheme.spacingXL) {
-                Spacer()
-
-                VaultDialMark(size: 80, showGlow: true)
-
-                Text("Welcome to the Full Vault!")
-                    .font(.title.bold())
-
-                Text("You've unlocked every premium feature.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingMD) {
-                    unlockRow(icon: "brain.head.profile", text: "Vault Patterns & predictions")
-                    unlockRow(icon: "square.grid.2x2", text: "Unlimited categories")
-                    unlockRow(icon: "repeat", text: "Unlimited recurring expenses")
-                    unlockRow(icon: "chart.xyaxis.line", text: "Advanced reports & charts")
-                    unlockRow(icon: "doc.text", text: "Full CSV import & export")
-                    unlockRow(icon: "creditcard.fill", text: "Debt payoff tracker")
-                    unlockRow(icon: "star.circle.fill", text: "Monthly Wrapped recap")
-                }
-                .padding(.horizontal, BudgetVaultTheme.spacingPage)
-
-                Spacer()
-
-                Button {
-                    showWelcomePremium = false
-                    dismiss()
-                } label: {
-                    Text("Start Exploring")
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal, BudgetVaultTheme.spacing2XL)
-                .padding(.bottom, BudgetVaultTheme.spacingPage)
-            }
+    private var trustRow: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 11))
+            Text("No subscription. Cancel nothing. Yours forever.")
+                .font(.system(size: 11))
         }
+        .foregroundStyle(BudgetVaultTheme.titanium400)
+        .tracking(0.4)
+        .padding(.top, 4)
+        .accessibilityLabel("No subscription. Cancel nothing. Yours forever.")
     }
 
-    private func unlockRow(icon: String, text: String) -> some View {
-        HStack(spacing: BudgetVaultTheme.spacingMD) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(BudgetVaultTheme.positive)
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 24)
-            Text(text)
-                .font(.subheadline)
+    // MARK: - Success Animation
+
+    private func runSuccessAnimation() {
+        guard !reduceMotion else {
+            dialFaceRotation = 72
+            chipVisible = true
+            return
         }
-        .accessibilityElement(children: .combine)
+
+        withAnimation(.easeOut(duration: 0.9)) {
+            dialFaceRotation = 72
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.5)) {
+            chipVisible = true
+        }
     }
 }

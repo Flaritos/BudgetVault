@@ -27,23 +27,53 @@ struct CSVImportView: View {
         case done
     }
 
+    /// Mockup §5.2: 3-bolt BoltRow at the top of every step.
+    /// - selectFile → engaged 1 ("Step 1 of 3 · Select file")
+    /// - preview / categorySelection → engaged 2 ("Step 2 of 3 · Review")
+    /// - done → engaged 3 ("Complete")
+    private var stepProgress: (engaged: Int, label: String) {
+        switch step {
+        case .selectFile: return (1, "Step 1 of 3 \u{00B7} Select file")
+        case .preview, .categorySelection: return (2, "Step 2 of 3 \u{00B7} Review")
+        case .importing: return (2, "Importing")
+        case .done: return (3, "Complete")
+        }
+    }
+
+    private var stepProgressLabelColor: Color {
+        step == .done ? BudgetVaultTheme.positive : BudgetVaultTheme.titanium300
+    }
+
     var body: some View {
         NavigationStack {
-            Group {
-                switch step {
-                case .selectFile:
-                    selectFileView
-                case .preview:
-                    previewView
-                case .categorySelection:
-                    categorySelectionView
-                case .importing:
-                    ProgressView("Importing...")
-                        .tint(BudgetVaultTheme.accentSoft)
-                        .foregroundStyle(BudgetVaultTheme.titanium300)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .done:
-                    doneView
+            VStack(spacing: 0) {
+                VStack(spacing: 10) {
+                    BoltRow(count: 3, engaged: stepProgress.engaged, size: .medium)
+                    Text(stepProgress.label)
+                        .font(.system(size: 10, weight: .semibold))
+                        .tracking(2.4)
+                        .textCase(.uppercase)
+                        .foregroundStyle(stepProgressLabelColor)
+                }
+                .padding(.top, BudgetVaultTheme.spacingLG)
+                .padding(.bottom, BudgetVaultTheme.spacingMD)
+
+                Group {
+                    switch step {
+                    case .selectFile:
+                        selectFileView
+                    case .preview:
+                        previewView
+                    case .categorySelection:
+                        categorySelectionView
+                    case .importing:
+                        ProgressView("Importing...")
+                            .tint(BudgetVaultTheme.accentSoft)
+                            .foregroundStyle(BudgetVaultTheme.titanium300)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    case .done:
+                        doneView
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
