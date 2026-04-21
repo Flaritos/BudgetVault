@@ -166,7 +166,8 @@ struct ChatOnboardingView: View {
     // Welcome dial spin-to-advance state — rotates 720° on "Get started" tap.
     @State private var welcomeDialRotation: Double = 0
     @State private var welcomeAdvancing = false
-    @ScaledMetric(relativeTo: .largeTitle) private var incomeDisplaySize: CGFloat = 48
+    // Income step "Why we ask" disclosure sheet.
+    @State private var showWhyWeAsk = false
     @FocusState private var vaultNameFocused: Bool
 
     private let categoryLimit = 6
@@ -982,40 +983,55 @@ struct ChatOnboardingView: View {
 
     // MARK: - Step 1: Currency
 
+    // VaultRevamp Phase 3b — Currency step uses chamber-depth chips + engraved
+    // label, not a dial-with-progress. Style aligned to §7 screen migrations
+    // so Currency reads as part of the thorough-setup sequence (bolt 4 of 7).
     private var currencyStep: some View {
-        VStack(spacing: BudgetVaultTheme.spacingXL) {
-            OnboardingVaultDial(
-                size: 150,
-                progress: 0.25,
-                stepNumber: 1,
-                stepLabel: "CURRENCY",
-                rotation: dialRotation,
-                showLock: false,
-                showUnlock: false
-            )
-            .padding(.top, BudgetVaultTheme.spacingLG)
+        let padding: CGFloat = 24
+        return VStack(spacing: 0) {
+            Spacer().frame(height: 64)
 
-            VStack(spacing: BudgetVaultTheme.spacingMD) {
-                Text("What currency do you use?")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-            }
+            BoltRow(count: 7, engaged: 4, size: .medium)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
 
-            // Currency chips
-            currencyChips
-                .padding(.horizontal, BudgetVaultTheme.spacingLG)
+            Spacer().frame(height: 36)
 
-            Button {
-                showCurrencyPicker = true
-            } label: {
+            Text("Step 1 of 7 · Currency")
+                .font(.system(size: 11, weight: .semibold))
+                .textCase(.uppercase)
+                .tracking(2.42)
+                .foregroundStyle(BudgetVaultTheme.titanium300)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
+
+            Spacer().frame(height: 8)
+
+            Text("Choose your currency.")
+                .font(.system(size: 24, weight: .bold))
+                .tracking(-0.6)
+                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
+
+            Spacer().frame(height: 24)
+
+            vaultCurrencyChips
+                .padding(.horizontal, padding)
+
+            Spacer().frame(height: 16)
+
+            Button { showCurrencyPicker = true } label: {
                 HStack(spacing: 4) {
                     Text("More currencies")
-                        .font(.subheadline)
+                        .font(.system(size: 12, weight: .medium))
                     Image(systemName: "arrow.right")
-                        .font(.caption)
+                        .font(.system(size: 10, weight: .medium))
                 }
                 .foregroundStyle(BudgetVaultTheme.accentSoft)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, padding)
 
             Spacer()
 
@@ -1024,18 +1040,25 @@ struct ChatOnboardingView: View {
                 advanceStep()
             } label: {
                 Text("Continue")
-                    .font(.headline)
-                    .foregroundStyle(BudgetVaultTheme.navyDark)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(.white, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton))
+                    .padding(.vertical, 17)
+                    .background(ctaPrimaryBackground, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(hex: "#1e3a8a"), lineWidth: 1)
+                    )
             }
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingXL)
+            .padding(.horizontal, padding)
+            .padding(.bottom, 20)
         }
     }
 
-    private var currencyChips: some View {
+    /// Vault-themed currency picker — chamber-depth chips in a 3-column grid.
+    /// Selected chip is outlined in accent blue; unselected chips sit on the
+    /// chamber gradient to read as recessed inlays.
+    private var vaultCurrencyChips: some View {
         let currencies: [(code: String, flag: String)] = [
             ("USD", "\u{1F1FA}\u{1F1F8}"),
             ("EUR", "\u{1F1EA}\u{1F1FA}"),
@@ -1044,173 +1067,222 @@ struct ChatOnboardingView: View {
             ("AUD", "\u{1F1E6}\u{1F1FA}"),
             ("JPY", "\u{1F1EF}\u{1F1F5}"),
         ]
-
-        return FlowLayout(spacing: 10) {
+        let columns = [GridItem(.flexible(), spacing: 8),
+                       GridItem(.flexible(), spacing: 8),
+                       GridItem(.flexible(), spacing: 8)]
+        return LazyVGrid(columns: columns, spacing: 8) {
             ForEach(currencies, id: \.code) { currency in
                 Button {
                     tempCurrency = currency.code
                 } label: {
                     HStack(spacing: 6) {
-                        Text(currency.flag)
-                            .font(.title3)
+                        Text(currency.flag).font(.system(size: 18))
                         Text(currency.code)
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.white)
+                            .font(.system(size: 13, weight: .semibold))
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                     .background(
-                        tempCurrency == currency.code
-                            ? AnyShapeStyle(BudgetVaultTheme.accentSoft.opacity(0.35))
-                            : AnyShapeStyle(Color.white.opacity(0.12)),
-                        in: Capsule()
+                        LinearGradient(
+                            colors: tempCurrency == currency.code
+                                ? [BudgetVaultTheme.navyMid, BudgetVaultTheme.navyDark]
+                                : [BudgetVaultTheme.chamberDeep, BudgetVaultTheme.chamberBlack],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        in: RoundedRectangle(cornerRadius: 10)
                     )
                     .overlay(
-                        Capsule()
+                        RoundedRectangle(cornerRadius: 10)
                             .strokeBorder(
                                 tempCurrency == currency.code
                                     ? BudgetVaultTheme.accentSoft
-                                    : Color.clear,
-                                lineWidth: 1.5
+                                    : BudgetVaultTheme.titanium700,
+                                lineWidth: tempCurrency == currency.code ? 2 : 1
                             )
                     )
                     .accessibilityAddTraits(tempCurrency == currency.code ? .isSelected : [])
                 }
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Shared cta-primary gradient (matches HTML: #60A5FA → #2563EB → #1e40af).
+    private var ctaPrimaryBackground: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: Color(hex: "#60A5FA"), location: 0.0),
+                .init(color: BudgetVaultTheme.electricBlue, location: 0.55),
+                .init(color: Color(hex: "#1e40af"), location: 1.0),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     // MARK: - Step 2: Income
 
+    // VaultRevamp §7.5 — Income entry ceremony. HTML Step 07 verbatim:
+    //   · BoltRow 7/6 (near end of thorough path)
+    //   · Engraved "Step 3 of 7 · Income"
+    //   · 24pt bold two-line headline "What lands in your account each month?"
+    //   · "Why we ask →" text button (opens privacy disclosure sheet)
+    //   · FlipDigitDisplay (.display, chamber-black mechanical plates)
+    //   · Engraved "After-tax take-home"
+    //   · TitaniumKeypad — the one place the metal keys earn their weight
+    //   · cta-primary "Continue" (inline-positioned, NOT absolute)
     private var incomeStep: some View {
-        VStack(spacing: BudgetVaultTheme.spacingMD) {
-            OnboardingVaultDial(
-                size: 140,
-                progress: 0.5,
-                stepNumber: 2,
-                stepLabel: "INCOME",
-                rotation: dialRotation,
-                showLock: false,
-                showUnlock: false
-            )
-            .padding(.top, BudgetVaultTheme.spacingSM)
+        let padding: CGFloat = 24
+        let cents = MoneyHelpers.parseCurrencyString(incomeText) ?? 0
+        let displayAmount = Decimal(cents) / Decimal(100)
+        let hasIncome = cents > 0
+        return VStack(spacing: 0) {
+            Spacer().frame(height: 64)
 
-            VStack(spacing: BudgetVaultTheme.spacingSM) {
-                Text("Monthly take-home pay")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
+            BoltRow(count: 7, engaged: 6, size: .medium)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
 
-                Text("After taxes \u{00B7} stays on your device")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.4))
+            Spacer().frame(height: 36)
+
+            Text("Step 3 of 7 · Income")
+                .font(.system(size: 11, weight: .semibold))
+                .textCase(.uppercase)
+                .tracking(2.42)
+                .foregroundStyle(BudgetVaultTheme.titanium300)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
+
+            Spacer().frame(height: 8)
+
+            (Text("What lands in your\n") + Text("account each month?"))
+                .font(.system(size: 24, weight: .bold))
+                .tracking(-0.6)
+                .lineSpacing(4.8)
+                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, padding)
+
+            Spacer().frame(height: 4)
+
+            Button { showWhyWeAsk = true } label: {
+                Text("Why we ask \u{2192}")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, padding)
 
-            // Large amount display.
-            // v3.2 audit M6: format with thousands separators so $5,000 matches
-            // the dashboard instead of "$5000".
-            Text(formattedIncomeDisplay)
-                .font(.system(size: min(incomeDisplaySize, 64), weight: .heavy, design: .rounded))
-                .foregroundStyle(.white)
+            Spacer().frame(height: 24)
+
+            FlipDigitDisplay(
+                amount: displayAmount,
+                style: .display,
+                currencyCode: selectedCurrency
+            )
+            .frame(maxWidth: .infinity)
+            .contentTransition(.numericText())
+
+            Spacer().frame(height: 10)
+
+            Text("After-tax take-home")
+                .font(.system(size: 9, weight: .semibold))
+                .textCase(.uppercase)
+                .tracking(2.16)
+                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, BudgetVaultTheme.spacingSM)
-                .contentTransition(.numericText())
 
-            // Number pad (reuse ChatNumberPadView keys inline for dark theme)
-            onboardingNumberPad
-                .padding(.horizontal, BudgetVaultTheme.spacingXL)
+            Spacer().frame(height: 22)
 
-            Spacer(minLength: BudgetVaultTheme.spacingMD)
+            TitaniumKeypad(text: $incomeText)
+                .padding(.horizontal, padding)
 
-            let hasIncome = (MoneyHelpers.parseCurrencyString(incomeText) ?? 0) > 0
+            Spacer().frame(height: 14)
 
-            Button {
-                advanceStep()
-            } label: {
+            Button { advanceStep() } label: {
                 Text("Continue")
-                    .font(.headline)
-                    .foregroundStyle(hasIncome ? BudgetVaultTheme.navyDark : .white.opacity(0.3))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(
+                        hasIncome
+                            ? Color(hex: "#E8EDF5")
+                            : Color(hex: "#E8EDF5").opacity(0.4)
+                    )
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 17)
                     .background(
                         hasIncome
-                            ? AnyShapeStyle(Color.white)
+                            ? AnyShapeStyle(ctaPrimaryBackground)
                             : AnyShapeStyle(Color.white.opacity(0.08)),
-                        in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
+                        in: RoundedRectangle(cornerRadius: 12)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(
+                                hasIncome
+                                    ? Color(hex: "#1e3a8a")
+                                    : Color.white.opacity(0.05),
+                                lineWidth: 1
+                            )
                     )
             }
             .disabled(!hasIncome)
-            .padding(.horizontal, BudgetVaultTheme.spacingXL)
-            .padding(.bottom, BudgetVaultTheme.spacingLG)
+            .padding(.horizontal, padding)
+            .padding(.bottom, 20)
+        }
+        .sheet(isPresented: $showWhyWeAsk) {
+            whyWeAskSheet
         }
     }
 
-    private var onboardingNumberPad: some View {
-        let keys: [[String]] = [
-            ["1", "2", "3"],
-            ["4", "5", "6"],
-            ["7", "8", "9"],
-            [".", "0", "\u{232B}"],
-        ]
+    /// Privacy disclosure for the Income step. Never says "required" — the
+    /// user can skip with any amount. Matches the spec's privacy-pledge tone.
+    private var whyWeAskSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Why we ask")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .padding(.top, 8)
 
-        return VStack(spacing: BudgetVaultTheme.spacingSM) {
-            ForEach(keys, id: \.self) { row in
-                HStack(spacing: BudgetVaultTheme.spacingSM) {
-                    ForEach(row, id: \.self) { key in
-                        Button {
-                            handleNumberKey(key)
-                        } label: {
-                            Text(key)
-                                .font(.title2.bold())
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 52)
-                                .background(
-                                    RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                                        .fill(Color.white.opacity(0.08))
-                                )
-                        }
-                        .accessibilityLabel(key == "\u{232B}" ? "Delete" : key)
-                    }
-                }
+            Text("""
+            We use your monthly take-home to calculate your daily allowance \
+            and envelope targets. That's it.
+            """)
+            .font(.system(size: 15, weight: .regular))
+            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.75))
+            .fixedSize(horizontal: false, vertical: true)
+
+            Text("""
+            The number stays on this iPhone. It never leaves your device, \
+            never hits a server, never funds an ad network.
+            """)
+            .font(.system(size: 15, weight: .regular))
+            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.75))
+            .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+
+            Button { showWhyWeAsk = false } label: {
+                Text("Got it")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 17)
+                    .background(ctaPrimaryBackground, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(hex: "#1e3a8a"), lineWidth: 1)
+                    )
             }
+            .padding(.bottom, 12)
         }
-    }
-
-    /// Formatted display for the income entry — always uses thousands
-    /// separators to match the dashboard formatting (v3.2 audit M6).
-    private var formattedIncomeDisplay: String {
-        if incomeText.isEmpty { return CurrencyFormatter.displayAmount(text: "") }
-        guard let cents = MoneyHelpers.parseCurrencyString(incomeText), cents > 0 else {
-            return CurrencyFormatter.displayAmount(text: incomeText)
-        }
-        return CurrencyFormatter.format(cents: cents, currencyCode: selectedCurrency)
-    }
-
-    private func handleNumberKey(_ key: String) {
-        HapticManager.impact(.light)
-
-        if key == "\u{232B}" {
-            if !incomeText.isEmpty { incomeText.removeLast() }
-            return
-        }
-        if key == "." {
-            if incomeText.contains(".") { return }
-            incomeText += incomeText.isEmpty ? "0." : "."
-            return
-        }
-        // Max 2 decimal places
-        if let dotIndex = incomeText.firstIndex(of: ".") {
-            let decimals = incomeText[incomeText.index(after: dotIndex)...]
-            if decimals.count >= 2 { return }
-        }
-        // Prevent leading zeros
-        if incomeText == "0" && key != "." {
-            incomeText = key
-            return
-        }
-        if incomeText.count < 10 {
-            incomeText += key
-        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BudgetVaultTheme.navyDark.ignoresSafeArea())
+        .presentationDetents([.medium])
     }
 
     // MARK: - Step 3: Envelopes
