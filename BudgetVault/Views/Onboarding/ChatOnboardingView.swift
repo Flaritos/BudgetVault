@@ -991,13 +991,13 @@ struct ChatOnboardingView: View {
         return VStack(spacing: 0) {
             Spacer().frame(height: 64)
 
-            BoltRow(count: 7, engaged: 4, size: .medium)
+            BoltRow(count: 7, engaged: 5, size: .medium)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, padding)
 
             Spacer().frame(height: 36)
 
-            Text("Step 1 of 7 · Currency")
+            Text("Step 5 of 7 · Currency")
                 .font(.system(size: 11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.42)
@@ -1147,7 +1147,7 @@ struct ChatOnboardingView: View {
 
             Spacer().frame(height: 36)
 
-            Text("Step 3 of 7 · Income")
+            Text("Step 6 of 7 · Income")
                 .font(.system(size: 11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.42)
@@ -1304,7 +1304,7 @@ struct ChatOnboardingView: View {
 
             Spacer().frame(height: 24)
 
-            Text("Step 5 of 7 · Envelopes")
+            Text("Step 7 of 7 · Envelopes")
                 .font(.system(size: 11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.42)
@@ -1455,7 +1455,11 @@ struct ChatOnboardingView: View {
         let incomeCents = MoneyHelpers.parseCurrencyString(incomeText) ?? 0
         let amountCents = Int64(Double(incomeCents) * editableCategories[index].pct)
 
-        HStack(spacing: 10) {
+        // Two-line row: top line = color dot + emoji + name (flexible) +
+        // stepper + delete. Bottom line = dollar amount (small, titanium)
+        // when income is set. This layout preserves the $ context the
+        // single-line row was truncating category names to make room for.
+        HStack(alignment: .center, spacing: 10) {
             Circle()
                 .fill(Color(hex: editableCategories[index].color))
                 .frame(width: 10, height: 10)
@@ -1463,18 +1467,26 @@ struct ChatOnboardingView: View {
             Text(editableCategories[index].emoji)
                 .font(.title3)
 
-            TextField("Name", text: Binding(
-                get: { editableCategories[index].name },
-                set: { editableCategories[index].name = $0 }
-            ))
-            .font(.subheadline)
-            .foregroundStyle(.white)
-            .textFieldStyle(.plain)
+            VStack(alignment: .leading, spacing: 2) {
+                TextField("Name", text: Binding(
+                    get: { editableCategories[index].name },
+                    set: { editableCategories[index].name = $0 }
+                ))
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .textFieldStyle(.plain)
+                .lineLimit(1)
 
-            Spacer()
+                if incomeCents > 0 {
+                    Text(CurrencyFormatter.format(cents: amountCents))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Percentage stepper
-            HStack(spacing: 4) {
+            // Percentage stepper — compact (32pt hit areas, 2pt spacing)
+            HStack(spacing: 2) {
                 Button {
                     if editableCategories[index].pct > 0.05 {
                         editableCategories[index].pct -= 0.05
@@ -1483,14 +1495,14 @@ struct ChatOnboardingView: View {
                     Image(systemName: "minus.circle.fill")
                         .font(.body)
                         .foregroundStyle(.white.opacity(0.5))
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Circle())
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
                 }
 
                 Text("\(Int(editableCategories[index].pct * 100))%")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.white.opacity(0.8))
-                    .frame(width: 36)
+                    .frame(width: 30)
 
                 Button {
                     if editableCategories[index].pct < 0.95 {
@@ -1500,20 +1512,11 @@ struct ChatOnboardingView: View {
                     Image(systemName: "plus.circle.fill")
                         .font(.body)
                         .foregroundStyle(.white.opacity(0.5))
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Circle())
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
                 }
             }
 
-            // Dollar amount
-            if incomeCents > 0 {
-                Text(CurrencyFormatter.format(cents: amountCents))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.4))
-                    .frame(width: 60, alignment: .trailing)
-            }
-
-            // Delete
             Button {
                 withAnimation(.easeOut(duration: 0.2)) {
                     if index < editableCategories.count {
@@ -1524,9 +1527,13 @@ struct ChatOnboardingView: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.body)
                     .foregroundStyle(.white.opacity(0.3))
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Delete category \(editableCategories[index].name)")
         }
-        .padding(BudgetVaultTheme.spacingMD)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                 .fill(Color.white.opacity(0.08))
