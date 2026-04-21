@@ -49,26 +49,33 @@ struct AchievementSheet: View {
 
     var body: some View {
         ZStack {
-            // Tier-tinted chamber backdrop
+            // Mockup line 279: `radial-gradient(ellipse at 50% 40%,
+            // rgba(255,215,0,0.08) 0%, #0F1B33 40%, #070E1F 100%)` for
+            // gold. Tier tint stays at 8% opacity (subtle — the badge
+            // halo carries the main color lift, not the background).
             RadialGradient(
                 colors: [
-                    tierColor.opacity(0.12),
-                    BudgetVaultTheme.navyMid,
+                    tierColor.opacity(0.08),
+                    BudgetVaultTheme.navyDark,
                     BudgetVaultTheme.navyAbyss
                 ],
-                center: UnitPoint(x: 0.5, y: 0.2),
-                startRadius: 40,
-                endRadius: 600
+                center: UnitPoint(x: 0.5, y: 0.4),
+                startRadius: 0,
+                endRadius: 500
             )
             .ignoresSafeArea()
 
             VStack(spacing: BudgetVaultTheme.spacingLG) {
                 Spacer(minLength: BudgetVaultTheme.spacingMD)
 
+                // Mockup line 77: `text-shadow: 0 0 12px rgba(255,215,0,0.6)`
+                // — tier-colored glow around the eyebrow so it reads as
+                // literally radiating light, matching the dial's halo.
                 Text("MILESTONE UNLOCKED")
                     .font(.system(size: 10, weight: .heavy))
                     .tracking(4.0)
                     .foregroundStyle(tierColor)
+                    .shadow(color: tierColor.opacity(0.6), radius: 12)
                     .opacity(contentVisible ? 1 : 0)
                     .accessibilityHidden(true)
 

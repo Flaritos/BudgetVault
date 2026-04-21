@@ -141,10 +141,18 @@ struct MoveMoneyView: View {
                         lineWidth: 2
                     )
             )
-            .shadow(
-                color: isSelected ? BudgetVaultTheme.electricBlue.opacity(0.35) : .clear,
-                radius: isSelected ? 10 : 0,
-                y: isSelected ? 2 : 0
+            // Mockup §6 line 93: `box-shadow: 0 0 0 2px rgba(37,99,235,0.2)`
+            // — a sharp 2pt outer ring, not a soft blur. Read as a
+            // selection outline (like a focused text field) rather than
+            // a glow halo.
+            .overlay(
+                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
+                    .strokeBorder(
+                        isSelected ? BudgetVaultTheme.electricBlue.opacity(0.2) : Color.clear,
+                        lineWidth: 4
+                    )
+                    .blur(radius: 0)
+                    .padding(-2)
             )
             .opacity(isOtherSelection ? 0.35 : (shouldDim ? 0.55 : 1))
         }

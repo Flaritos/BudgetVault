@@ -234,6 +234,23 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.25), lineWidth: 1)
             )
+            // Mockup line 163–165: inset 0 1px 0 rgba(96,165,250,0.12)
+            // inner highlight at top — a thin "lip" that catches light.
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .inset(by: 1)
+                    .stroke(BudgetVaultTheme.accentSoft.opacity(0.12), lineWidth: 1)
+                    .mask(
+                        LinearGradient(
+                            colors: [.white, .clear],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
+            )
+            // And: 0 4px 14px rgba(37,99,235,0.15) outer blue drop
+            // shadow so the card lifts off the navy Form below.
+            .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.15), radius: 14, y: 4)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")
