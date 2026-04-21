@@ -92,8 +92,19 @@ struct MonthlySummaryView: View {
                             .accessibilityLabel("\(cat.name): \(CurrencyFormatter.format(cents: spent)) of \(CurrencyFormatter.format(cents: budgeted)), \(under ? "under budget" : "over budget")")
                         }
                     }
+                    // Phase 9 §4: Phase 8 scoped the ultraThinMaterial
+                    // sweep to Views/Insights/ only; this Dashboard file
+                    // got missed. Swap for the chamber treatment used by
+                    // every other grouped container in VaultRevamp.
                     .padding()
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .background(
+                        BudgetVaultTheme.chamberBackground,
+                        in: RoundedRectangle(cornerRadius: 12)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.4), lineWidth: 1)
+                    )
 
                     // Celebration
                     if delta > 0 {
