@@ -17,9 +17,10 @@ struct RecurringExpenseRowView: View {
                 HStack(spacing: 4) {
                     Text(expense.frequencyEnum.displayName)
                         .font(.caption)
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.15), in: Capsule())
+                        .background(BudgetVaultTheme.accentSoft.opacity(0.15), in: Capsule())
                     dueBadge
                 }
             }

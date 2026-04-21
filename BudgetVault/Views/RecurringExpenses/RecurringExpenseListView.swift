@@ -29,20 +29,27 @@ struct RecurringExpenseListView: View {
     }
 
     var body: some View {
-        Group {
-            if allExpenses.isEmpty {
-                EmptyStateView(
-                    icon: "repeat",
-                    title: "No Recurring Expenses",
-                    message: "Add bills like Netflix or rent to auto-track them.",
-                    actionLabel: "Add Recurring Expense",
-                    action: { showForm = true }
-                )
-            } else {
-                expenseList
+        ZStack {
+            BudgetVaultTheme.navyDark.ignoresSafeArea()
+
+            Group {
+                if allExpenses.isEmpty {
+                    EmptyStateView(
+                        icon: "repeat",
+                        title: "No Recurring Expenses",
+                        message: "Add bills like Netflix or rent to auto-track them.",
+                        actionLabel: "Add Recurring Expense",
+                        action: { showForm = true }
+                    )
+                } else {
+                    expenseList
+                }
             }
         }
         .navigationTitle("Recurring Expenses")
+        .toolbarBackground(BudgetVaultTheme.navyDark, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -88,14 +95,17 @@ struct RecurringExpenseListView: View {
     private var expenseList: some View {
         List {
             if !activeExpenses.isEmpty {
-                Section("Upcoming") {
+                Section {
                     ForEach(activeExpenses, id: \.id) { expense in
                         Button {
                             editingExpense = expense
                         } label: {
-                            RecurringExpenseRowView(expense: expense)
+                            chamberRow(RecurringExpenseRowView(expense: expense))
                         }
                         .tint(.primary)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: BudgetVaultTheme.spacingLG, bottom: 4, trailing: BudgetVaultTheme.spacingLG))
                         .swipeActions(edge: .trailing) {
                             Button("Deactivate") {
                                 expense.isActive = false
@@ -108,27 +118,37 @@ struct RecurringExpenseListView: View {
                         }
                         .accessibilityHint("Double tap to edit. Swipe left to deactivate.")
                     }
+                } header: {
+                    engravedSectionHeader("UPCOMING")
                 }
             }
 
             if !recentRecurringTransactions.isEmpty {
-                Section("Recently Posted") {
+                Section {
                     ForEach(recentRecurringTransactions, id: \.id) { tx in
-                        TransactionRowView(transaction: tx)
+                        chamberRow(TransactionRowView(transaction: tx))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 4, leading: BudgetVaultTheme.spacingLG, bottom: 4, trailing: BudgetVaultTheme.spacingLG))
                     }
+                } header: {
+                    engravedSectionHeader("RECENTLY POSTED")
                 }
             }
 
             if !inactiveExpenses.isEmpty {
-                Section("Inactive") {
+                Section {
                     ForEach(inactiveExpenses, id: \.id) { expense in
                         Button {
                             editingExpense = expense
                         } label: {
-                            RecurringExpenseRowView(expense: expense)
-                                .opacity(0.5)
+                            chamberRow(RecurringExpenseRowView(expense: expense))
+                                .opacity(0.6)
                         }
                         .tint(.primary)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: BudgetVaultTheme.spacingLG, bottom: 4, trailing: BudgetVaultTheme.spacingLG))
                         .swipeActions(edge: .trailing) {
                             Button("Activate") {
                                 if !isPremium && activeExpenses.count >= 3 {
@@ -144,9 +164,38 @@ struct RecurringExpenseListView: View {
                             .tint(BudgetVaultTheme.positive)
                         }
                     }
+                } header: {
+                    engravedSectionHeader("INACTIVE")
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(BudgetVaultTheme.navyDark)
+    }
+
+    /// Wraps any row content in a chamber-surface background so the
+    /// preserved List swipe-actions still live inside navy/titanium
+    /// chrome instead of default iOS grouped rows.
+    @ViewBuilder
+    private func chamberRow<Content: View>(_ content: Content) -> some View {
+        content
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
+            )
+    }
+
+    private func engravedSectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 10, weight: .semibold))
+            .tracking(2.0)
+            .foregroundStyle(BudgetVaultTheme.titanium300)
+            .padding(.top, BudgetVaultTheme.spacingMD)
+            .padding(.bottom, BudgetVaultTheme.spacingXS)
+            .listRowInsets(EdgeInsets(top: 0, leading: BudgetVaultTheme.spacingLG, bottom: 0, trailing: BudgetVaultTheme.spacingLG))
     }
 }
