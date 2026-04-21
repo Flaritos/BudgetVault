@@ -564,7 +564,7 @@ struct SettingsView: View {
             }
 
             Text(iCloudSyncEnabled
-                 ? "Your data syncs securely via iCloud."
+                 ? "Your data syncs securely via iCloud. End-to-end encrypted."
                  : "Your data never leaves this device.")
                 .font(.caption)
                 .foregroundStyle(.secondary)

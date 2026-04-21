@@ -303,7 +303,7 @@ struct PaywallView: View {
                     VStack(spacing: BudgetVaultTheme.spacingXS) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 28))
-                        Text("Vault Unlocked!")
+                        Text("The vault is open.")
                             .font(.subheadline.bold())
                     }
                 }
