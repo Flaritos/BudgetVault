@@ -7,17 +7,24 @@ enum KeychainService {
     private static let service = "io.budgetvault.app"
 
     /// Store a Bool value in the Keychain under the given key.
-    static func set(_ value: Bool, forKey key: String) {
+    ///
+    /// Audit fix: explicitly set `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
+    /// so the premium flag survives device reboots but never syncs via
+    /// iCloud Keychain backups (which would entitle premium on a
+    /// restored device without a matching StoreKit transaction).
+    @discardableResult
+    static func set(_ value: Bool, forKey key: String) -> OSStatus {
         let data = Data([value ? 1 : 0])
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecValueData as String: data
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
         // Delete any existing item first, then insert.
         SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        return SecItemAdd(query as CFDictionary, nil)
     }
 
     /// Retrieve a Bool value from the Keychain, or nil if not found.

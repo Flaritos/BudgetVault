@@ -237,7 +237,13 @@ enum InsightsEngine {
 
         // 10. Payday Splurge — heavy spending in first 3 days of period
         if daysSoFar > 3 {
-            let first3End = calendar.date(byAdding: .day, value: 3, to: budget.periodStart)!
+            // Audit fix: was force-unwrapped. `date(byAdding:)` can
+            // return nil for certain edge cases (calendar boundary
+            // overflows). Guard and skip the Payday Splurge insight
+            // rather than crash.
+            guard let first3End = calendar.date(byAdding: .day, value: 3, to: budget.periodStart) else {
+                return insights
+            }
             let first3Spent = allTxs.filter { $0.date >= budget.periodStart && $0.date < first3End }
                 .reduce(Int64(0)) { $0 + $1.amountCents }
             let restSpent = totalSpent - first3Spent

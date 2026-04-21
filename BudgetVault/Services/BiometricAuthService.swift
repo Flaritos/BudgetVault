@@ -40,8 +40,15 @@ final class BiometricAuthService {
 
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            // No biometric or passcode available — allow access
-            isAuthenticated = true
+            // Audit fix: was `isAuthenticated = true` (fail open). For a
+            // privacy-first app claiming "App Lock," silently bypassing
+            // auth when no passcode exists is off-message and could
+            // surprise users on a shared device. Now we fail closed and
+            // surface a message so the user knows why the lock didn't
+            // engage. The Settings toggle stays on so they can set a
+            // passcode in iOS Settings and return to a working lock.
+            isAuthenticated = false
+            errorMessage = "Set a passcode in iOS Settings to use App Lock."
             return
         }
 

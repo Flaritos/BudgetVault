@@ -42,7 +42,17 @@ final class CloudSyncService {
         }
     }
 
-    /// Removes duplicate budgets for the same month/year, merging categories into the oldest one.
+    /// Removes duplicate budgets for the same month/year, merging
+    /// categories into the oldest one.
+    ///
+    /// Audit fix: the prior version reassigned `cat.budget = existing`
+    /// for non-duplicate-named categories, but `context.delete(budget)`
+    /// still cascade-deleted the *duplicate-named* categories — and
+    /// their transactions with them. Users importing the same CSV
+    /// twice via iCloud sync could silently lose transactions. Now we
+    /// reassign ALL transactions from the doomed budget's categories
+    /// to their name-matching categories on the keeper (or absorb the
+    /// category wholesale if no name match) before the delete.
     private func deduplicateBudgets(context: ModelContext) {
         let descriptor = FetchDescriptor<Budget>(
             sortBy: [SortDescriptor(\Budget.year), SortDescriptor(\Budget.month)]
@@ -54,9 +64,22 @@ final class CloudSyncService {
         for budget in allBudgets {
             let key = "\(budget.year)-\(budget.month)"
             if let existing = seen[key] {
+                let existingByName = Dictionary(
+                    (existing.categories ?? []).map { ($0.name.lowercased(), $0) },
+                    uniquingKeysWith: { old, _ in old }
+                )
                 for cat in budget.categories ?? [] {
-                    let existingNames = Set((existing.categories ?? []).map { $0.name.lowercased() })
-                    if !existingNames.contains(cat.name.lowercased()) {
+                    if let keeper = existingByName[cat.name.lowercased()] {
+                        // Name match: move every transaction from the
+                        // doomed category to the keeper, then let
+                        // cascade-delete take the empty category.
+                        for tx in cat.transactions ?? [] {
+                            tx.category = keeper
+                        }
+                    } else {
+                        // No name match: absorb the whole category
+                        // (including its transactions via the inverse)
+                        // onto the keeper budget.
                         cat.budget = existing
                     }
                 }

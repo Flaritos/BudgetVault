@@ -32,13 +32,23 @@ enum CSVExporter {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withFullDate]
 
+        // Audit fix: use `en_US_POSIX` for consistent `.` decimal
+        // separator. Without this, German/Spanish/etc. locales emit
+        // "1234,56" which YNAB/Excel mis-parse.
+        let amountFormatter = NumberFormatter()
+        amountFormatter.locale = Locale(identifier: "en_US_POSIX")
+        amountFormatter.minimumFractionDigits = 2
+        amountFormatter.maximumFractionDigits = 2
+        amountFormatter.decimalSeparator = "."
+        amountFormatter.usesGroupingSeparator = false
+
         var lines = ["Date,Category,Emoji,Note,Amount,Type"]
         for tx in transactions {
             let dateStr = isoFormatter.string(from: tx.date)
-            let cat = tx.category?.name ?? ""
-            let emoji = tx.category?.emoji ?? (tx.isIncome ? "\u{1F4B5}" : "")
-            let note = tx.note.replacingOccurrences(of: "\"", with: "\"\"")
-            let amount = String(format: "%.2f", Double(tx.amountCents) / 100.0)
+            let cat = Self.escapeCSVField(tx.category?.name ?? "")
+            let emoji = Self.escapeCSVField(tx.category?.emoji ?? (tx.isIncome ? "\u{1F4B5}" : ""))
+            let note = Self.escapeCSVField(tx.note)
+            let amount = amountFormatter.string(from: NSNumber(value: Double(tx.amountCents) / 100.0)) ?? "0.00"
             let type = tx.isIncome ? "Income" : "Expense"
             lines.append("\(dateStr),\"\(cat)\",\"\(emoji)\",\"\(note)\",\(amount),\(type)")
         }
@@ -51,5 +61,19 @@ enum CSVExporter {
             throw ExportError.writeFailed
         }
         return tempURL
+    }
+
+    /// CSV-injection safe field escape.
+    ///
+    /// Audit fix: a transaction note starting with `=`, `+`, `-`, `@`,
+    /// `\t`, or `\r` is interpreted as a formula by Excel/Numbers.
+    /// Prefix any such cell with a single quote (industry-standard
+    /// mitigation). Also double-escape embedded quotes.
+    private static func escapeCSVField(_ value: String) -> String {
+        guard let first = value.first else { return "" }
+        let formulaPrefixes: Set<Character> = ["=", "+", "-", "@", "\t", "\r"]
+        let needsPrefix = formulaPrefixes.contains(first)
+        let quoteEscaped = value.replacingOccurrences(of: "\"", with: "\"\"")
+        return needsPrefix ? "'" + quoteEscaped : quoteEscaped
     }
 }

@@ -15,8 +15,8 @@ public enum AppStorageKeys {
     public static let lastPaywallDecline = "lastPaywallDecline"
     public static let reviewPromptCount = "reviewPromptCount"
     public static let transactionCount = "transactionCount"
-    public static let hasSeenTransactionPaywall = "hasSeenTransactionPaywall"
-    public static let hasSeenStreakPaywall = "hasSeenStreakPaywall"
+    // Audit note: `hasSeenTransactionPaywall` / `hasSeenStreakPaywall`
+    // were defined but never read in production. Removed as dead code.
 
     // MARK: - Appearance
     public static let selectedCurrency = "selectedCurrency"
