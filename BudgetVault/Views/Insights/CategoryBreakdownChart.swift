@@ -84,6 +84,10 @@ struct CategoryBreakdownChart: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
+        )
     }
 }

@@ -67,7 +67,7 @@ struct SpendingPredictionCard: View {
                 ZStack(alignment: .leading) {
                     // Background
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemGray5))
+                        .fill(BudgetVaultTheme.titanium700.opacity(0.3))
 
                     // Predicted (lighter)
                     RoundedRectangle(cornerRadius: 4)
@@ -133,7 +133,11 @@ struct SpendingPredictionCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Smart forecast: predicted spending \(CurrencyFormatter.format(cents: prediction.predictedTotalCents)), \(prediction.willExceedBudget ? "over budget" : "under budget"), \(trendLabel) trend")
     }
@@ -193,7 +197,11 @@ struct SpendingPatternCard: View {
             .background(BudgetVaultTheme.caution.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Spending pattern: \(pattern.title). \(pattern.description). Tip: \(pattern.tip)")
     }
@@ -255,7 +263,11 @@ struct AnomalyListCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
@@ -305,7 +317,11 @@ struct CategoryForecastCard: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
+        )
     }
 
     @ViewBuilder

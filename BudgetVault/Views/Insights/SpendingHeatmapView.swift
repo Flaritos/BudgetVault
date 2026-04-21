@@ -151,22 +151,31 @@ struct SpendingHeatmapView: View {
                 // Premium lock overlay
                 if !isPremium {
                     RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
-                        .fill(.ultraThinMaterial)
+                        .fill(BudgetVaultTheme.navyDark.opacity(0.82))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.4), lineWidth: 1)
+                        )
                         .overlay {
                             VStack(spacing: BudgetVaultTheme.spacingSM) {
                                 Image(systemName: "lock.fill")
                                     .font(.title2)
+                                    .foregroundStyle(BudgetVaultTheme.titanium300)
                                 Text("Upgrade to Premium")
                                     .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
                             }
-                            .foregroundStyle(.secondary)
                         }
                 }
             }
         }
         .padding(BudgetVaultTheme.spacingLG)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
-        .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+        .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD))
+        .overlay(
+            RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
+                .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
         .accessibilityLabel("Spending heatmap for \(DateHelpers.monthYearString(month: budget.month, year: budget.year))")
         .popover(item: $selectedDay) { day in
             dayPopover(day)
@@ -253,7 +262,7 @@ struct SpendingHeatmapView: View {
     private func intensityColorForLevel(_ level: SpendingIntensity) -> Color {
         switch level {
         case .none:
-            return Color(.systemGray5)
+            return BudgetVaultTheme.titanium700.opacity(0.3)
         case .light:
             return BudgetVaultTheme.positive.opacity(0.35)
         case .medium:
