@@ -88,7 +88,11 @@ struct PaywallView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, BudgetVaultTheme.spacingLG)
-                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                            .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
+                                    .strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1)
+                            )
                             .padding(.horizontal, BudgetVaultTheme.spacingLG)
                         }
 

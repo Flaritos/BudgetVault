@@ -165,6 +165,11 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                // VaultRevamp v2.1: navy floor across the entire dashboard
+                // (incl. empty states). Keeps the "inside the vault chamber"
+                // feel when there's no content to render.
+                BudgetVaultTheme.navyDark.ignoresSafeArea()
+
                 if let budget = currentBudget {
                     if budget.totalIncomeCents == 0 {
                         EmptyStateView(
@@ -670,7 +675,7 @@ struct DashboardView: View {
                     // otherwise-white-surface dashboard. Wrapped in a white
                     // card so it matches the surface token.
                     TipView(SiriTip())
-                        .tipBackground(Color(.systemBackground))
+                        .tipBackground(BudgetVaultTheme.chamberBackground)
                         .padding(.horizontal)
 
                     // Premium teaser
@@ -680,13 +685,10 @@ struct DashboardView: View {
                             .offset(y: hasAppeared ? 0 : 20)
                     }
                 }
-                .background(Color(.systemBackground))
-                .clipShape(RoundedCorner(radius: BudgetVaultTheme.radiusXL, corners: [.topLeft, .topRight]))
-                // v3.2 audit L7: subtle shadow at the navy → white seam
-                // so the content "floats" above the hero gradient instead
-                // of meeting it at a hard horizontal line.
-                .shadow(color: .black.opacity(0.15), radius: 10, y: -4)
-                .padding(.top, -20) // overlap the hero gradient
+                // VaultRevamp v2.1: page is navy all the way down. The
+                // v3.2 "white sheet slides up over blue hero" pattern is
+                // retired — the whole vault chamber is one dark room.
+                .background(BudgetVaultTheme.navyDark)
             }
             // Round 5 N3: FAB now uses safeAreaInset above, so we only
             // need a modest extra spacer to keep the last row breathing.
@@ -1270,7 +1272,7 @@ struct DashboardView: View {
             let spendingIntensity = min(pct, 1.0)
             let tintOpacity = 0.0 + (spendingIntensity * 0.02)
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
-                .fill(BudgetVaultTheme.cardBackground)
+                .fill(BudgetVaultTheme.chamberBackground)
                 .overlay {
                     RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG)
                         .fill(categoryColor.opacity(tintOpacity))
@@ -1321,7 +1323,7 @@ struct DashboardView: View {
                         .foregroundStyle(.tertiary)
                 }
                 .padding(BudgetVaultTheme.spacingLG)
-                .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
                 .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
             }
             .tint(.primary)
@@ -1373,7 +1375,7 @@ struct DashboardView: View {
                         .accessibilityLabel("\(expense.name.isEmpty ? "Unnamed" : expense.name), \(CurrencyFormatter.format(cents: expense.amountCents)), \(daysUntil == 0 ? "due today" : "due in \(daysUntil) day\(daysUntil == 1 ? "" : "s")")")
                     }
                 }
-                .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+                .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
                 .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
                 .padding(.horizontal)
             }
@@ -1415,7 +1417,7 @@ struct DashboardView: View {
             }
             .padding(.horizontal, BudgetVaultTheme.spacingLG)
             .padding(.vertical, BudgetVaultTheme.spacingSM)
-            .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+            .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
             .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
             .padding(.horizontal)
         }
@@ -1478,7 +1480,7 @@ struct DashboardView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(BudgetVaultTheme.spacingMD)
-            .background(BudgetVaultTheme.cardBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
+            .background(BudgetVaultTheme.chamberBackground, in: RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusLG))
             .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
         }
         .tint(.primary)
@@ -1580,7 +1582,7 @@ struct DashboardView: View {
         // the whole app, clashing with the envelope card and navy hero.
         .background(
             RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusButton)
-                .fill(Color(.systemBackground))
+                .fill(BudgetVaultTheme.chamberBackground)
                 .overlay(alignment: .leading) {
                     Rectangle()
                         .fill(BudgetVaultTheme.accentSoft)
@@ -1643,8 +1645,9 @@ struct DashboardView: View {
             .padding(.horizontal, BudgetVaultTheme.spacingMD)
             .padding(.vertical, BudgetVaultTheme.spacingSM)
             .frame(minHeight: 44)
-            .background(Color.accentColor.opacity(0.1), in: Capsule())
-            .foregroundStyle(Color.accentColor)
+            .background(BudgetVaultTheme.chamberBackground, in: Capsule())
+            .overlay(Capsule().strokeBorder(BudgetVaultTheme.titanium700, lineWidth: 1))
+            .foregroundStyle(BudgetVaultTheme.accentSoft)
         }
     }
 

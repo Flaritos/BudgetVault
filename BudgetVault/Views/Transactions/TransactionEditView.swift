@@ -100,7 +100,7 @@ struct TransactionEditView: View {
 
             Spacer()
 
-            NumberPadView(text: $amountText)
+            QuietKeypad(text: $amountText)
                 .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
             saveHelperText

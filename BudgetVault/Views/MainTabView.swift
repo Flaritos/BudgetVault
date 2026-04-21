@@ -35,6 +35,12 @@ struct MainTabView: View {
             }
         }
         .tint(BudgetVaultTheme.userAccentColor)
+        // VaultRevamp v2.1: force dark color scheme app-wide so system
+        // chrome (tab bar, nav bars, default Text colors) resolves to
+        // navy-compatible values. The History tab uses explicit
+        // ledgerInk/ledgerPaper tokens that read correctly under either
+        // scheme, so forcing dark here doesn't affect its cream look.
+        .preferredColorScheme(.dark)
         .onReceive(NotificationCenter.default.publisher(for: .switchToHistoryTab)) { _ in
             selectedTab = 1
         }

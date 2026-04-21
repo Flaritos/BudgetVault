@@ -140,7 +140,7 @@ struct MoveMoneyView: View {
             .dynamicTypeSize(...DynamicTypeSize.accessibility3)
             .padding(.top, BudgetVaultTheme.spacingSM)
 
-        NumberPadView(text: $amountText)
+        QuietKeypad(text: $amountText)
             .padding(.horizontal, BudgetVaultTheme.spacingXL)
 
         if exceedsAvailable {
