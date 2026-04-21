@@ -172,12 +172,14 @@ struct CSVImportView: View {
                                 .font(.subheadline.bold())
                             Spacer()
                             // Phase 8.3 audit fix: was `String(format:
-                            // "$%.2f")` which locked the symbol to USD
-                            // and used Double precision. Route through
-                            // the shared CurrencyFormatter so locale +
-                            // money-as-cents rules are honored.
+                            // "$%.2f")` which locked the symbol to USD.
+                            // Final-pass audit fix: preview was still
+                            // using `.rounded()` Double→Int64 while the
+                            // importer uses Decimal banker's rounding.
+                            // Diverged for a few binary-fraction-hostile
+                            // values. Use the same Decimal path in both.
                             Text(CurrencyFormatter.format(
-                                cents: Int64((row.amount * 100).rounded()),
+                                cents: Self.doubleToCents(row.amount),
                                 currencyCode: selectedCurrency
                             ))
                                 .font(.subheadline)
@@ -303,6 +305,19 @@ struct CSVImportView: View {
         case .generic: "Generic CSV"
         case .unknown: "Unknown"
         }
+    }
+
+    /// Decimal-routed Double→cents conversion shared between the
+    /// preview row and (implicitly) the importer path. Banker's
+    /// rounding matches `CSVImporter.bankersRounding`.
+    private static func doubleToCents(_ value: Double) -> Int64 {
+        let decimal = Decimal(value) * 100
+        let rounded = (decimal as NSDecimalNumber).rounding(accordingToBehavior: NSDecimalNumberHandler(
+            roundingMode: .bankers, scale: 0,
+            raiseOnExactness: false, raiseOnOverflow: false,
+            raiseOnUnderflow: false, raiseOnDivideByZero: false
+        ))
+        return Int64(truncating: rounded)
     }
 
     /// Max CSV size we'll read into memory. Anything larger is

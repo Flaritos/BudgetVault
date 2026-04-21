@@ -38,6 +38,11 @@ final class BiometricAuthService {
         let context = LAContext()
         context.localizedFallbackTitle = "Use Passcode"
 
+        // Audit fix: clear any stale error from a prior failed attempt
+        // so the new prompt doesn't show "Authentication failed" before
+        // the user responds to the live prompt.
+        errorMessage = nil
+
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
             // Audit fix: was `isAuthenticated = true` (fail open). For a
@@ -60,6 +65,11 @@ final class BiometricAuthService {
             isAuthenticated = success
             errorMessage = success ? nil : "Authentication failed"
         } catch {
+            // Audit fix: failing closed includes NOT preserving a
+            // prior `isAuthenticated = true`. If the user was unlocked
+            // from a previous session and re-auth throws (canceled,
+            // fallback declined, etc.), treat it as a fresh lock.
+            isAuthenticated = false
             errorMessage = error.localizedDescription
         }
     }

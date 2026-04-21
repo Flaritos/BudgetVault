@@ -80,7 +80,12 @@ enum BudgetLiveActivityService {
         } catch {
             // v3.2 audit L2: OSLog so production issues are diagnosable
             // via Console.app without crashing on the user.
-            liveActivityLog.error("start failed: \(error.localizedDescription, privacy: .public)")
+            // Audit fix: downgraded from `.public` to `.private` — the
+            // only public-marker log in the codebase, out of step with
+            // the rest of the app's logging hygiene. ActivityKit errors
+            // don't typically contain PII, but `.private` is the safer
+            // default for any future error type.
+            liveActivityLog.error("start failed: \(error.localizedDescription, privacy: .private)")
         }
     }
 

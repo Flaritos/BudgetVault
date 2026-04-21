@@ -55,14 +55,15 @@ struct BiometricLockView: View {
         }
         .task {
             await authService.authenticate()
-            if authService.isAuthenticated {
-                // Audit fix: notify the app that database-mutating
-                // operations deferred at scenePhase .active (rollover,
-                // recurring posting, streak update) can now run.
-                NotificationCenter.default.post(name: .biometricUnlocked, object: nil)
-            }
         }
         .onChange(of: authService.isAuthenticated) { _, newValue in
+            // Audit fix: single source of the post. The prior version
+            // posted from both .task and .onChange, running the
+            // deferred rollover/recurring/streak work twice on each
+            // unlock (wasted cycles and duplicate notifications).
+            // `.onChange` fires on the false→true transition from
+            // the .task's successful authenticate, so it covers both
+            // initial-lock unlock and any future re-authentication.
             if newValue {
                 NotificationCenter.default.post(name: .biometricUnlocked, object: nil)
             }

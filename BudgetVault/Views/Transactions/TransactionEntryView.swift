@@ -652,7 +652,18 @@ struct TransactionEntryView: View {
         guard !didApplyIntentPrefill else { return }
         didApplyIntentPrefill = true
         if let amount = prefillAmount, amount > 0 {
-            let cents = Int64(amount * 100)
+            // Audit fix: `Int64(amount * 100)` truncates (no rounding).
+            // `19.99` through Double arithmetic is `1998.999999...` which
+            // truncates to `1998` cents = $19.98. Route through Decimal
+            // with banker's rounding to match the CSV import + manual
+            // entry paths.
+            let decimalCents = (Decimal(amount) * 100 as NSDecimalNumber)
+                .rounding(accordingToBehavior: NSDecimalNumberHandler(
+                    roundingMode: .bankers, scale: 0,
+                    raiseOnExactness: false, raiseOnOverflow: false,
+                    raiseOnUnderflow: false, raiseOnDivideByZero: false
+                ))
+            let cents = Int64(truncating: decimalCents)
             amountText = CurrencyFormatter.formatRaw(cents: cents)
         }
         if let catName = prefillCategoryName {

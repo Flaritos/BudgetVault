@@ -68,12 +68,13 @@ targets:
         NSSupportsLiveActivitiesFrequentUpdates: true
         BGTaskSchedulerPermittedIdentifiers:
           - io.budgetvault.app.refresh
-        # Audit fix: declaring BGTaskSchedulerPermittedIdentifiers
-        # requires the `processing` background mode (or `fetch`) — without
-        # it BGTaskScheduler.register silently no-ops. `processing`
-        # matches the Widget refresh pattern we use.
+        # Audit fix: `BGAppRefreshTaskRequest` (see
+        # `BudgetVaultApp.scheduleBackgroundRefresh`) requires the
+        # `fetch` background mode, NOT `processing`. `processing` is
+        # only for `BGProcessingTaskRequest`. Prior commit used
+        # `processing` — iOS would throw `.unavailable` at submit time.
         UIBackgroundModes:
-          - processing
+          - fetch
 
     dependencies:
       - target: BudgetVaultWidgetExtension

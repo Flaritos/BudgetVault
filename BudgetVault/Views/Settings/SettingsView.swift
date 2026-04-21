@@ -706,6 +706,12 @@ struct SettingsView: View {
                 get: { iCloudSyncEnabled },
                 set: { newValue in
                     iCloudSyncEnabled = newValue
+                    // Audit fix: register the KVS observer + push
+                    // immediately when the toggle flips, so the sync
+                    // works before the required app relaunch — the
+                    // `showRestartAlert` explains the SwiftData
+                    // container-level restart is still needed.
+                    SettingsSyncService.iCloudToggleChanged(enabled: newValue)
                     showRestartAlert = true
                 }
             ))

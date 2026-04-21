@@ -61,6 +61,18 @@ enum SettingsSyncService {
         }
     }
 
+    /// Audit fix: call from Settings when the user toggles
+    /// iCloudSyncEnabled. Registers the KVS observer + pushes initial
+    /// values without requiring an app relaunch. `configure` short-
+    /// circuits when the toggle is off, so disabling is automatic —
+    /// any existing observer stays silent because the gated reads
+    /// inside `set()` / `pushAllSettings()` early-return.
+    static func iCloudToggleChanged(enabled: Bool) {
+        if enabled {
+            configure()
+        }
+    }
+
     // MARK: - Private
 
     private static func pushLocalSettingsIfNeeded() {

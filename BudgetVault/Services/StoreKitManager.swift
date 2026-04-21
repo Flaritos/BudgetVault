@@ -127,7 +127,7 @@ final class StoreKitManager {
                     KeychainService.set(true, forKey: "isPremium")
                 } else {
                     purchaseState = .error
-                    errorMessage = "Purchase completed but entitlement didn't verify. Tap Retry or Restore."
+                    errorMessage = "Purchase went through, but we couldn't verify it yet. Tap Restore Purchases below to sync."
                 }
 
             case .userCancelled:
