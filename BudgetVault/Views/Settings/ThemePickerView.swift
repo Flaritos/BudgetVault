@@ -35,33 +35,53 @@ struct ThemePickerView: View {
                         } label: {
                             VStack(spacing: 6) {
                                 ZStack {
+                                    // Phase 8.3 §5.3: selected swatch gets
+                                    // a 3pt titanium radial bezel so the
+                                    // accent reads as "locked into the
+                                    // dial" — same mechanical metaphor as
+                                    // the VaultDial primitive itself.
+                                    // Unselected swatches get a 2pt inner
+                                    // stroke so they still read as set
+                                    // stones, not floating dots.
+                                    if isSelected {
+                                        Circle()
+                                            .stroke(
+                                                RadialGradient(
+                                                    colors: [
+                                                        BudgetVaultTheme.titanium300,
+                                                        BudgetVaultTheme.titanium500
+                                                    ],
+                                                    center: .center,
+                                                    startRadius: 0,
+                                                    endRadius: 28
+                                                ),
+                                                lineWidth: 3
+                                            )
+                                            .frame(width: 56, height: 56)
+                                    }
+
                                     Circle()
                                         .fill(Color(hex: option.hex))
+                                        .overlay(
+                                            Circle()
+                                                .strokeBorder(
+                                                    isSelected ? Color.clear : BudgetVaultTheme.titanium700.opacity(0.4),
+                                                    lineWidth: isSelected ? 0 : 2
+                                                )
+                                        )
                                         .frame(width: 48, height: 48)
-                                    // Phase 8.2 §5.7: every non-selected
-                                    // swatch gets a subtle titanium rim so
-                                    // it reads as a "set bezel" on the
-                                    // navy chamber, not a floating dot.
-                                    Circle()
-                                        .strokeBorder(BudgetVaultTheme.titanium700.opacity(0.6), lineWidth: 1)
-                                        .frame(width: 48, height: 48)
+                                        .shadow(color: .black.opacity(0.3), radius: 2, y: 2)
 
                                     if isSelected {
-                                        // Selected swatch gets the full
-                                        // titanium bezel — the accent is
-                                        // "locked into the dial."
-                                        Circle()
-                                            .strokeBorder(BudgetVaultTheme.titanium200, lineWidth: 2)
-                                            .frame(width: 52, height: 52)
                                         Image(systemName: "checkmark")
-                                            .font(.body.bold())
+                                            .font(.system(size: 14, weight: .bold))
                                             .foregroundStyle(.white)
                                     }
                                 }
 
                                 Text(option.name)
                                     .font(.caption2)
-                                    .foregroundStyle(BudgetVaultTheme.titanium400)
+                                    .foregroundStyle(isSelected ? BudgetVaultTheme.titanium200 : BudgetVaultTheme.titanium400)
                                     .lineLimit(1)
                             }
                         }

@@ -20,8 +20,8 @@ struct EngravedSectionHeader: View {
             .textCase(.uppercase)
             .tracking(2.4)
             .foregroundStyle(BudgetVaultTheme.titanium300)
-            .padding(.top, 8)
-            .padding(.bottom, 4)
+            .padding(.top, 20)
+            .padding(.bottom, 8)
             .accessibilityAddTraits(.isHeader)
     }
 }

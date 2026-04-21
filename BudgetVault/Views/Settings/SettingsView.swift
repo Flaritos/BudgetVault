@@ -188,27 +188,52 @@ struct SettingsView: View {
         Button {
             showPaywall = true
         } label: {
-            ChamberCard(padding: 16) {
-                HStack(spacing: 14) {
-                    VaultDial(size: .small, state: .locked, showNumerals: false)
-                        .frame(width: 44, height: 44)
+            // Phase 8.3 §3.4: uses a custom gradient + blue-tinted
+            // border rather than the standard ChamberCard. The elevated
+            // navy + blue-soft accent stroke give it enough visual
+            // weight to earn its position above the Form without
+            // feeling heavy. If a third Chamber variant shows up, pull
+            // this out into ChamberCard(variant: .premium).
+            HStack(spacing: 14) {
+                VaultDial(size: .small, state: .locked, showNumerals: false)
+                    .frame(width: 44, height: 44)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("BudgetVault Premium")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text("Open the full vault")
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundStyle(BudgetVaultTheme.titanium300)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(BudgetVaultTheme.accentSoft)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("BudgetVault Premium")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Open the full vault")
+                        .font(.system(size: 13))
+                        .foregroundStyle(BudgetVaultTheme.titanium300)
                 }
+
+                Spacer()
+
+                // §3.2 confirms the chevron is a styled text glyph, not
+                // an SF Symbol — weight reads lighter and the color is
+                // accentSoft (not titanium500) to signal "tappable."
+                Text("\u{203A}")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
             }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "#1A2A4F"),
+                                BudgetVaultTheme.navyDark
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.25), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")
