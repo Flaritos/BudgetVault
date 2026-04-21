@@ -204,67 +204,70 @@ struct DashboardView: View {
             // so ScrollView genuinely reserves the bottom gutter. Overlay
             // was drawing on top of scroll content regardless of padding.
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                // FAB — Pill-shaped floating action button + no-spend day shortcut
+                // Phase 8.1: matched pair of VaultDialButtons — no-spend
+                // on the left, new-transaction FAB on the right. Both are
+                // 56pt titanium dials with state-specific center glyphs.
+                // Right-paired per §5.5 rec so the FAB stays in the
+                // thumb-zone as the primary action.
                 if currentBudget != nil {
-                    HStack(spacing: BudgetVaultTheme.spacingMD) {
-                        // v3.2 audit C2: persistent state instead of hiding
-                        // the button after tap. Disabled + checkmark tells
-                        // the user "today is closed" without losing
-                        // discoverability or leaving them wondering what
-                        // happened.
-                        Button {
-                            guard !todayClosed else { return }
-                            HapticManager.notification(.success)
-                            _ = StreakService.markNoSpendDay()
-                            // v3.2 whimsy signature moment: "close the vault"
-                            // The hero ring sweeps to full green for 600ms
-                            // before the toast slides in. This is the "thunk".
-                            let closingAnim: Animation? = reduceMotion
-                                ? nil
-                                : .spring(response: 0.35, dampingFraction: 0.75)
-                            withAnimation(closingAnim) {
-                                vaultClosingAnimation = true
-                                todayClosed = true
-                            }
-                            Task {
-                                try? await Task.sleep(for: .milliseconds(reduceMotion ? 100 : 700))
+                    HStack(spacing: BudgetVaultTheme.spacingLG) {
+                        Spacer()
+
+                        // Close today's vault (no-spend day)
+                        VaultDialButton(
+                            action: {
+                                guard !todayClosed else { return }
+                                HapticManager.notification(.success)
+                                _ = StreakService.markNoSpendDay()
+                                // Signature moment: hero ring sweeps green
+                                // for 600ms, then toast slides in. Reduce
+                                // Motion shortens the delay to 100ms and
+                                // skips the spring.
+                                let closingAnim: Animation? = reduceMotion
+                                    ? nil
+                                    : .spring(response: 0.35, dampingFraction: 0.75)
                                 withAnimation(closingAnim) {
-                                    vaultClosingAnimation = false
-                                    showNoSpendToast = true
+                                    vaultClosingAnimation = true
+                                    todayClosed = true
                                 }
-                                try? await Task.sleep(for: .seconds(2.5))
-                                withAnimation(reduceMotion ? nil : .default) { showNoSpendToast = false }
-                            }
-                        } label: {
-                            VStack(spacing: 2) {
-                                Image(systemName: todayClosed ? "checkmark" : "moon.zzz.fill")
-                                    .font(.body.weight(.bold))
-                                    .foregroundStyle(todayClosed ? BudgetVaultTheme.positive : .white)
-                                    .frame(width: 48, height: 48)
-                                    .background(
-                                        Circle()
-                                            .fill(BudgetVaultTheme.positive.opacity(todayClosed ? 0.2 : 0.15))
-                                    )
-                                    .overlay(
-                                        Circle()
-                                            .strokeBorder(BudgetVaultTheme.positive, lineWidth: 1.5)
-                                    )
-                                    .shadow(color: BudgetVaultTheme.positive.opacity(0.4), radius: 8, y: 4)
-                                Text(todayClosed ? "Closed" : "No Spend")
-                                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
+                                Task {
+                                    try? await Task.sleep(for: .milliseconds(reduceMotion ? 100 : 700))
+                                    withAnimation(closingAnim) {
+                                        vaultClosingAnimation = false
+                                        showNoSpendToast = true
+                                    }
+                                    try? await Task.sleep(for: .seconds(2.5))
+                                    withAnimation(reduceMotion ? nil : .default) { showNoSpendToast = false }
+                                }
+                            },
+                            showGlow: todayClosed
+                        ) {
+                            // Idle: titanium moon. Closed: positive-green
+                            // check. Color earns its weight — grey
+                            // (available) → green (done). Reduce Motion
+                            // swaps the scale-opacity transition for a
+                            // straight cut.
+                            if todayClosed {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundStyle(BudgetVaultTheme.positive)
+                                    .transition(reduceMotion ? .identity : .scale.combined(with: .opacity))
+                            } else {
+                                Image(systemName: "moon.zzz.fill")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundStyle(BudgetVaultTheme.titanium200)
                             }
                         }
                         .disabled(todayClosed)
-                        .accessibilityLabel(todayClosed ? "Today's vault is closed" : "Mark today as no-spend day")
-                        .accessibilityHint("Closes today's vault without logging a transaction")
+                        .accessibilityLabel(todayClosed ? "Today's vault is closed" : "Close today's vault")
+                        .accessibilityHint("Marks today as a no-spend day without logging a transaction")
                         .accessibilityIdentifier("noSpendButton")
+                        .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.7), value: todayClosed)
 
-                        // VaultRevamp v2.1 FAB — titanium dial with blue "+"
-                        // glyph at center. Uses the shared VaultDialButton
-                        // primitive so the FAB and no-spend button are the
-                        // same mechanical object, different glyphs.
-                        Spacer(minLength: 0)
+                        // New transaction FAB — titanium dial with blue
+                        // "+" glyph. Uses the same VaultDialButton
+                        // primitive so the pair reads as two peer
+                        // mechanical controls, different glyphs.
                         VaultDialButton(action: {
                             HapticManager.impact(.medium)
                             activeSheet = .transactionEntry
@@ -281,6 +284,7 @@ struct DashboardView: View {
                         .accessibilityLabel("Log expense")
                         .accessibilityHint("Opens the transaction entry form")
                     }
+                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
                     .padding(.bottom, BudgetVaultTheme.spacingSM)
                     .padding(.top, BudgetVaultTheme.spacingSM + 4)
                 }
