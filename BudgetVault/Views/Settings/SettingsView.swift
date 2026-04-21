@@ -83,7 +83,16 @@ struct SettingsView: View {
                     profileSection
                     dataSection
                     notificationsSection
-                    premiumSection
+                    // Mockup Settings·Premium shows no separate "Premium"
+                    // section for paid users — the active badge at the
+                    // top already conveys state. Only render the Premium
+                    // section for free users (Upgrade + Restore + optional
+                    // Leave a Tip).
+                    if !(isPremium || storeKit.isPremium) {
+                        premiumSection
+                    } else if storeKit.tipProduct != nil {
+                        tipOnlySection
+                    }
                     iCloudSection
                     aboutSection
                 }
@@ -580,6 +589,35 @@ struct SettingsView: View {
     }
 
     // MARK: - Premium
+
+    /// Premium users still get Leave a Tip, but without the "Active"
+    /// or Restore Purchases rows — those are either redundant (active)
+    /// or rarely needed once premium is already on this device. Keeps
+    /// the paid-user Settings as close to the mockup as we can while
+    /// preserving the tip revenue flow.
+    @ViewBuilder
+    private var tipOnlySection: some View {
+        if let tipProduct = storeKit.tipProduct {
+            Section {
+                Button {
+                    Task { await storeKit.purchase(tipProduct) }
+                } label: {
+                    HStack {
+                        Image(systemName: "heart.fill")
+                            .foregroundStyle(BudgetVaultTheme.negative)
+                        Text("Leave a Tip")
+                        Spacer()
+                        Text(tipProduct.displayPrice)
+                            .foregroundStyle(BudgetVaultTheme.titanium300)
+                    }
+                }
+                .tint(BudgetVaultTheme.accentSoft)
+                .listRowBackground(BudgetVaultTheme.chamberDeep)
+            } header: {
+                EngravedSectionHeader(title: "Support")
+            }
+        }
+    }
 
     private var premiumSection: some View {
         Section {
