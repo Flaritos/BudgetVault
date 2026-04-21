@@ -51,34 +51,51 @@ struct SettingsView: View {
         // Form's first section. The split lets the upgrade CTA earn
         // its visual weight without making the rest of Settings feel
         // heavy.
-        VStack(spacing: 0) {
-            if !(isPremium || storeKit.isPremium) {
-                premiumUpgradeCard
-                    .padding(.horizontal, BudgetVaultTheme.spacingLG)
-                    .padding(.top, BudgetVaultTheme.spacingMD)
-            }
+        ZStack {
+            // Mockup line 61: radial ellipse gradient from lifted
+            // navy at center-top to deep abyss at the edges. Replaces
+            // a flat navyDark — adds depth so the chambers feel like
+            // they sit on a curved surface, not a black wall.
+            RadialGradient(
+                colors: [
+                    Color(hex: "#14234A"),
+                    BudgetVaultTheme.navyDark,
+                    BudgetVaultTheme.navyAbyss
+                ],
+                center: UnitPoint(x: 0.5, y: 0.3),
+                startRadius: 0,
+                endRadius: 700
+            )
+            .ignoresSafeArea()
 
-            Form {
-                if isPremium || storeKit.isPremium {
-                    premiumActiveBadge
+            VStack(spacing: 0) {
+                if !(isPremium || storeKit.isPremium) {
+                    premiumUpgradeCard
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                        .padding(.top, BudgetVaultTheme.spacingMD)
                 }
-                securitySection
-                profileSection
-                dataSection
-                notificationsSection
-                premiumSection
-                iCloudSection
-                aboutSection
+
+                Form {
+                    if isPremium || storeKit.isPremium {
+                        premiumActiveBadge
+                    }
+                    securitySection
+                    profileSection
+                    dataSection
+                    notificationsSection
+                    premiumSection
+                    iCloudSection
+                    aboutSection
+                }
+                // Phase 8.2 §5.1: the Form structure stays (iOS Settings
+                // convention) but its surfaces switch to the VaultRevamp
+                // chamber palette. `.scrollContentBackground(.hidden)` hides
+                // the default grouped-list backdrop so our navy can show
+                // through; each section's rows then pin their backdrop via
+                // `.listRowBackground(chamberDeep)`.
+                .scrollContentBackground(.hidden)
             }
-            // Phase 8.2 §5.1: the Form structure stays (iOS Settings
-            // convention) but its surfaces switch to the VaultRevamp
-            // chamber palette. `.scrollContentBackground(.hidden)` hides
-            // the default grouped-list backdrop so our navy can show
-            // through; each section's rows then pin their backdrop via
-            // `.listRowBackground(chamberDeep)`.
-            .scrollContentBackground(.hidden)
         }
-        .background(BudgetVaultTheme.navyDark)
         .navigationTitle("Settings")
         // v3.2 audit H13: opaque nav bar background so the title doesn't
         // render on top of list content when scrolling (iOS default
@@ -261,20 +278,27 @@ struct SettingsView: View {
     /// stays consistent with iOS Settings convention.
     @ViewBuilder
     private var premiumActiveBadge: some View {
+        // Mockup lines 389–414: blue-soft-tinted chamber row with the
+        // 20pt mini dial, bold "BudgetVault Premium" in accentSoft, and
+        // a green positive STAR (not a checkmark seal). Items are
+        // center-aligned as a group with a 10pt gap.
         Section {
             HStack(spacing: 10) {
                 VaultDial(size: .small, state: .locked, showNumerals: false)
                     .frame(width: 20, height: 20)
                 Text("BudgetVault Premium")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(BudgetVaultTheme.electricBlue)
-                Spacer()
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.caption)
+                    .font(.system(size: 14, weight: .bold))
+                    .tracking(-0.14)
+                    .foregroundStyle(BudgetVaultTheme.accentSoft)
+                Image(systemName: "star.fill")
+                    .font(.system(size: 14))
                     .foregroundStyle(BudgetVaultTheme.positive)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .listRowBackground(BudgetVaultTheme.electricBlue.opacity(0.12))
+            .frame(maxWidth: .infinity, alignment: .center)
+            .listRowBackground(
+                BudgetVaultTheme.accentSoft.opacity(0.08)
+            )
+            .listRowSeparator(.hidden)
         }
     }
 

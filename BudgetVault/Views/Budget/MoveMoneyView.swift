@@ -29,10 +29,20 @@ struct MoveMoneyView: View {
             ZStack {
                 BudgetVaultTheme.navyDark.ignoresSafeArea()
 
-                VStack(spacing: BudgetVaultTheme.spacingLG) {
+                // Envelope selection scrolls if it exceeds available
+                // space (large Dynamic Type or unusually tall tiles).
+                // The amount chamber + keypad + CTA live in a pinned
+                // bottom stack so they're always visible — nothing
+                // silently clips.
+                ScrollView {
                     envelopeSelectionStack
                         .padding(.horizontal, BudgetVaultTheme.spacingLG)
-
+                        .padding(.top, BudgetVaultTheme.spacingMD)
+                        .padding(.bottom, BudgetVaultTheme.spacingSM)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: BudgetVaultTheme.spacingSM) {
                     amountChamber
                         .padding(.horizontal, BudgetVaultTheme.spacingLG)
 
@@ -45,13 +55,12 @@ struct MoveMoneyView: View {
                             .foregroundStyle(BudgetVaultTheme.negative)
                     }
 
-                    Spacer(minLength: 0)
-
                     ctaButton
                         .padding(.horizontal, BudgetVaultTheme.spacingLG)
                         .padding(.bottom, BudgetVaultTheme.spacingSM)
                 }
-                .padding(.top, BudgetVaultTheme.spacingMD)
+                .padding(.top, BudgetVaultTheme.spacingSM)
+                .background(BudgetVaultTheme.navyDark)
             }
             .navigationTitle("Move Money")
             .navigationBarTitleDisplayMode(.inline)
@@ -90,17 +99,14 @@ struct MoveMoneyView: View {
 
     @ViewBuilder
     private func envelopeRow(isFrom: Bool) -> some View {
-        // Phase 8.3 §6.1: 3-across HStack. Dynamic Type xxxLarge may
-        // need horizontal scroll — wrap ScrollView when the row gets
-        // too wide for the layout. We accept the intrinsic xxxLarge
-        // compromise here; the envelope tiles self-truncate their
-        // names.
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(categories, id: \.id) { cat in
-                    envelopeTile(category: cat, isFrom: isFrom)
-                        .frame(width: 108)
-                }
+        // Mockup §6 line 75–78: `.envelope-row { display: flex; gap: 6px;
+        // margin-bottom: 24px }` with each .envelope at `flex: 1`. Equal-
+        // width 3-up grid, not a horizontal scroll. Compact tile
+        // geometry keeps the screen from overflowing.
+        HStack(spacing: 6) {
+            ForEach(categories.prefix(3), id: \.id) { cat in
+                envelopeTile(category: cat, isFrom: isFrom)
+                    .frame(maxWidth: .infinity)
             }
         }
     }
@@ -117,6 +123,20 @@ struct MoveMoneyView: View {
             ? fromCategory != nil
             : toCategory != nil)
 
+        let pipColor = Color(hex: category.color)
+        let remainingCents: Int64 = {
+            if let b = resolvedBudget {
+                return category.remainingCents(in: b)
+            }
+            return category.budgetedAmountCents
+        }()
+        let budgetedCents = category.budgetedAmountCents
+        let progress: Double = {
+            guard budgetedCents > 0 else { return 0 }
+            let spent = max(0, budgetedCents - remainingCents)
+            return min(1.0, Double(spent) / Double(budgetedCents))
+        }()
+
         Button {
             HapticManager.impact(.light)
             if isFrom {
@@ -126,32 +146,81 @@ struct MoveMoneyView: View {
                 toCategory = category
             }
         } label: {
-            EnvelopeDepositBox(
-                name: category.name,
-                spent: Decimal(category.budgetedAmountCents) / 100,
-                allocated: Decimal(
-                    resolvedBudget.map { category.remainingCents(in: $0) } ?? category.budgetedAmountCents
-                ) / 100,
-                pipColor: Color(hex: category.color)
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .topTrailing) {
+                    // Mockup line 98–101: 6pt colored pip in top-right
+                    // corner; absolute-positioned in CSS, realized here
+                    // as an overlay on the ZStack.
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(category.name)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .padding(.top, 4)
+
+                        Text(CurrencyFormatter.format(cents: remainingCents))
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.42))
+                            .lineLimit(1)
+
+                        // Mockup line 110–114: 2pt fill bar with 8pt
+                        // top margin; 18%-pip bg + pip-fill showing
+                        // spent ratio.
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(pipColor.opacity(0.18))
+                                    .frame(height: 2)
+                                Capsule()
+                                    .fill(pipColor)
+                                    .frame(width: max(0, geo.size.width * progress), height: 2)
+                            }
+                        }
+                        .frame(height: 2)
+                        .padding(.top, 6)
+                    }
+                    .padding(10)
+
+                    Circle()
+                        .fill(pipColor)
+                        .frame(width: 6, height: 6)
+                        .padding(8)
+                }
+            }
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "#1A2744"), BudgetVaultTheme.navyDark],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             )
+            .overlay(alignment: .top) {
+                // Mockup line 83: 3pt titanium top border — the
+                // "deposit box lid." Selected state brightens to
+                // titanium100 (line 92).
+                Rectangle()
+                    .fill(isSelected ? BudgetVaultTheme.titanium100 : BudgetVaultTheme.titanium300)
+                    .frame(height: 3)
+            }
             .overlay(
-                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
+                // Mockup line 82: ti-700 stroke on unselected,
+                // replaced by 2pt blue stroke on selected (line 91).
+                RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(
-                        isSelected ? BudgetVaultTheme.electricBlue : Color.clear,
+                        isSelected ? BudgetVaultTheme.electricBlue : BudgetVaultTheme.titanium700,
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            // Mockup line 93: `box-shadow: 0 0 0 2px rgba(37,99,235,0.2)`
+            // — sharp 2pt outer ring on selected. Simulated with a
+            // wider stroke outside the clip shape.
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(
+                        isSelected ? BudgetVaultTheme.electricBlue.opacity(0.2) : .clear,
                         lineWidth: 2
                     )
-            )
-            // Mockup §6 line 93: `box-shadow: 0 0 0 2px rgba(37,99,235,0.2)`
-            // — a sharp 2pt outer ring, not a soft blur. Read as a
-            // selection outline (like a focused text field) rather than
-            // a glow halo.
-            .overlay(
-                RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusSM)
-                    .strokeBorder(
-                        isSelected ? BudgetVaultTheme.electricBlue.opacity(0.2) : Color.clear,
-                        lineWidth: 4
-                    )
-                    .blur(radius: 0)
                     .padding(-2)
             )
             .opacity(isOtherSelection ? 0.35 : (shouldDim ? 0.55 : 1))
