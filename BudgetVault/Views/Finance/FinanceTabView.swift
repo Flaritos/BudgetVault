@@ -364,7 +364,9 @@ struct FinanceTabView: View {
                     vaultFeatureRow(
                         icon: "brain.head.profile",
                         title: "Vault Patterns",
-                        blurb: "On-device ML predicts month-end spend and flags anomalies."
+                        // Audit 2026-04-23 Brand: swapped "ML" → "patterns"
+                        // for canonical on-device noun (Insights agrees).
+                        blurb: "On-device patterns predict month-end spend and flag anomalies."
                     )
                     vaultFeatureRow(
                         icon: "creditcard.trianglebadge.exclamationmark",

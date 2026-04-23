@@ -161,7 +161,8 @@ struct SpendingHeatmapView: View {
                                 Image(systemName: "lock.fill")
                                     .font(.title2)
                                     .foregroundStyle(BudgetVaultTheme.titanium300)
-                                Text("Upgrade to Premium")
+                                // Audit 2026-04-23 Brand: canonical short-form CTA.
+                                Text("Unlock Premium")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.white)
                             }

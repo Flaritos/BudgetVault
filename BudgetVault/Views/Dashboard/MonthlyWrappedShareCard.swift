@@ -280,7 +280,8 @@ struct MonthlyWrappedShareCard: View {
             VStack(spacing: 16) {
                 badgeStat(value: personalityName, label: "personality", color: neonPurple)
                 badgeStat(value: bragStat, label: "this month", color: neonGreen)
-                badgeStat(value: "Privacy-first", label: "no bank login", color: .white)
+                // Audit 2026-04-23 Brand: canonical micro privacy wedge.
+                badgeStat(value: "On-device", label: "no bank login", color: .white)
             }
             .padding(.horizontal, 80)
         }

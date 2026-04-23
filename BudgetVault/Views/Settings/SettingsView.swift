@@ -245,7 +245,8 @@ struct SettingsView: View {
                     Text("BudgetVault Premium")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("Open the full vault")
+                    // Audit 2026-04-23 Brand: canonical long-form CTA.
+                    Text("Unlock the full vault")
                         .font(.system(size: 13))
                         .foregroundStyle(BudgetVaultTheme.titanium300)
                 }
@@ -680,7 +681,9 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "star.fill")
                             .foregroundStyle(BudgetVaultTheme.caution)
-                        Text("Upgrade to Premium")
+                        // Audit 2026-04-23 Brand: canonical long-form CTA
+                        // (Settings Premium row treated as a long-form surface).
+                        Text("Unlock the full vault")
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.caption)
@@ -809,7 +812,8 @@ struct SettingsView: View {
 
             ShareLink(item: URL(string: "https://budgetvault.io")!,
                        subject: Text("BudgetVault"),
-                       message: Text("I use BudgetVault to manage my budget \u{2014} private, on-device, and no subscription. Check it out!")) {
+                       // Audit 2026-04-23 Brand: canonical hero privacy wedge.
+                       message: Text("BudgetVault. On-device. No bank login. Ever. $14.99 once.")) {
                 Label("Share BudgetVault", systemImage: "heart.fill")
             }
             .tint(BudgetVaultTheme.accentSoft)

@@ -104,7 +104,9 @@ struct InsightsView: View {
                                 Text("Insights")
                                     .font(.system(size: 24, weight: .heavy, design: .rounded))
                                     .foregroundStyle(.white)
-                                Text("Powered by on-device AI")
+                                // Audit 2026-04-23 Brand: canonical "on-device patterns"
+                                // noun across Insights + Finance tab + Dashboard chip.
+                                Text("Powered by on-device patterns")
                                     .font(.caption)
                                     .foregroundStyle(.white.opacity(0.5))
                             }
@@ -357,7 +359,8 @@ struct InsightsView: View {
                     Image(systemName: "lock.fill")
                         .font(.title2)
                         .foregroundStyle(.white)
-                    Text("Unlock Premium Insights")
+                    // Audit 2026-04-23 Brand: canonical short-form CTA.
+                    Text("Unlock Premium")
                         .font(.subheadline.bold())
                         .foregroundStyle(.white)
                     Button("Upgrade") {
