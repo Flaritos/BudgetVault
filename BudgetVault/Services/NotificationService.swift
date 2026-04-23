@@ -105,9 +105,10 @@ enum NotificationService {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["streakAtRisk"])
 
+        // Audit 2026-04-23 Brand P0: softer declarative tone.
         let content = UNMutableNotificationContent()
-        content.title = "Streak at Risk!"
-        content.body = "Your \(streakCount)-day streak is at risk! Log an expense before midnight."
+        content.title = "Streak active"
+        content.body = "A quick log before midnight keeps your \(streakCount)-day streak alive."
         content.sound = .default
 
         var components = DateComponents()
@@ -305,8 +306,10 @@ enum NotificationService {
 
         let allowanceFormatted = CurrencyFormatter.format(cents: dailyAllowance, currencyCode: currencyCode)
 
+        // Audit 2026-04-23 Brand P0: softer declarative tone, no
+        // exclamation.
         let content = UNMutableNotificationContent()
-        content.title = "Good Morning!"
+        content.title = "Today's allowance"
 
         var body = "You can spend \(allowanceFormatted)/day for the next \(daysRemaining) day\(daysRemaining == 1 ? "" : "s")."
         if upcomingBills > 0 {

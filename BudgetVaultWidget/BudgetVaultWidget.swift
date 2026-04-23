@@ -133,9 +133,12 @@ struct SmallBudgetWidgetView: View {
                     .minimumScaleFactor(0.7)
 
                 if entry.data.currentStreak > 0 {
-                    HStack(spacing: 2) {
-                        Text("\u{1F525}")
-                            .font(.system(size: 9))
+                    HStack(spacing: 3) {
+                        // Audit 2026-04-23 Brand P0: 🔥 → vault shield
+                        // (match Dashboard streakBadge retirement).
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(WidgetTheme.accentSoft)
                         Text("\(entry.data.currentStreak)")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(WidgetTheme.neonOrange)
@@ -209,8 +212,11 @@ struct MediumBudgetWidgetView: View {
                 // Streak badge
                 if entry.data.currentStreak > 0 {
                     HStack(spacing: 3) {
-                        Text("\u{1F525}")
-                            .font(.system(size: 9))
+                        // Audit 2026-04-23 Brand P0: vault shield
+                        // replaces 🔥 emoji on the widget streak row.
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(WidgetTheme.accentSoft)
                         Text("\(entry.data.currentStreak)-day streak")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(WidgetTheme.neonOrange)
