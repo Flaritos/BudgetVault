@@ -75,17 +75,32 @@ enum BudgetVaultSchemaV1: VersionedSchema {
 
         var totalIncome: Decimal { Decimal(totalIncomeCents) / 100 }
 
+        // Audit 2026-04-23 Perf P0: periodStart + nextPeriodStart
+        // used to rebuild a Calendar+DateComponents on every access.
+        // Hot path — called inside Category.spentCents which runs
+        // per-category per-body in multiple views. Memoize via
+        // @Transient storage. The keys that drive the computation
+        // (year, month, resetDay) are immutable after creation for
+        // a given Budget instance in practice, so the cache never
+        // needs invalidation in the object's lifetime.
+        @Transient private var _cachedPeriodStart: Date? = nil
+        @Transient private var _cachedNextPeriodStart: Date? = nil
+
         /// Budget period start date using resetDay
         var periodStart: Date {
+            if let cached = _cachedPeriodStart { return cached }
             let day = min(self.resetDay, 28)
-            return Calendar.current.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
+            let value = Calendar.current.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
+            _cachedPeriodStart = value
+            return value
         }
 
         /// Exclusive upper bound — use `date < nextPeriodStart` (half-open interval)
         var nextPeriodStart: Date {
-            let day = min(self.resetDay, 28)
-            let start = Calendar.current.date(from: DateComponents(year: year, month: month, day: day)) ?? Date()
-            return Calendar.current.date(byAdding: .month, value: 1, to: start) ?? Date()
+            if let cached = _cachedNextPeriodStart { return cached }
+            let value = Calendar.current.date(byAdding: .month, value: 1, to: periodStart) ?? Date()
+            _cachedNextPeriodStart = value
+            return value
         }
 
         /// Total spent in this budget period (non-income transactions across all categories)

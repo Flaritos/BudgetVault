@@ -37,6 +37,9 @@ struct TransactionEntryView: View {
     @State private var selectedCategory: Category?
     @State private var date = Date()
     @State private var note = ""
+    // Audit 2026-04-23 Perf P0: cached note suggestions + debounce task.
+    @State private var cachedNoteSuggestions: [String] = []
+    @State private var noteSuggestionsDebounceTask: Task<Void, Never>?
     @State private var showSavedBanner = false
     @State private var manualCategorySelection = false
     @State private var showNoteSuggestions = false
@@ -451,6 +454,16 @@ struct TransactionEntryView: View {
                 .submitLabel(.done)
                 .onSubmit { noteFocused = false }
                 .onChange(of: note) { _, newValue in
+                    // Audit 2026-04-23 Perf P0: debounce 200ms so rapid
+                    // typing doesn't refilter recentTransactions on
+                    // every keystroke.
+                    noteSuggestionsDebounceTask?.cancel()
+                    noteSuggestionsDebounceTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(200))
+                        guard !Task.isCancelled else { return }
+                        cachedNoteSuggestions = computeNoteSuggestions(for: newValue)
+                        showNoteSuggestions = newValue.count >= 2 && !cachedNoteSuggestions.isEmpty
+                    }
                     showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
                     if !manualCategorySelection {
                         // Audit 2026-04-22 P1-31: case-insensitive match
@@ -739,9 +752,14 @@ struct TransactionEntryView: View {
 
     // MARK: - Note Autocomplete
 
-    private var noteSuggestions: [String] {
-        guard note.count >= 2 else { return [] }
-        let lowered = note.lowercased()
+    // Audit 2026-04-23 Perf P0: prior implementation ran the full
+    // recentTransactions filter + lowercased() × N on EVERY keystroke
+    // in the note field (no debounce). Typing "groceries" burned ~10k
+    // string allocations. Now cached + debounced 200ms via the
+    // onChange handler below (mirrors HistoryView P2-13 debounce).
+    private func computeNoteSuggestions(for query: String) -> [String] {
+        guard query.count >= 2 else { return [] }
+        let lowered = query.lowercased()
         let allNotes = recentTransactions
             .filter { !$0.note.isEmpty && $0.note.lowercased().hasPrefix(lowered) && $0.note.lowercased() != lowered }
             .map { $0.note }
@@ -757,6 +775,11 @@ struct TransactionEntryView: View {
         }
         return unique
     }
+
+    // Cached view of noteSuggestions — refreshed only via debounced
+    // onChange(of: note) below. Replaces the per-keystroke recompute
+    // that the original computed property performed.
+    private var noteSuggestions: [String] { cachedNoteSuggestions }
 
     // MARK: - Actions
 

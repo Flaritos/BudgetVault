@@ -84,8 +84,18 @@ enum WidgetDataService {
         )
 
         guard let encoded = try? JSONEncoder().encode(data) else { return }
-        UserDefaults(suiteName: suiteName)?.set(encoded, forKey: dataKey)
 
+        // Audit 2026-04-23 Perf P0: dedupe byte-identical payloads.
+        // 5 rapid transactions previously triggered 5 widget timeline
+        // reloads; this short-circuit drops the redundant ones. iOS
+        // does some throttling on its side but the app-side CPU cost
+        // of JSON encoding + reloadAllTimelines still burned cycles.
+        let appGroup = UserDefaults(suiteName: suiteName)
+        if let previous = appGroup?.data(forKey: dataKey), previous == encoded {
+            return
+        }
+
+        appGroup?.set(encoded, forKey: dataKey)
         WidgetCenter.shared.reloadAllTimelines()
     }
 
