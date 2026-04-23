@@ -30,6 +30,8 @@ scripts/cron.log
 *.dSYM
 *.mobileprovision
 .claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/tasks/
 
 # Design spec + mockup staging (reference only, not app code)
 VaultRevamp/

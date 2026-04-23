@@ -80,40 +80,8 @@ struct ChatBubbleShape: Shape {
     }
 }
 
-// MARK: - Typing Indicator
-
-struct TypingIndicatorView: View {
-    @State private var dotScales: [CGFloat] = [0.5, 0.5, 0.5]
-
-    var body: some View {
-        HStack {
-            HStack(spacing: 6) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(Color.white.opacity(0.6))
-                        .frame(width: 8, height: 8)
-                        .scaleEffect(dotScales[index])
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            .background(Color.white.opacity(0.10))
-            .clipShape(ChatBubbleShape(isBot: true))
-
-            Spacer()
-        }
-        .onAppear { startAnimation() }
-    }
-
-    private func startAnimation() {
-        for i in 0..<3 {
-            withAnimation(
-                .easeInOut(duration: 0.5)
-                .repeatForever(autoreverses: true)
-                .delay(Double(i) * 0.15)
-            ) {
-                dotScales[i] = 1.0
-            }
-        }
-    }
-}
+// Audit 2026-04-23 A11y P2: TypingIndicatorView deleted. Was unused
+// in production but shipped in the binary with a `.repeatForever`
+// animation + no Reduce Motion guard — accessibility landmine if
+// ever re-enabled. If a "bot is typing" affordance is needed later,
+// rebuild it with proper reduceMotion handling from scratch.
