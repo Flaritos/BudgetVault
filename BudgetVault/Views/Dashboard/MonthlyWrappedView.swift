@@ -205,6 +205,16 @@ struct MonthlyWrappedView: View {
     }
 
     private var personalityType: (name: String, emoji: String, description: String, traits: [(String, String)]) {
+        // Audit 2026-04-23 UX P0-5: zero-income user with $12 spent
+        // was labeled "Free Spirit / You lived fully." Tone-deaf. Guard.
+        if budget.totalIncomeCents == 0 {
+            return (
+                "Ready to Begin",
+                "\u{1F511}",
+                "Set a monthly budget to see your spending personality next month.",
+                [("Setup", "\u{1F6E0}\u{FE0F}"), ("Curious", "\u{1F50D}"), ("Starting", "\u{1F331}")]
+            )
+        }
         if savedPercent > 70 {
             return (
                 "Vault Guardian",
@@ -371,47 +381,63 @@ struct MonthlyWrappedView: View {
                     .foregroundStyle(.white.opacity(0.7))
 
                 // Donut ring
-                ZStack {
-                    // Track
-                    Circle()
-                        .stroke(.white.opacity(0.04), lineWidth: 18)
-                        .frame(width: 220, height: 220)
+                // Audit 2026-04-23 M2: when totalIncomeCents == 0, the
+                // ring celebrated "$0 / 0%" as the giant visual hero —
+                // cognitively dissonant with the "Set a monthly budget"
+                // subhead below. Replace the donut with a lock glyph
+                // when there's nothing to visualize.
+                if budget.totalIncomeCents == 0 {
+                    ZStack {
+                        Circle()
+                            .stroke(.white.opacity(0.06), lineWidth: 18)
+                            .frame(width: 220, height: 220)
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 72, weight: .light))
+                            .foregroundStyle(wrappedGreen.opacity(0.8))
+                    }
+                } else {
+                    ZStack {
+                        // Track
+                        Circle()
+                            .stroke(.white.opacity(0.04), lineWidth: 18)
+                            .frame(width: 220, height: 220)
 
-                    // Spent arc (red, at the end)
-                    Circle()
-                        .trim(from: ringAppeared ? max(1.0 - spentPercent / 100.0, 0) : 1.0, to: 1.0)
-                        .stroke(
-                            wrappedRed.opacity(0.3),
-                            style: StrokeStyle(lineWidth: 18, lineCap: .round)
-                        )
-                        .frame(width: 220, height: 220)
-                        .rotationEffect(.degrees(-90))
+                        // Spent arc (red, at the end)
+                        Circle()
+                            .trim(from: ringAppeared ? max(1.0 - spentPercent / 100.0, 0) : 1.0, to: 1.0)
+                            .stroke(
+                                wrappedRed.opacity(0.3),
+                                style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                            )
+                            .frame(width: 220, height: 220)
+                            .rotationEffect(.degrees(-90))
 
-                    // Saved arc (green, glowing)
-                    Circle()
-                        .trim(from: 0, to: ringAppeared ? min(savedPercent / 100.0, 1.0) : 0)
-                        .stroke(
-                            wrappedGreen,
-                            style: StrokeStyle(lineWidth: 18, lineCap: .round)
-                        )
-                        .frame(width: 220, height: 220)
-                        .rotationEffect(.degrees(-90))
-                        .shadow(color: wrappedGreen.opacity(0.5), radius: 8)
+                        // Saved arc (green, glowing)
+                        Circle()
+                            .trim(from: 0, to: ringAppeared ? min(savedPercent / 100.0, 1.0) : 0)
+                            .stroke(
+                                wrappedGreen,
+                                style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                            )
+                            .frame(width: 220, height: 220)
+                            .rotationEffect(.degrees(-90))
+                            .shadow(color: wrappedGreen.opacity(0.5), radius: 8)
 
-                    // Center text
-                    VStack(spacing: 4) {
-                        Text("SAVED")
-                            .font(.caption2.weight(.semibold))
-                            .tracking(2)
-                            .foregroundStyle(.white.opacity(0.7))
+                        // Center text
+                        VStack(spacing: 4) {
+                            Text("SAVED")
+                                .font(.caption2.weight(.semibold))
+                                .tracking(2)
+                                .foregroundStyle(.white.opacity(0.7))
 
-                        Text(CurrencyFormatter.format(cents: savedCents))
-                            .font(.system(size: 42, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
+                            Text(CurrencyFormatter.format(cents: savedCents))
+                                .font(.system(size: 42, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
 
-                        Text(String(format: "%.0f%%", savedPercent))
-                            .font(.system(size: 22, weight: .semibold, design: .rounded))
-                            .foregroundStyle(wrappedGreen)
+                            Text(String(format: "%.0f%%", savedPercent))
+                                .font(.system(size: 22, weight: .semibold, design: .rounded))
+                                .foregroundStyle(wrappedGreen)
+                        }
                     }
                 }
 
@@ -448,7 +474,14 @@ struct MonthlyWrappedView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Your \(monthName) story. Saved \(CurrencyFormatter.format(cents: savedCents)), \(String(format: "%.0f", savedPercent)) percent of income.")
+        // Audit 2026-04-23 M2: VO label also said "percent of income"
+        // when income=0 — matches the sentence-copy fix in P0-6 Fix 6
+        // but VO was untouched. Branch here too.
+        .accessibilityLabel(
+            budget.totalIncomeCents == 0
+                ? "Your \(monthName) story. Set a monthly budget to see your savings story."
+                : "Your \(monthName) story. Saved \(CurrencyFormatter.format(cents: savedCents)), \(String(format: "%.0f", savedPercent)) percent of budget."
+        )
     }
 
     // MARK: - Slide 2: Where It Went
@@ -828,7 +861,13 @@ struct MonthlyWrappedView: View {
 
     /// Pre-filled caption per spec 5.10 — quotes the saved amount and
     /// includes `budgetvault.io` for branded SEO + free attribution.
+    /// Audit 2026-04-23 M2 / UX P0-4: zero-income share caption
+    /// previously read "I budgeted $0.00 this month" — embarrassing.
+    /// Branch on income.
     private var shareCaption: String {
+        if budget.totalIncomeCents == 0 {
+            return "Budgeting without a bank login. BudgetVault.\n\nbudgetvault.io"
+        }
         let saved = CurrencyFormatter.format(cents: savedCents)
         return "I budgeted \(saved) this month without giving any app my bank login.\n\nbudgetvault.io"
     }

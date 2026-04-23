@@ -2,7 +2,10 @@ import SwiftUI
 import SwiftData
 import StoreKit
 import TipKit
+import os
 import BudgetVaultShared
+
+private let settingsLog = Logger(subsystem: "io.budgetvault.app", category: "settings")
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -412,13 +415,18 @@ struct SettingsView: View {
             .listRowBackground(BudgetVaultTheme.chamberDeep)
 
             Button {
+                // Audit 2026-04-23 M4: diagnostic log to verify the
+                // button fires at all (MobAI reported silent failure).
+                settingsLog.info("Export CSV tapped. premiumOnly=\(isPremium || storeKit.isPremium, privacy: .public)")
                 do {
-                    let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay)
+                    let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium || storeKit.isPremium, resetDay: resetDay)
                     exportURL = url
                     showExportShare = true
+                    settingsLog.info("Export CSV succeeded. url=\(url.lastPathComponent, privacy: .public)")
                 } catch {
                     exportErrorMessage = error.localizedDescription
                     showExportError = true
+                    settingsLog.error("Export CSV failed: \(error.localizedDescription, privacy: .public)")
                 }
             } label: {
                 Label(isPremium ? "Export CSV (Full History)" : "Export CSV (Last 30 Days)", systemImage: "square.and.arrow.up")
@@ -471,6 +479,9 @@ struct SettingsView: View {
             .listRowBackground(BudgetVaultTheme.chamberDeep)
 
             Button(role: .destructive) {
+                // Audit 2026-04-23 M5: diagnostic log (MobAI reported
+                // no-confirm-dialog silent failure).
+                settingsLog.info("Delete All Data tapped. showing confirm alert.")
                 showDeleteAllConfirm = true
             } label: {
                 Label("Delete All Data", systemImage: "trash.fill")

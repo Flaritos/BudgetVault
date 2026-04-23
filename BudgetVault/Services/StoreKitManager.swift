@@ -263,25 +263,49 @@ final class StoreKitManager {
         }
         #endif
 
+        // Audit 2026-04-23 M3 + S1: previously this set
+        // `isPremium = false` and DELETED the Keychain flag on any
+        // empty `currentEntitlements` — a transient StoreKit network
+        // failure would wipe a paying user's premium on a flaky
+        // connection. Rewrite:
+        //   - set `hasPremium = true` if entitlement found
+        //   - set `hasRevokedPremium = true` only if we explicitly saw
+        //     a verified transaction WITH a `revocationDate`
+        //   - leave Keychain alone unless we have positive evidence
+        //     (true entitlement OR true revocation)
         var hasPremium = false
+        var hasRevokedPremium = false
 
         for await result in StoreTransaction.currentEntitlements {
-            if let transaction = try? checkVerified(result),
-               transaction.productID == Self.premiumProductID {
+            guard let transaction = try? checkVerified(result),
+                  transaction.productID == Self.premiumProductID else { continue }
+            if transaction.revocationDate != nil {
+                hasRevokedPremium = true
+            } else {
                 hasPremium = true
             }
         }
 
-        isPremium = hasPremium
-        // Cache for instant UI
-        UserDefaults.standard.set(isPremium, forKey: AppStorageKeys.isPremium)
-
-        // Keychain is the authoritative source of truth for premium status.
-        // Sync Keychain to match StoreKit's verified entitlement state.
         if hasPremium {
+            isPremium = true
+            UserDefaults.standard.set(true, forKey: AppStorageKeys.isPremium)
             Self.setPremiumKeychain(true, callsite: "checkEntitlements")
-        } else {
+        } else if hasRevokedPremium {
+            isPremium = false
+            UserDefaults.standard.set(false, forKey: AppStorageKeys.isPremium)
             KeychainService.delete(forKey: "isPremium")
+        } else {
+            // No positive signal either way. Don't clobber the Keychain
+            // authoritative value — trust the prior state. On a fresh
+            // install with no prior Keychain entry, this leaves isPremium
+            // at its init default (false) — correct.
+            // If the user WAS premium and we just couldn't reach Apple
+            // this call, premium stays unlocked until the next successful
+            // `currentEntitlements` call.
+            if let cached = KeychainService.getBool(forKey: "isPremium") {
+                isPremium = cached
+                UserDefaults.standard.set(cached, forKey: AppStorageKeys.isPremium)
+            }
         }
     }
 

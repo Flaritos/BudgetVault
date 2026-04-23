@@ -9,10 +9,19 @@ final class BiometricAuthService {
     var errorMessage: String?
 
     init() {
+        refreshBiometryType()
+    }
+
+    /// Audit 2026-04-23 M6: split biometry-type detection out of init
+    /// so BiometricLockView can refresh it on each appear without
+    /// re-running a full auth. Lets the view detect enrollment changes.
+    func refreshBiometryType() {
         let context = LAContext()
         var error: NSError?
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             biometricType = context.biometryType
+        } else {
+            biometricType = .none
         }
     }
 

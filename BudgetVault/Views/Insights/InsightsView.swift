@@ -212,8 +212,33 @@ struct InsightsView: View {
                         }
 
                         // PREMIUM: Smart Forecasts (consolidated teaser 1)
+                        // Audit 2026-04-23 M1: when cachedPrediction +
+                        // pattern + forecasts are ALL nil (happens for
+                        // the first 5 days of a period, when the ML
+                        // engine's min-data guard is active), this
+                        // section used to render nothing — the MobAI
+                        // smoke mis-read that as "Smart Spending
+                        // Forecast card missing." Render an explicit
+                        // "Gathering data" placeholder so the absence
+                        // is visible and explained.
                         premiumSection("AI PREDICTION", dotColor: BudgetVaultTheme.accentSoft) {
                             VStack(spacing: 12) {
+                                if cachedPrediction == nil && cachedPattern == nil && cachedForecasts.isEmpty {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "hourglass")
+                                            .font(.system(size: 28, weight: .light))
+                                            .foregroundStyle(BudgetVaultTheme.accentSoft.opacity(0.7))
+                                        Text("Gathering data")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.white)
+                                        Text("Forecasts activate after the first few days of the period.")
+                                            .font(.caption)
+                                            .foregroundStyle(BudgetVaultTheme.titanium300)
+                                            .multilineTextAlignment(.center)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 24)
+                                }
                                 if let prediction = cachedPrediction {
                                     SpendingPredictionCard(prediction: prediction)
                                         .environment(\.colorScheme, .dark)
