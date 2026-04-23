@@ -128,8 +128,8 @@ Simultaneously, the warning card says *"On pace to overspend. At your current ra
 - **Name (30):** `BudgetVault: Private Budget`
 - **Subtitle (30):** `Envelope budget, on-device AI`
 - **Keywords (100):** `envelope,ledger,offline,private,nosub,onetime,allowance,ynab,monarch,copilot,debt,cashflow,daily`
-- **Promotional text (170):** "Your financial data belongs on your phone, not in a spreadsheet somewhere. No bank sync, no subscription, no tracking. Just envelope budgeting — $9.99, once."
-- **Description opener:** "The budget app that works without your bank login. $9.99. Once. Forever."
+- **Promotional text (170):** "Your financial data belongs on your phone, not in a spreadsheet somewhere. No bank sync, no subscription, no tracking. Just envelope budgeting — $14.99, once."
+- **Description opener:** "The budget app that works without your bank login. $14.99. Once. Forever."
 - **What's New v3.3.1:** "Refined Vault. Retired theme picker — one canonical dark look. Accessibility pass. Dozens of fixes."
 
 ---
