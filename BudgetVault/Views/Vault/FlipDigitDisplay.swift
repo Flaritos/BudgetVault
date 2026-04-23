@@ -53,8 +53,24 @@ struct FlipDigitDisplay: View {
         return CurrencyFormatter.format(cents: cents, currencyCode: currencyCode)
     }
 
+    /// Audit 2026-04-23 Smoke-6: at `.display` size (60pt) a digit plate
+    /// consumes ~55pt including padding. Amounts with 10+ chars (e.g.
+    /// `$12,345.67`) overflow the entry screen and earlier plates get
+    /// clipped off the leading edge. Scale the whole HStack down when
+    /// the formatted string exceeds 9 chars so every digit stays on
+    /// screen. Formula `9/count` keeps typical amounts (≤ $9,999.99,
+    /// i.e. 9 chars) at 1.0 and degrades smoothly for income/net-worth
+    /// entry up to 15-char magnitudes.
+    private var fitScale: CGFloat {
+        let count = formatted.count
+        guard count > 9 else { return 1.0 }
+        return 9.0 / CGFloat(count)
+    }
+
+    private var effectiveScale: CGFloat { scale * fitScale }
+
     var body: some View {
-        HStack(spacing: style.spacing * scale) {
+        HStack(spacing: style.spacing * effectiveScale) {
             ForEach(Array(formatted.enumerated()), id: \.offset) { _, char in
                 character(char)
             }
@@ -74,11 +90,11 @@ struct FlipDigitDisplay: View {
 
     private func digitPlate(_ digit: String) -> some View {
         Text(digit)
-            .font(BudgetVaultTheme.flipDigitFont(size: style.baseSize * scale))
+            .font(BudgetVaultTheme.flipDigitFont(size: style.baseSize * effectiveScale))
             .foregroundStyle(.white)
             .monospacedDigit()
-            .padding(.horizontal, style.plateHorizontalPadding * scale)
-            .padding(.vertical, style.plateVerticalPadding * scale)
+            .padding(.horizontal, style.plateHorizontalPadding * effectiveScale)
+            .padding(.vertical, style.plateVerticalPadding * effectiveScale)
             .background(
                 RoundedRectangle(cornerRadius: style.plateCornerRadius)
                     .fill(
@@ -127,7 +143,7 @@ struct FlipDigitDisplay: View {
 
     private func sepSpan(_ sep: String) -> some View {
         Text(sep)
-            .font(BudgetVaultTheme.flipDigitFont(size: style.baseSize * style.sepFontRatio * scale))
+            .font(BudgetVaultTheme.flipDigitFont(size: style.baseSize * style.sepFontRatio * effectiveScale))
             .foregroundStyle(BudgetVaultTheme.titanium300)
             .monospacedDigit()
     }

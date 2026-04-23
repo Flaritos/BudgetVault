@@ -18,9 +18,15 @@ struct BiometricLockView: View {
             VStack(spacing: 32) {
                 Spacer()
 
-                // Canonical VaultDial at hero size — shared primitive.
+                // Audit 2026-04-23 Smoke-6: VaultDial(.hero) has an
+                // intrinsic 240×240 frame set internally. The prior
+                // outer `.frame(width: 140, height: 140)` only shrank
+                // the layout slot — the 240pt PNG still rendered at
+                // full size, overflowing ±50pt beyond the slot and
+                // overlapping the "BudgetVault" title below. Let the
+                // dial render at its natural hero size; the VStack
+                // spacing then spaces every element correctly.
                 VaultDial(size: .hero, state: .locked)
-                    .frame(width: 140, height: 140)
 
                 Text("BudgetVault")
                     .font(.largeTitle.bold())

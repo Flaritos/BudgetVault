@@ -84,7 +84,11 @@ struct ChatOnboardingView: View {
     // tapping Start Budgeting. Existing users are unaffected because
     // they never pass through this step after install.
     // UI tests default it OFF so they don't hit the passcode prompt.
-    @State private var biometricLockEnabled: Bool = !ProcessInfo.processInfo.arguments.contains("-uitest")
+    // Audit 2026-04-23 Smoke-6: v3.3 removed the Face ID opt-in step from
+    // both onboarding paths but left `biometricLockEnabled` defaulting to
+    // `true`. Thorough Setup users were silently ending up locked on
+    // first foreground with no consent UI. Dead `@State` removed; lock
+    // now defaults OFF for both paths, enabled via Settings → Security.
     @AppStorage(AppStorageKeys.biometricLockEnabled) private var persistedBiometricLock = false
 
     // TODO(vault-name-keychain): migrate to KeychainService for §7.3 compliance.
@@ -1528,9 +1532,11 @@ struct ChatOnboardingView: View {
     //   · cta-primary "Enter the vault" — the ONE place in the app that
     //     uses this costume phrase (spec §7.6)
     //
-    // The Face ID opt-in toggle from v3.2 is removed from this ritual —
-    // the default stays ON (v3.2 audit H9), and users can toggle from
-    // Settings later. Ritual screens don't carry chrome.
+    // The Face ID opt-in toggle from v3.2 is removed from this ritual.
+    // Audit 2026-04-23 Smoke-6: default is now OFF — enabling a security
+    // feature without explicit consent violates iOS HIG and surprised
+    // Thorough users. Users opt in via Settings → Security. Ritual
+    // screens don't carry chrome.
     private var unlockedStep: some View {
         let incomeCents = MoneyHelpers.parseCurrencyString(incomeText) ?? 0
         let perDayCents = incomeCents > 0 ? Int64(Double(incomeCents) / 30.0) : 0
@@ -1587,17 +1593,14 @@ struct ChatOnboardingView: View {
             Spacer()
 
             Button {
-                // Audit remediation: v3.2 audit H9 defaulted Face ID ON
-                // for all users, but Quick Start users never see the
-                // biometric toggle step — silently enabling biometric
-                // lock triggers a system passcode prompt on the very
-                // next app foreground, contradicting Quick Start's
-                // "minimal setup" promise. Fix: only honor the
-                // `biometricLockEnabled` state for Thorough Setup (where
-                // the user actually saw the toggle). Quick Start
-                // defaults to OFF — users can enable lock from
-                // Settings → Security when ready.
-                persistedBiometricLock = (chosePath == .thorough) && biometricLockEnabled
+                // Audit 2026-04-23 Smoke-6: biometric lock defaults OFF
+                // for both Quick Start and Thorough Setup. v3.3 removed
+                // the opt-in toggle from both paths, so silently
+                // persisting `true` violated consent — users were
+                // dropped at a Face ID unlock screen on first foreground
+                // without having seen a single toggle. Users enable lock
+                // explicitly from Settings → Security.
+                persistedBiometricLock = false
                 withAnimation(.smooth(duration: 0.5)) {
                     hasCompletedOnboarding = true
                 }
