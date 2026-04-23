@@ -15,18 +15,18 @@ enum CSVExporter {
         }
     }
 
-    static func export(context: ModelContext, premiumOnly: Bool, resetDay: Int) throws -> URL {
+    /// Audit 2026-04-23 Compliance (D2): GDPR Article 20 data
+    /// portability + CCPA §1798.130 require unrestricted raw-data
+    /// export regardless of subscription tier. The prior 30-day cap
+    /// for free users violated this — even though the data lives
+    /// on-device, it's still the user's personal data being processed.
+    /// `premiumOnly` parameter kept for source compat but ignored;
+    /// full history exported for everyone.
+    static func export(context: ModelContext, premiumOnly: Bool = true, resetDay: Int) throws -> URL {
+        _ = premiumOnly // silence unused-parameter warning; retained for call-site stability
         let descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\Transaction.date)])
-        guard let allTransactions = try? context.fetch(descriptor) else {
+        guard let transactions = try? context.fetch(descriptor) else {
             throw ExportError.fetchFailed
-        }
-
-        var transactions = allTransactions
-
-        // Free: last 30 days only
-        if !premiumOnly {
-            let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-            transactions = transactions.filter { $0.date >= cutoff }
         }
 
         let isoFormatter = ISO8601DateFormatter()

@@ -442,7 +442,7 @@ struct SettingsView: View {
                     settingsLog.error("Export CSV failed: \(error.localizedDescription, privacy: .public)")
                 }
             } label: {
-                Label(isPremium ? "Export CSV (Full History)" : "Export CSV (Last 30 Days)", systemImage: "square.and.arrow.up")
+                Label("Export CSV (Full History)", systemImage: "square.and.arrow.up")
             }
             .tint(BudgetVaultTheme.accentSoft)
             .listRowBackground(BudgetVaultTheme.chamberDeep)
