@@ -149,7 +149,7 @@ struct FinanceTabView: View {
             // Radial gradient background — from spec: inner chamber,
             // lighter at top (ambient light from above) fading to near-black.
             RadialGradient(
-                colors: [Color(hex: "#1a2b52"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                colors: [BudgetVaultTheme.navyElevated, Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
                 center: UnitPoint(x: 0.5, y: 0.1),
                 startRadius: 40,
                 endRadius: 500

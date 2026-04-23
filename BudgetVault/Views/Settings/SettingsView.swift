@@ -59,7 +59,7 @@ struct SettingsView: View {
             // they sit on a curved surface, not a black wall.
             RadialGradient(
                 colors: [
-                    Color(hex: "#14234A"),
+                    BudgetVaultTheme.navyElevated,
                     BudgetVaultTheme.navyDark,
                     BudgetVaultTheme.navyAbyss
                 ],
@@ -251,7 +251,7 @@ struct SettingsView: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(hex: "#1A2A4F"),
+                                BudgetVaultTheme.navyElevated,
                                 BudgetVaultTheme.navyDark
                             ],
                             startPoint: .topLeading,

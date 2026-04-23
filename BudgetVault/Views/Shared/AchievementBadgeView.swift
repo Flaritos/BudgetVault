@@ -228,7 +228,7 @@ struct AchievementGridView: View {
         .padding(14)
         .background(
             LinearGradient(
-                colors: [Color(hex: "#1A2A4F"), BudgetVaultTheme.navyDark],
+                colors: [BudgetVaultTheme.navyElevated, BudgetVaultTheme.navyDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

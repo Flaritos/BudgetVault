@@ -871,7 +871,7 @@ struct DashboardView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(statusText)
                                         .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                                        .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                                     Text("\(periodPct)% Period \u{00B7} \(spentPct)% Spent")
                                         .font(BudgetVaultTheme.engravedLabel(size: 9))
                                         .textCase(.uppercase)
@@ -969,12 +969,12 @@ struct DashboardView: View {
             statChamber(
                 label: "Spent",
                 value: CurrencyFormatter.format(cents: spent, currencyCode: selectedCurrency),
-                valueColor: Color(hex: "#E8EDF5")
+                valueColor: BudgetVaultTheme.bodyOnDark
             )
             statChamber(
                 label: "Saved",
                 value: CurrencyFormatter.format(cents: savedCents, currencyCode: selectedCurrency),
-                valueColor: Color(hex: "#E8EDF5")
+                valueColor: BudgetVaultTheme.bodyOnDark
             )
             bufferChamber(budget: budget, dayProgressFraction: dayProgressFraction)
         }
@@ -1011,17 +1011,17 @@ struct DashboardView: View {
         let daysRemaining = daysInPeriod - daysElapsed
 
         guard totalSpent > 0 else {
-            return ("\u{2014}", Color(hex: "#E8EDF5"))
+            return ("\u{2014}", BudgetVaultTheme.bodyOnDark)
         }
         let avgDailySpend = totalSpent / Int64(daysElapsed)
         guard avgDailySpend > 0 else {
-            return ("\u{2014}", Color(hex: "#E8EDF5"))
+            return ("\u{2014}", BudgetVaultTheme.bodyOnDark)
         }
         let bufferDays = Int(budget.remainingCents / avgDailySpend)
         let surplus = bufferDays - daysRemaining
         let cap = daysInPeriod * 2
         if surplus > cap {
-            return ("\u{221E}", Color(hex: "#E8EDF5"))
+            return ("\u{221E}", BudgetVaultTheme.bodyOnDark)
         }
         if surplus > 0 {
             return ("+\(surplus)d", BudgetVaultTheme.positive)

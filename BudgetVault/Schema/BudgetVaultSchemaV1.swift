@@ -124,6 +124,10 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         @Relationship(deleteRule: .cascade, inverse: \Transaction.category)
         var transactions: [Transaction]? = []
 
+        // Audit 2026-04-23 DB P1: explicit `.nullify` matches inferred
+        // behavior; consistent with Transaction.category (P1-30) and
+        // prevents silent regression if inverse is ever re-declared.
+        @Relationship(deleteRule: .nullify)
         var budget: Budget?
 
         @Relationship(deleteRule: .nullify, inverse: \RecurringExpense.category)
@@ -218,7 +222,10 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         @Relationship(deleteRule: .nullify)
         var category: Category?
 
-        @Relationship(inverse: \RecurringExpense.generatedTransactions)
+        // Audit 2026-04-23 DB P0: explicit `.nullify`. If a
+        // RecurringExpense is deleted, its posted Transactions should
+        // orphan (preserve spend history), not cascade.
+        @Relationship(deleteRule: .nullify, inverse: \RecurringExpense.generatedTransactions)
         var recurringExpense: RecurringExpense?
 
         init(amountCents: Int64, note: String = "", date: Date = .now, isIncome: Bool = false, category: Category? = nil) {
@@ -248,6 +255,10 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var nextDueDate: Date = Date.now
         var isActive: Bool = true
 
+        // Audit 2026-04-23 DB P0: explicit `.nullify`. If a Category
+        // is deleted, its recurring rules should orphan (user can
+        // reassign), not disappear.
+        @Relationship(deleteRule: .nullify)
         var category: Category?
 
         @Relationship(deleteRule: .nullify)
@@ -371,6 +382,10 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var date: Date = Date.now
         var note: String = ""
 
+        // Audit 2026-04-23 DB P0: explicit `.nullify`. If a DebtAccount
+        // is deleted, its payment history should orphan (not cascade
+        // — audit trail of repayments should survive).
+        @Relationship(deleteRule: .nullify)
         var debtAccount: DebtAccount?
 
         init(amountCents: Int64, date: Date = .now, note: String = "") {

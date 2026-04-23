@@ -53,6 +53,28 @@ struct ChatOnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    // Audit 2026-04-23 A11y P1: prior onboarding had 57 fixed-size
+    // `.system(size: N)` fonts frozen at their design-time pt values.
+    // Users with Dynamic Type preferences > .large saw nothing scale.
+    // These @ScaledMetric anchors preserve the design-time numbers as
+    // baselines but scale them per user preference. Weight + design
+    // preserved at call sites via .weight()/.design().
+    @ScaledMetric(relativeTo: .caption2) private var onb9: CGFloat = 9
+    @ScaledMetric(relativeTo: .caption2) private var onb10: CGFloat = 10
+    @ScaledMetric(relativeTo: .caption2) private var onb11: CGFloat = 11
+    @ScaledMetric(relativeTo: .caption) private var onb12: CGFloat = 12
+    @ScaledMetric(relativeTo: .footnote) private var onb13: CGFloat = 13
+    @ScaledMetric(relativeTo: .subheadline) private var onb14: CGFloat = 14
+    @ScaledMetric(relativeTo: .subheadline) private var onb15: CGFloat = 15
+    @ScaledMetric(relativeTo: .body) private var onb18: CGFloat = 18
+    @ScaledMetric(relativeTo: .title3) private var onb20: CGFloat = 20
+    @ScaledMetric(relativeTo: .title2) private var onb22: CGFloat = 22
+    @ScaledMetric(relativeTo: .title2) private var onb24: CGFloat = 24
+    @ScaledMetric(relativeTo: .title) private var onb26: CGFloat = 26
+    @ScaledMetric(relativeTo: .title) private var onb28: CGFloat = 28
+    @ScaledMetric(relativeTo: .title) private var onb32: CGFloat = 32
+    @ScaledMetric(relativeTo: .largeTitle) private var onb34: CGFloat = 34
+
     @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
@@ -213,7 +235,7 @@ struct ChatOnboardingView: View {
 
                 // .label "WELCOME" — 11pt / weight 600 / tracking 2.42px / titanium300
                 Text("Welcome")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: onb11, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(2.42)   // 0.22em × 11pt
                     .foregroundStyle(BudgetVaultTheme.titanium300)
@@ -222,7 +244,7 @@ struct ChatOnboardingView: View {
                 // Headline: 34pt / weight 700 / tracking -0.03em / line-height 1.1
                 // Three equal-weight lines, center-aligned.
                 (Text("Your budget.\n") + Text("Your device.\n") + Text("No one else."))
-                    .font(.system(size: 34, weight: .bold))
+                    .font(.system(size: onb34, weight: .bold))
                     .tracking(-1.02)    // -0.03em × 34pt
                     .lineSpacing(3.4)   // (1.1 - 1) × 34pt
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
@@ -231,7 +253,7 @@ struct ChatOnboardingView: View {
 
                 // .label-sm subtitle — 9pt / weight 600 / tracking 0.24em / text-3
                 Text("$14.99 · One time · Yours forever")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: onb9, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(2.16)   // 0.24em × 9pt
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
@@ -244,7 +266,7 @@ struct ChatOnboardingView: View {
                     // 17px padding, 12px radius, 15pt weight 600 text, 1px #1e3a8a border.
                     Button { spinDialThenAdvance() } label: {
                         Text("Get started")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: onb15, weight: .semibold))
                             .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 17)
@@ -270,7 +292,7 @@ struct ChatOnboardingView: View {
                     // cta-ghost: transparent, 13pt weight 500, color text-3.
                     Button { skipOnboarding() } label: {
                         Text("I'll set up later")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: onb13, weight: .medium))
                             .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -321,7 +343,7 @@ struct ChatOnboardingView: View {
                         Spacer()
                         Button { skipOnboarding() } label: {
                             Text("Skip")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: onb13, weight: .medium))
                                 .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
                         }
                     }
@@ -330,7 +352,7 @@ struct ChatOnboardingView: View {
 
                     // .label "The Pledge"
                     Text("The Pledge")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: onb11, weight: .semibold))
                         .textCase(.uppercase)
                         .tracking(2.42)
                         .foregroundStyle(BudgetVaultTheme.titanium300)
@@ -339,10 +361,10 @@ struct ChatOnboardingView: View {
                     // <h2>: 26pt / 700 / -0.025em / line-height 1.15, left-aligned
                     // Weight-split: bold white + light titanium300.
                     (Text("Four things we\n")
-                        .font(.system(size: 26, weight: .bold))
+                        .font(.system(size: onb26, weight: .bold))
                         .foregroundColor(BudgetVaultTheme.bodyOnDark)
                     + Text("will never do.")
-                        .font(.system(size: 26, weight: .light))
+                        .font(.system(size: onb26, weight: .light))
                         .foregroundColor(BudgetVaultTheme.titanium300))
                         .tracking(-0.65)     // -0.025em × 26pt
                         .lineSpacing(3.9)    // (1.15 - 1) × 26pt
@@ -371,12 +393,12 @@ struct ChatOnboardingView: View {
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Apple Privacy Label")
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: onb10, weight: .semibold))
                                 .textCase(.uppercase)
                                 .tracking(2.2)    // 0.22em × 10pt
                                 .foregroundStyle(BudgetVaultTheme.titanium200)
                             Text("Data Not Collected")
-                                .font(.system(size: 12))
+                                .font(.system(size: onb12))
                                 .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                         }
                         Spacer()
@@ -409,7 +431,7 @@ struct ChatOnboardingView: View {
     private var pledgePrimaryCTA: some View {
         Button { advanceToNextStep() } label: {
             Text("I understand")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: onb15, weight: .semibold))
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 17)
@@ -449,10 +471,10 @@ struct ChatOnboardingView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: onb14, weight: .semibold))
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 Text(subtitle)
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: onb9, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(2.16)   // 0.24em × 9pt
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
@@ -509,7 +531,7 @@ struct ChatOnboardingView: View {
                         Spacer()
                         Button { skipOnboarding() } label: {
                             Text("Skip")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: onb13, weight: .medium))
                                 .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
                         }
                     }
@@ -518,7 +540,7 @@ struct ChatOnboardingView: View {
 
                     // .label "Personal"
                     Text("Personal")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: onb11, weight: .semibold))
                         .textCase(.uppercase)
                         .tracking(2.42)
                         .foregroundStyle(BudgetVaultTheme.titanium300)
@@ -526,7 +548,7 @@ struct ChatOnboardingView: View {
 
                     // <h2>: 28pt / 700 / -0.025em / line-height 1.15
                     Text("Name your vault.")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: onb28, weight: .bold))
                         .tracking(-0.7)    // -0.025em × 28pt
                         .lineSpacing(4.2)  // (1.15 - 1) × 28pt
                         .foregroundStyle(BudgetVaultTheme.bodyOnDark)
@@ -534,7 +556,7 @@ struct ChatOnboardingView: View {
 
                     // Subtitle — 14pt regular, line-height 1.5, text-2. VERBATIM.
                     Text("Appears at the top of your dashboard. You can change this anytime.")
-                        .font(.system(size: 14))
+                        .font(.system(size: onb14))
                         .lineSpacing(7.0)  // (1.5 - 1) × 14pt
                         .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                         .padding(.bottom, 28)
@@ -551,7 +573,7 @@ struct ChatOnboardingView: View {
                                 .opacity(vaultName.isEmpty ? 0.35 : 1.0)
                             TextField("", text: $vaultName)
                                 .textFieldStyle(.plain)
-                                .font(.system(size: 24, weight: .bold))
+                                .font(.system(size: onb24, weight: .bold))
                                 .foregroundStyle(.clear)
                                 .tint(BudgetVaultTheme.titanium800)
                                 .focused($vaultNameFocused)
@@ -569,7 +591,7 @@ struct ChatOnboardingView: View {
 
                     // .label-sm "Or choose a preset" — 9pt/600/0.24em/titanium400
                     Text("Or choose a preset")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: onb9, weight: .semibold))
                         .textCase(.uppercase)
                         .tracking(2.16)    // 0.24em × 9pt
                         .foregroundStyle(BudgetVaultTheme.titanium400)
@@ -603,7 +625,7 @@ struct ChatOnboardingView: View {
                         .accessibilityHidden(true)
 
                         Text("Stored only in iOS Keychain on this device. We can't read it.")
-                            .font(.system(size: 12))
+                            .font(.system(size: onb12))
                             .lineSpacing(6.0)   // (1.5 - 1) × 12pt
                             .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                         Spacer(minLength: 0)
@@ -627,7 +649,7 @@ struct ChatOnboardingView: View {
         .safeAreaInset(edge: .bottom) {
             Button { advanceToNextStep() } label: {
                 Text("Engrave it")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: onb15, weight: .semibold))
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
@@ -661,7 +683,7 @@ struct ChatOnboardingView: View {
             vaultName = preset
         } label: {
             Text(preset)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: onb13, weight: .medium))
                 .foregroundStyle(BudgetVaultTheme.accentSoft)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
@@ -717,7 +739,7 @@ struct ChatOnboardingView: View {
 
                     // .label "Your Pace"
                     Text("Your Pace")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: onb11, weight: .semibold))
                         .textCase(.uppercase)
                         .tracking(2.42)
                         .foregroundStyle(BudgetVaultTheme.titanium300)
@@ -725,7 +747,7 @@ struct ChatOnboardingView: View {
 
                     // <h2>: 28pt / 700 / -0.025em / line-height 1.15
                     Text("Two ways to finish.")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: onb28, weight: .bold))
                         .tracking(-0.7)
                         .lineSpacing(4.2)
                         .foregroundStyle(BudgetVaultTheme.bodyOnDark)
@@ -746,7 +768,7 @@ struct ChatOnboardingView: View {
         .safeAreaInset(edge: .bottom) {
             Button { takeDepthForkDecision() } label: {
                 Text(chosePath == .quick ? "Quick start" : "Walk me through everything")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: onb15, weight: .semibold))
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
@@ -778,18 +800,18 @@ struct ChatOnboardingView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Quick start")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: onb20, weight: .bold))
                         .tracking(-0.2)   // -0.01em × 20pt
                         .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     Spacer()
                     Text("30 Sec")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: onb9, weight: .semibold))
                         .textCase(.uppercase)
                         .tracking(2.16)
                         .foregroundStyle(BudgetVaultTheme.titanium400)
                 }
                 Text("Go straight to your dashboard with a starter envelope. Add income and allocations when ready.")
-                    .font(.system(size: 13))
+                    .font(.system(size: onb13))
                     .lineSpacing(7.15)  // (1.55 - 1) × 13pt
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                     .fixedSize(horizontal: false, vertical: true)
@@ -817,7 +839,7 @@ struct ChatOnboardingView: View {
             .overlay(alignment: .topLeading) {
                 // "RECOMMENDED" tab — HTML positions it top: -8px, left: 16px.
                 Text("Recommended")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: onb9, weight: .bold))
                     .textCase(.uppercase)
                     .tracking(1.8)    // 0.2em × 9pt
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
@@ -843,18 +865,18 @@ struct ChatOnboardingView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Thorough setup")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: onb20, weight: .bold))
                         .tracking(-0.2)
                         .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(isSelected ? 1.0 : 0.68))
                     Spacer()
                     Text("2 Min")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: onb9, weight: .semibold))
                         .textCase(.uppercase)
                         .tracking(2.16)
                         .foregroundStyle(BudgetVaultTheme.titanium400)
                 }
                 Text("Face ID, income, envelopes, and allocation. Seven more steps. Any step still skippable.")
-                    .font(.system(size: 13))
+                    .font(.system(size: onb13))
                     .lineSpacing(7.15)
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(isSelected ? 0.68 : 0.42))
                     .fixedSize(horizontal: false, vertical: true)
@@ -920,7 +942,7 @@ struct ChatOnboardingView: View {
             Spacer().frame(height: 36)
 
             Text("Step 5 of 7 · Currency")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: onb11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.42)
                 .foregroundStyle(BudgetVaultTheme.titanium300)
@@ -930,7 +952,7 @@ struct ChatOnboardingView: View {
             Spacer().frame(height: 8)
 
             Text("Choose your currency.")
-                .font(.system(size: 24, weight: .bold))
+                .font(.system(size: onb24, weight: .bold))
                 .tracking(-0.6)
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -946,9 +968,9 @@ struct ChatOnboardingView: View {
             Button { showCurrencyPicker = true } label: {
                 HStack(spacing: 4) {
                     Text("More currencies")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: onb12, weight: .medium))
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: onb10, weight: .medium))
                 }
                 .foregroundStyle(BudgetVaultTheme.accentSoft)
             }
@@ -962,7 +984,7 @@ struct ChatOnboardingView: View {
                 advanceStep()
             } label: {
                 Text("Continue")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: onb15, weight: .semibold))
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
@@ -998,9 +1020,9 @@ struct ChatOnboardingView: View {
                     tempCurrency = currency.code
                 } label: {
                     HStack(spacing: 6) {
-                        Text(currency.flag).font(.system(size: 18))
+                        Text(currency.flag).font(.system(size: onb18))
                         Text(currency.code)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: onb13, weight: .semibold))
                     }
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
@@ -1070,7 +1092,7 @@ struct ChatOnboardingView: View {
             Spacer().frame(height: 36)
 
             Text("Step 6 of 7 · Income")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: onb11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.42)
                 .foregroundStyle(BudgetVaultTheme.titanium300)
@@ -1080,7 +1102,7 @@ struct ChatOnboardingView: View {
             Spacer().frame(height: 8)
 
             (Text("What lands in your\n") + Text("account each month?"))
-                .font(.system(size: 24, weight: .bold))
+                .font(.system(size: onb24, weight: .bold))
                 .tracking(-0.6)
                 .lineSpacing(4.8)
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark)
@@ -1092,7 +1114,7 @@ struct ChatOnboardingView: View {
 
             Button { showWhyWeAsk = true } label: {
                 Text("Why we ask \u{2192}")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: onb12, weight: .medium))
                     .foregroundStyle(BudgetVaultTheme.accentSoft)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1111,7 +1133,7 @@ struct ChatOnboardingView: View {
             Spacer().frame(height: 10)
 
             Text("After-tax take-home")
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: onb9, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.16)
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
@@ -1126,7 +1148,7 @@ struct ChatOnboardingView: View {
 
             Button { advanceStep() } label: {
                 Text("Continue")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: onb15, weight: .semibold))
                     .foregroundStyle(
                         hasIncome
                             ? BudgetVaultTheme.bodyOnDark
@@ -1164,7 +1186,7 @@ struct ChatOnboardingView: View {
     private var whyWeAskSheet: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Why we ask")
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: onb22, weight: .bold))
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .padding(.top, 8)
 
@@ -1172,7 +1194,7 @@ struct ChatOnboardingView: View {
             We use your monthly take-home to calculate your daily allowance \
             and envelope targets. That's it.
             """)
-            .font(.system(size: 15, weight: .regular))
+            .font(.system(size: onb15, weight: .regular))
             .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.75))
             .fixedSize(horizontal: false, vertical: true)
 
@@ -1180,7 +1202,7 @@ struct ChatOnboardingView: View {
             The number stays on this iPhone. It never leaves your device, \
             never hits a server, never funds an ad network.
             """)
-            .font(.system(size: 15, weight: .regular))
+            .font(.system(size: onb15, weight: .regular))
             .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.75))
             .fixedSize(horizontal: false, vertical: true)
 
@@ -1188,7 +1210,7 @@ struct ChatOnboardingView: View {
 
             Button { showWhyWeAsk = false } label: {
                 Text("Got it")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: onb15, weight: .semibold))
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
@@ -1227,7 +1249,7 @@ struct ChatOnboardingView: View {
             Spacer().frame(height: 24)
 
             Text("Step 7 of 7 · Envelopes")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: onb11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.42)
                 .foregroundStyle(BudgetVaultTheme.titanium300)
@@ -1237,7 +1259,7 @@ struct ChatOnboardingView: View {
             Spacer().frame(height: 8)
 
             Text("Split the vault into envelopes.")
-                .font(.system(size: 24, weight: .bold))
+                .font(.system(size: onb24, weight: .bold))
                 .tracking(-0.6)
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1297,7 +1319,7 @@ struct ChatOnboardingView: View {
                 createBudget()
             } label: {
                 Text("Continue")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: onb15, weight: .semibold))
                     .foregroundStyle(
                         canContinue
                             ? BudgetVaultTheme.bodyOnDark
@@ -1518,11 +1540,11 @@ struct ChatOnboardingView: View {
             // weight contrast earns its keep across the whole onboarding.
             (
                 Text("The vault ")
-                    .font(.system(size: 32, weight: .bold))
+                    .font(.system(size: onb32, weight: .bold))
                     .foregroundColor(BudgetVaultTheme.bodyOnDark)
                 +
                 Text("is open.")
-                    .font(.system(size: 32, weight: .light))
+                    .font(.system(size: onb32, weight: .light))
                     .foregroundColor(BudgetVaultTheme.accentSoft)
             )
             .tracking(-0.96)
@@ -1530,12 +1552,12 @@ struct ChatOnboardingView: View {
             .padding(.bottom, 10)
 
             Text(dayLabel)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: onb14, weight: .medium))
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.7))
                 .padding(.bottom, 6)
 
             Text("Day 1 of your streak")
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: onb9, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.16)
                 .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
@@ -1559,7 +1581,7 @@ struct ChatOnboardingView: View {
                 }
             } label: {
                 Text("Enter the vault")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: onb15, weight: .semibold))
                     .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
