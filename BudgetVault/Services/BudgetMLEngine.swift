@@ -73,17 +73,30 @@ enum BudgetMLEngine {
         // Simple prediction: daily rate extrapolation (for comparison)
         let simpleProjected = Int64(Double(currentTotal) / Double(daysSoFar) * Double(daysInPeriod))
 
-        // Determine trend by comparing daily regression slope to average daily rate
+        // Determine trend by comparing daily regression slope to average daily rate.
+        // Audit 2026-04-23 AI P0: require ≥10 days of data AND a
+        // minimum R² to label .accelerating / .decelerating. Previously
+        // fired on 5-day random walks with no fit quality gate —
+        // "Accelerating" confidently on noise.
         let dailyReg = weightedLinearRegression(
             x: (0..<daysSoFar).map { Double($0) },
             y: dailySpending,
             weights: [Double](repeating: 1.0, count: daysSoFar)
         )
         let avgDailyRate = Double(currentTotal) / Double(daysSoFar)
+        let rSquared = Self.rSquared(
+            x: (0..<daysSoFar).map { Double($0) },
+            y: dailySpending,
+            slope: dailyReg.slope,
+            intercept: dailyReg.intercept
+        )
+        let trendThreshold = avgDailyRate * 0.05
         let trend: SpendingPrediction.Trend
-        if avgDailyRate > 0 && dailyReg.slope > avgDailyRate * 0.05 {
+        if daysSoFar < 10 || rSquared < 0.3 {
+            trend = .steady
+        } else if avgDailyRate > 0 && dailyReg.slope > trendThreshold {
             trend = .accelerating
-        } else if avgDailyRate > 0 && dailyReg.slope < -avgDailyRate * 0.05 {
+        } else if avgDailyRate > 0 && dailyReg.slope < -trendThreshold {
             trend = .decelerating
         } else {
             trend = .steady
@@ -116,17 +129,37 @@ enum BudgetMLEngine {
 
             let amounts = txs.map { Double($0.amountCents) }
             let sorted = amounts.sorted()
-            let median = sorted[sorted.count / 2]
+            // Audit 2026-04-23 AI P0: true median for even N. Prior
+            // `sorted[sorted.count / 2]` returned the upper median on
+            // even counts, biasing the MAD downstream and deflating
+            // the z-score — missing real outliers.
+            let median = Self.trueMedian(of: sorted)
 
             // MAD: Median Absolute Deviation
             let deviations = amounts.map { abs($0 - median) }
-            let mad = deviations.sorted()[deviations.count / 2]
-            guard mad > 0 else { continue }
+            let mad = Self.trueMedian(of: deviations.sorted())
+
+            // Audit 2026-04-23 AI P0: MAD=0 used to silently skip
+            // anomaly detection for this category. Real user case:
+            // 4 identical $10 recurring coffees + 1 $200 outlier =
+            // median $10, deviations [0,0,0,0,190], MAD=0 (because
+            // 3 of 5 deviations are zero), outlier never flagged.
+            // Fallback: use standard deviation × 2.5 when MAD=0.
+            let mad_nonzero: Double
+            if mad > 0 {
+                mad_nonzero = mad
+            } else {
+                let mean = amounts.reduce(0, +) / Double(amounts.count)
+                let variance = amounts.reduce(0.0) { $0 + ($1 - mean) * ($1 - mean) } / Double(amounts.count)
+                let stddev = variance.squareRoot()
+                guard stddev > 0 else { continue }
+                mad_nonzero = stddev / 1.4826 // ~equivalent to MAD for normal distribution
+            }
 
             // Modified z-score: 0.6745 is the 0.75th quartile of the standard normal
             let threshold = 3.0
             for tx in txs {
-                let modifiedZ = 0.6745 * (Double(tx.amountCents) - median) / mad
+                let modifiedZ = 0.6745 * (Double(tx.amountCents) - median) / mad_nonzero
                 if modifiedZ > threshold {
                     anomalies.append(AnomalyResult(
                         transaction: tx,
@@ -404,6 +437,40 @@ enum BudgetMLEngine {
             daily[clamped] += Double(tx.amountCents)
         }
         return daily
+    }
+
+    // MARK: - Statistics helpers
+
+    /// Audit 2026-04-23 AI P0: true median (averages the two middle
+    /// values on even-N arrays). Prior `sorted[count/2]` returned the
+    /// upper median, biasing the MAD downstream.
+    static func trueMedian(of sorted: [Double]) -> Double {
+        guard !sorted.isEmpty else { return 0 }
+        let count = sorted.count
+        if count % 2 == 1 {
+            return sorted[count / 2]
+        } else {
+            return (sorted[count / 2 - 1] + sorted[count / 2]) / 2
+        }
+    }
+
+    /// Audit 2026-04-23 AI P0: coefficient of determination for the
+    /// weighted-linear-regression fit. Used to gate trend labeling so
+    /// "Accelerating" doesn't fire on noise-heavy data.
+    static func rSquared(x: [Double], y: [Double], slope: Double, intercept: Double) -> Double {
+        guard x.count == y.count, !y.isEmpty else { return 0 }
+        let meanY = y.reduce(0, +) / Double(y.count)
+        var ssRes = 0.0
+        var ssTot = 0.0
+        for i in 0..<y.count {
+            let predicted = slope * x[i] + intercept
+            let residual = y[i] - predicted
+            ssRes += residual * residual
+            let totalDiff = y[i] - meanY
+            ssTot += totalDiff * totalDiff
+        }
+        guard ssTot > 0 else { return 0 }
+        return max(0, 1 - (ssRes / ssTot))
     }
 }
 

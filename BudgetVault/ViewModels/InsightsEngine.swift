@@ -198,28 +198,46 @@ enum InsightsEngine {
             }
         }
 
-        // 8. Category Creep — spending increased 3+ months in a row
+        // 8. Category Creep — spending increased 3+ months in a row.
+        // Audit 2026-04-23 AI P0: prior logic treated missing-category
+        // or zero-spend months as valid baseline (prevSpent = 0), so
+        // a newly-added category going 0 → $5 → $10 → $15 fires as
+        // "rising 4 months." Now require all 4 months to have the
+        // category present AND have positive spend before comparing.
         if allBudgets.count >= 3 {
             let sorted = allBudgets.sorted { ($0.year, $0.month) < ($1.year, $1.month) }
             let recent = Array(sorted.suffix(4)) // need 3 comparisons = 4 months
             if recent.count >= 3 {
                 for cat in categories {
-                    var increasing = true
-                    var prevSpent: Int64 = -1
-                    var monthsIncreasing = 0
-
+                    // Build matched series. If any month lacks the
+                    // category OR has zero spend, skip this category —
+                    // we can't meaningfully claim "kept rising."
+                    var series: [Int64] = []
+                    var missingOrZero = false
                     for b in recent {
-                        let matchingCat = (b.categories ?? []).first { $0.name == cat.name }
-                        let spent = matchingCat?.spentCents(in: b) ?? 0
-                        if prevSpent >= 0 && spent > prevSpent && spent > 0 {
-                            monthsIncreasing += 1
-                        } else if prevSpent >= 0 {
-                            increasing = false
+                        let matchingCat = (b.categories ?? []).first { $0.name.caseInsensitiveCompare(cat.name) == .orderedSame }
+                        guard let matched = matchingCat else {
+                            missingOrZero = true; break
                         }
-                        prevSpent = spent
+                        let spent = matched.spentCents(in: b)
+                        guard spent > 0 else {
+                            missingOrZero = true; break
+                        }
+                        series.append(spent)
+                    }
+                    if missingOrZero || series.count < 3 { continue }
+
+                    var monthsIncreasing = 0
+                    var allIncreasing = true
+                    for i in 1..<series.count {
+                        if series[i] > series[i - 1] {
+                            monthsIncreasing += 1
+                        } else {
+                            allIncreasing = false
+                        }
                     }
 
-                    if increasing && monthsIncreasing >= 2 {
+                    if allIncreasing && monthsIncreasing >= 2 {
                         insights.append(Insight(
                             icon: "📊",
                             title: "\(cat.name) keeps rising",
