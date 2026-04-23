@@ -363,7 +363,15 @@ struct DashboardView: View {
                             prefillCategoryName: intentPrefillCategory,
                             prefillNote: intentPrefillNote
                         )
-                        .presentationDragIndicator(.visible)
+                        // Audit 2026-04-23 Smoke-7: user flagged the
+                        // sheet as "draggable" — the visible grabber +
+                        // default interactive-dismiss made the entry
+                        // feel unfinished and risked losing a half-typed
+                        // transaction to an accidental swipe. Treat
+                        // Transaction Entry as a modal form: no grabber,
+                        // Cancel button is the only exit.
+                        .presentationDragIndicator(.hidden)
+                        .interactiveDismissDisabled()
                     }
                 case .monthlySummary:
                     if let prev = previousBudget {

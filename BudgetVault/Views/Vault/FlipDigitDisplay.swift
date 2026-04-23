@@ -53,42 +53,46 @@ struct FlipDigitDisplay: View {
         return CurrencyFormatter.format(cents: cents, currencyCode: currencyCode)
     }
 
-    /// Audit 2026-04-23 Smoke-6: at `.display` size (60pt) a digit plate
-    /// consumes ~55pt including padding. Amounts with 10+ chars (e.g.
-    /// `$12,345.67`) overflow the entry screen and earlier plates get
-    /// clipped off the leading edge. Scale the whole HStack down when
-    /// the formatted string exceeds 9 chars so every digit stays on
-    /// screen. Formula `9/count` keeps typical amounts (≤ $9,999.99,
-    /// i.e. 9 chars) at 1.0 and degrades smoothly for income/net-worth
-    /// entry up to 15-char magnitudes.
-    private var fitScale: CGFloat {
-        let count = formatted.count
-        guard count > 9 else { return 1.0 }
-        return 9.0 / CGFloat(count)
-    }
-
-    private var effectiveScale: CGFloat { scale * fitScale }
+    /// Audit 2026-04-23 Smoke-6 / smoke-7: the original fixed-threshold
+    /// `fitScale = 9/count` didn't know the actual parent width, so a
+    /// 9-char amount like `$1,428.57` (daily allowance on Home hero card
+    /// which is narrower than the Transaction Entry width) still
+    /// overflowed and clipped the leading `$`/`1`. Replaced with
+    /// `ViewThatFits` so SwiftUI picks the largest pre-rendered scale
+    /// whose HStack actually fits the offered horizontal space. Plates
+    /// and separators render at the chosen scale — no scaleEffect, so
+    /// the ideal size propagates correctly to the parent layout.
+    private static let fitCandidates: [CGFloat] = [1.0, 0.88, 0.76, 0.64, 0.52, 0.42]
 
     var body: some View {
-        HStack(spacing: style.spacing * effectiveScale) {
-            ForEach(Array(formatted.enumerated()), id: \.offset) { _, char in
-                character(char)
+        ViewThatFits(in: .horizontal) {
+            ForEach(Self.fitCandidates, id: \.self) { candidate in
+                plateRow(fitScale: candidate)
             }
         }
         .accessibilityElement()
         .accessibilityLabel(contextLabel.map { "\($0), \(formatted)" } ?? formatted)
     }
 
-    @ViewBuilder
-    private func character(_ char: Character) -> some View {
-        if char.isNumber {
-            digitPlate(String(char))
-        } else {
-            sepSpan(String(char))
+    private func plateRow(fitScale: CGFloat) -> some View {
+        let effScale = scale * fitScale
+        return HStack(spacing: style.spacing * effScale) {
+            ForEach(Array(formatted.enumerated()), id: \.offset) { _, char in
+                character(char, effectiveScale: effScale)
+            }
         }
     }
 
-    private func digitPlate(_ digit: String) -> some View {
+    @ViewBuilder
+    private func character(_ char: Character, effectiveScale: CGFloat) -> some View {
+        if char.isNumber {
+            digitPlate(String(char), effectiveScale: effectiveScale)
+        } else {
+            sepSpan(String(char), effectiveScale: effectiveScale)
+        }
+    }
+
+    private func digitPlate(_ digit: String, effectiveScale: CGFloat) -> some View {
         Text(digit)
             .font(BudgetVaultTheme.flipDigitFont(size: style.baseSize * effectiveScale))
             .foregroundStyle(.white)
@@ -141,7 +145,7 @@ struct FlipDigitDisplay: View {
             .animation(reduceMotion ? .none : .easeOut(duration: 0.3), value: digit)
     }
 
-    private func sepSpan(_ sep: String) -> some View {
+    private func sepSpan(_ sep: String, effectiveScale: CGFloat) -> some View {
         Text(sep)
             .font(BudgetVaultTheme.flipDigitFont(size: style.baseSize * style.sepFontRatio * effectiveScale))
             .foregroundStyle(BudgetVaultTheme.titanium300)

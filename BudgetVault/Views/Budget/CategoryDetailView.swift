@@ -129,7 +129,10 @@ struct CategoryDetailView: View {
                 categories: (budget.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder },
                 prefillCategoryName: category.name
             )
-            .presentationDragIndicator(.visible)
+            // Audit 2026-04-23 Smoke-7: match Dashboard — Transaction
+            // Entry is a modal form, not a draggable sheet.
+            .presentationDragIndicator(.hidden)
+            .interactiveDismissDisabled()
         }
         .sheet(item: $editingTransaction) { transaction in
             TransactionEditView(transaction: transaction, budget: budget, categories: (budget.categories ?? []).filter { !$0.isHidden })

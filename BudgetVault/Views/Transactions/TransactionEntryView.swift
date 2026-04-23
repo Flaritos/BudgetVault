@@ -213,15 +213,40 @@ struct TransactionEntryView: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    private static let pickerChipDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.setLocalizedDateFormatFromTemplate("MMMd")
+        return f
+    }()
+
     private var datePickerChip: some View {
         let previousPeriodStart = Calendar.current.date(byAdding: .month, value: -1, to: budget.periodStart) ?? budget.periodStart
         let isCustomDate = ![0, -1, -2].contains { offset in
             let target = Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
             return Calendar.current.isDate(date, inSameDayAs: target)
         }
+        // Audit 2026-04-23 Smoke-7: the prior design embedded a scaled,
+        // clipped `DatePicker` inside the chip so a sliver of the iOS
+        // date pill ("A...") always peeked out to the right of the
+        // calendar icon, which looked broken and also pushed the row
+        // into horizontal overflow. Now the chip shows a clean icon
+        // (no custom date) or a full short-date label (custom date),
+        // and taps are caught by an invisible `.blendMode(.destinationOver)`
+        // DatePicker overlay that surfaces the native iOS popover.
         return HStack(spacing: 4) {
             Image(systemName: "calendar")
                 .font(.caption)
+            if isCustomDate {
+                Text(Self.pickerChipDateFormatter.string(from: date))
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+            }
+        }
+        .foregroundStyle(isCustomDate ? .white : BudgetVaultTheme.titanium300)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .overlay(
             DatePicker("Date",
                        selection: $date,
                        in: previousPeriodStart...budget.nextPeriodStart.addingTimeInterval(-1),
@@ -229,13 +254,8 @@ struct TransactionEntryView: View {
                 .labelsHidden()
                 .datePickerStyle(.compact)
                 .tint(BudgetVaultTheme.accentSoft)
-                .scaleEffect(0.85)
-                .frame(width: isCustomDate ? 110 : 28, alignment: .leading)
-                .clipped()
-        }
-        .foregroundStyle(isCustomDate ? .white : BudgetVaultTheme.titanium300)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+                .blendMode(.destinationOver)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(
@@ -243,6 +263,8 @@ struct TransactionEntryView: View {
                     lineWidth: 1
                 )
         )
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
         .accessibilityLabel("Pick a date")
     }
 
@@ -453,7 +475,14 @@ struct TransactionEntryView: View {
                 TextField(
                     "",
                     text: $note,
-                    prompt: Text("e.g. Lunch · Sushi place downtown").foregroundStyle(BudgetVaultTheme.titanium400)
+                    // Audit 2026-04-23 Smoke-7: expense-flavored placeholder
+                    // ("Lunch · Sushi place") rendered verbatim on the
+                    // Income screen, which reads nonsensically. Swap by
+                    // intent.
+                    prompt: Text(isIncome
+                                 ? "e.g. Paycheck · Monthly salary"
+                                 : "e.g. Lunch · Sushi place downtown")
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
                 )
                 .font(.system(size: 13))
                 .foregroundStyle(.white)
