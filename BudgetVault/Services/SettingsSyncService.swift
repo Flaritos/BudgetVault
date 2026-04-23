@@ -8,9 +8,21 @@ enum SettingsSyncService {
     private static let kvStore = NSUbiquitousKeyValueStore.default
 
     // Keys mirrored to iCloud KVS
+    // Audit 2026-04-23 Max Audit P1-12: add notification preference
+    // toggles so the user's "on/off" choices follow them across
+    // devices — inconsistent before now (billDueReminders /
+    // closeVaultReminderEnabled / dailyReminderEnabled /
+    // weeklyDigestEnabled / morningBriefingEnabled were device-local).
     private static let syncedKeys: [String] = [
         AppStorageKeys.selectedCurrency,
         AppStorageKeys.resetDay,
+        AppStorageKeys.dailyReminderEnabled,
+        AppStorageKeys.dailyReminderHour,
+        AppStorageKeys.weeklyDigestEnabled,
+        AppStorageKeys.billDueReminders,
+        AppStorageKeys.closeVaultReminderEnabled,
+        AppStorageKeys.morningBriefingEnabled,
+        AppStorageKeys.morningBriefingHour,
     ]
 
     // Audit 2026-04-22 P1-18: retain the observer handle so we can

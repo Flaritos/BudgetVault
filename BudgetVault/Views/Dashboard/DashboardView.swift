@@ -871,7 +871,9 @@ struct DashboardView: View {
                                     .font(BudgetVaultTheme.engravedLabel(size: 9))
                                     .textCase(.uppercase)
                                     .tracking(2.0)
-                                    .foregroundStyle(BudgetVaultTheme.titanium500)
+                                    // Audit 2026-04-23 Max Audit P1-37:
+                                    // titanium500 fails WCAG 1.4.3 on navy.
+                                    .foregroundStyle(BudgetVaultTheme.titanium400)
                             }
                             .padding(.bottom, 14)
 
@@ -1102,7 +1104,8 @@ struct DashboardView: View {
                             .foregroundStyle(BudgetVaultTheme.titanium300)
                         Image(systemName: "info.circle")
                             .font(.system(size: 9))
-                            .foregroundStyle(BudgetVaultTheme.titanium500)
+                            // Audit 2026-04-23 Max Audit P1-37.
+                            .foregroundStyle(BudgetVaultTheme.titanium400)
                     }
                     Text(bufferText)
                         .font(BudgetVaultTheme.flipDigitFont(size: 16))

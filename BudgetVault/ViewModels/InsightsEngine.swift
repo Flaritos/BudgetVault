@@ -95,8 +95,15 @@ enum InsightsEngine {
             if amounts.count == 2 {
                 isOutlier = largest.amountCents > amounts[0] * 2
             } else {
-                let median = amounts[amounts.count / 2]
-                isOutlier = Double(largest.amountCents) > Double(median) * 2.5 && median > 0
+                // Audit 2026-04-23 Max Audit P1-22: regression. Prior
+                // `amounts[amounts.count / 2]` returns the upper-median
+                // on even N — the exact bug fixed in BudgetMLEngine via
+                // `trueMedian`. With N=4 [10,10,50,100], upper median
+                // = 50 → threshold 125 → misses the 100 outlier; true
+                // median = 30 → threshold 75 → flagged. Route Int64
+                // amounts through the shared Double helper.
+                let medianDbl = BudgetMLEngine.trueMedian(of: amounts.map(Double.init))
+                isOutlier = Double(largest.amountCents) > medianDbl * 2.5 && medianDbl > 0
             }
             if isOutlier {
                 insights.append(Insight(

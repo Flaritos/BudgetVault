@@ -269,6 +269,13 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var frequency: String = "monthly"
         var nextDueDate: Date = Date.now
         var isActive: Bool = true
+        // Audit 2026-04-23 Max Audit P0-2: flag surfaces when the
+        // scheduler couldn't resolve a category in the current-period
+        // budget (user renamed/deleted). Prior behavior silently
+        // advanced `nextDueDate`, burning every future post. Set to
+        // true when the mismatch happens; cleared in
+        // RecurringExpenseFormView when the user re-picks a category.
+        var needsReassignment: Bool = false
 
         // Audit 2026-04-23 DB P0: explicit `.nullify`. If a Category
         // is deleted, its recurring rules should orphan (user can

@@ -68,7 +68,15 @@ enum BudgetMLEngine {
             let totalError = nonZeroDays.reduce(0.0) { $0 + abs($1 - meanDaily) / meanDaily }
             return totalError / Double(nonZeroDays.count)
         }()
-        let confidence = max(0, min(1.0, 1.0 - mape)) * (Double(daysSoFar) / Double(daysInPeriod))
+        // Audit 2026-04-23 Max Audit P1-23: confidence now multiplies
+        // in the cumulative fit quality (R²) so callers get a number
+        // that tracks *predictive* accuracy, not just daily dispersion.
+        // Computed below at `rSquared` — reference it via `cumulativeR2`.
+        // The floor of 0.3 prevents fully discarding confidence when
+        // R² is low but coverage is high (mature-period safeguard).
+        // NOTE: the full `confidence` calculation moved below after
+        // rSquared is available — see `finalConfidence`.
+        let coverageConfidence = max(0, min(1.0, 1.0 - mape)) * (Double(daysSoFar) / Double(daysInPeriod))
 
         // Simple prediction: daily rate extrapolation (for comparison)
         let simpleProjected = Int64(Double(currentTotal) / Double(daysSoFar) * Double(daysInPeriod))
@@ -102,12 +110,17 @@ enum BudgetMLEngine {
             trend = .steady
         }
 
+        // Audit 2026-04-23 Max Audit P1-23: multiply in fit quality,
+        // floored at 0.3 so mature periods don't collapse to zero
+        // confidence on low-R² data.
+        let finalConfidence = coverageConfidence * max(0.3, rSquared)
+
         return SpendingPrediction(
             predictedTotalCents: predicted,
             simpleProjectedCents: simpleProjected,
             currentTotalCents: currentTotal,
             budgetCents: budget.totalIncomeCents,
-            confidence: confidence,
+            confidence: finalConfidence,
             trend: trend,
             daysRemaining: daysInPeriod - daysSoFar
         )
@@ -334,8 +347,18 @@ enum BudgetMLEngine {
             if remaining <= 0 {
                 status = .overBudget
             } else if projectedRemaining > remaining {
-                let daysUntilOver = remaining > 0 ? Int(Double(remaining) / recentRate) : 0
-                status = .willExceed(inDays: daysUntilOver)
+                // Audit 2026-04-23 Max Audit P1-24: when `recentRate`
+                // decays toward ~0 (last day had zero spend), the
+                // `remaining / recentRate` division yields absurdly
+                // large values ("willExceed in 200,000 days"). Clamp
+                // to the budget period — a forecast longer than the
+                // period is really "onTrack" for the current period.
+                let raw = remaining > 0 ? Int(Double(remaining) / recentRate) : 0
+                if raw > daysInPeriod {
+                    status = .onTrack
+                } else {
+                    status = .willExceed(inDays: raw)
+                }
             } else {
                 status = .onTrack
             }

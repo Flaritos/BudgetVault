@@ -234,7 +234,7 @@ struct ChatOnboardingView: View {
                     .padding(.bottom, 32)
 
                 // Retracted bolt row (4) — all titanium, no engaged.
-                BoltRow(count: 4, engaged: 0, size: .medium)
+                BoltRow(count: 4, engaged: 0, size: .medium, stepLabel: "Welcome. Step 1 of 4.")
                     .padding(.bottom, 32)
 
                 // .label "WELCOME" — 11pt / weight 600 / tracking 2.42px / titanium300
@@ -343,7 +343,7 @@ struct ChatOnboardingView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Top row: bolt row + plain Skip text (HTML: top: 64px with 16px padding)
                     HStack {
-                        BoltRow(count: 4, engaged: 1, size: .medium)
+                        BoltRow(count: 4, engaged: 1, size: .medium, stepLabel: "Step 1 of 4")
                         Spacer()
                         Button { skipOnboarding() } label: {
                             Text("Skip")
@@ -531,7 +531,7 @@ struct ChatOnboardingView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Top row: bolt row (4, engaged 2) + Skip
                     HStack {
-                        BoltRow(count: 4, engaged: 2, size: .medium)
+                        BoltRow(count: 4, engaged: 2, size: .medium, stepLabel: "Step 2 of 4")
                         Spacer()
                         Button { skipOnboarding() } label: {
                             Text("Skip")
@@ -748,7 +748,7 @@ struct ChatOnboardingView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Top row: bolt row only — HTML shows NO Skip text on this step.
                     HStack {
-                        BoltRow(count: 4, engaged: 3, size: .medium)
+                        BoltRow(count: 4, engaged: 3, size: .medium, stepLabel: "Step 3 of 4")
                         Spacer()
                     }
                     .padding(.top, 16)
@@ -895,7 +895,9 @@ struct ChatOnboardingView: View {
                 Text("Face ID, income, envelopes, and allocation. Seven more steps. Any step still skippable.")
                     .font(.system(size: onb13))
                     .lineSpacing(7.15)
-                    .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(isSelected ? 0.68 : 0.42))
+                    // Audit 2026-04-23 Max Audit P1-38: unselected 0.42
+                    // read 3.6:1 on navy — fails WCAG 1.4.3 for 13pt body.
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(isSelected ? 0.85 : 0.72))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(20)

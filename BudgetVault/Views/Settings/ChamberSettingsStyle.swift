@@ -87,5 +87,9 @@ struct ChamberTileIcon: View {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(role.tint.opacity(0.22), lineWidth: 1)
             )
+            // Audit 2026-04-23 Max Audit P2-9: decorative tile glyph —
+            // siblings carry the row's semantic label. Without hidden,
+            // VO reads "person fill, image, Name, text field".
+            .accessibilityHidden(true)
     }
 }

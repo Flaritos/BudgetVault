@@ -43,9 +43,19 @@ enum RecurringExpenseScheduler {
                     if let match = (currentBudget?.categories ?? []).first(where: { $0.name.caseInsensitiveCompare(cat.name) == .orderedSame }) {
                         resolvedCategory = match
                     } else {
-                        // No matching category in current budget — skip this posting
-                        expense.advanceNextDueDate()
-                        continue
+                        // Audit 2026-04-23 Max Audit P0-2: prior
+                        // behavior advanced `nextDueDate` on category
+                        // mismatch and silently skipped the posting.
+                        // A user who renamed the category lost every
+                        // future auto-post forever with no surfaced
+                        // error. Now: DO NOT advance — leave the due
+                        // date in place so the Dashboard catch-up
+                        // card (or the user's eventual Settings visit)
+                        // can re-resolve once the category is
+                        // renamed/recreated. Surface the gap via a
+                        // flag the UI can display.
+                        expense.needsReassignment = true
+                        break
                     }
                 }
 

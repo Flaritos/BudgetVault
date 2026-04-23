@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct BiometricLockView: View {
     let authService: BiometricAuthService
@@ -50,9 +51,35 @@ struct BiometricLockView: View {
                 .accessibilityHint("Authenticate to open your vault")
 
                 if let error = authService.errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                    VStack(spacing: 8) {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(BudgetVaultTheme.titanium300)
+                            // Audit 2026-04-23 Max Audit P1-40: error
+                            // message appears without live-region
+                            // semantics. VO users got no feedback after
+                            // a failed auth.
+                            .accessibilityAddTraits(.isStaticText)
+
+                        // Audit 2026-04-23 Max Audit P1-31: when the
+                        // error is "Set a passcode in iOS Settings", the
+                        // user was hard-locked out with no link. Surface
+                        // an Open Settings button on passcode-class
+                        // errors so the recovery path is one tap away.
+                        if error.lowercased().contains("passcode")
+                            || error.lowercased().contains("settings") {
+                            Button {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                Text("Open iOS Settings")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(BudgetVaultTheme.accentSoft)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 40)
                 }
 
                 Spacer()

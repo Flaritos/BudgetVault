@@ -23,6 +23,11 @@ struct BoltRow: View {
     let count: Int
     let engaged: Int
     var size: BoltSize = .medium
+    /// Audit 2026-04-23 Max Audit P1-34: pass a non-nil string when the
+    /// BoltRow represents actual step progress (onboarding). Leave nil
+    /// for decorative uses (Dashboard header) — the row becomes
+    /// `.accessibilityHidden(true)` so VO doesn't announce phantom steps.
+    var stepLabel: String? = nil
 
     @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1.0
 
@@ -32,12 +37,16 @@ struct BoltRow: View {
                 bolt(engaged: index < engaged)
             }
         }
-        // Audit 2026-04-23 A11y P0: was .accessibilityHidden so VO
-        // users never heard "Step 2 of 4" during onboarding. Expose
-        // as a grouped element with a human-readable progress label.
+        // Audit 2026-04-23 Max Audit P1-34: prior version hard-coded
+        // "Step X of Y" + .updatesFrequently, so the decorative 3/3
+        // BoltRow on Home hero announced "Step 3 of 3, updates
+        // frequently" — onboarding semantics leaking onto Dashboard.
+        // Now: default to hidden (decorative). Callers that DO mean
+        // progress (onboarding) pass `stepLabel:` explicitly.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(engaged) of \(count)")
-        .accessibilityAddTraits(.updatesFrequently)
+        .accessibilityLabel(stepLabel ?? "")
+        .accessibilityHidden(stepLabel == nil)
+        .accessibilityAddTraits(stepLabel != nil ? .updatesFrequently : [])
     }
 
     private func bolt(engaged: Bool) -> some View {

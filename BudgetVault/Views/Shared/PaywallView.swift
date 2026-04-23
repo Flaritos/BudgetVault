@@ -415,7 +415,10 @@ struct PaywallView: View {
                 } label: {
                     Text("Restore Purchases")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                        // Audit 2026-04-23 Max Audit P1-36: titanium400
+                        // on navy = 4.0:1 fails WCAG 1.4.3 (4.5:1 for
+                        // <18pt). Apple requires Restore be discoverable.
+                        .foregroundStyle(BudgetVaultTheme.titanium200)
                         .padding(12)
                 }
             }

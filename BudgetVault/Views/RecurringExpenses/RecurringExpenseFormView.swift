@@ -150,6 +150,11 @@ struct RecurringExpenseFormView: View {
             expense.frequency = frequency.rawValue
             expense.category = selectedCategory
             expense.nextDueDate = startDate
+            // Audit 2026-04-23 Max Audit P0-2: user just re-picked a
+            // category, so any prior "needs reassignment" state is
+            // resolved. Clear the flag so the UI banner can disappear
+            // and the scheduler resumes posting on next foreground.
+            expense.needsReassignment = false
             expenseToSchedule = expense
         } else {
             let newExpense = RecurringExpense(

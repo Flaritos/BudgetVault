@@ -617,6 +617,10 @@ struct TransactionEntryView: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    // Audit 2026-04-23 Max Audit P1-35: selection state
+                    // was visual-only. Siblings (date chips) expose
+                    // .isSelected — mirror that.
+                    .accessibilityAddTraits(isActive ? .isSelected : [])
                 }
                 Spacer(minLength: 0)
             }

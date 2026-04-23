@@ -50,7 +50,7 @@ struct CSVImportView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 VStack(spacing: 10) {
-                    BoltRow(count: 3, engaged: stepProgress.engaged, size: .medium)
+                    BoltRow(count: 3, engaged: stepProgress.engaged, size: .medium, stepLabel: "Step \(stepProgress.engaged) of 3")
                     Text(stepProgress.label)
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(2.4)

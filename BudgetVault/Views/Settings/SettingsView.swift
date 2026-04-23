@@ -821,7 +821,10 @@ struct SettingsView: View {
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.caption)
-                            .foregroundStyle(BudgetVaultTheme.titanium500)
+                            // Audit 2026-04-23 Max Audit P1-37: titanium500
+                            // = 2.45:1 fails WCAG 1.4.11 (3:1 floor for
+                            // non-text). titanium400 = 5.8:1.
+                            .foregroundStyle(BudgetVaultTheme.titanium400)
                     }
                 }
                 .tint(BudgetVaultTheme.accentSoft)
@@ -1105,6 +1108,23 @@ struct SettingsView: View {
         NotificationService.cancelMorningBriefing()
         NotificationService.cancelReengagementNotifications()
         NotificationService.cancelEndOfPeriodNotifications()
+        // Audit 2026-04-23 Max Audit P1-14: sweep close-vault reminder
+        // (added v3.3.1) + bill-due per-expense triggers + streak-at-risk
+        // that the prior sweep missed.
+        NotificationService.cancelEveningCloseVault()
+        NotificationService.cancelStreakAtRisk()
+        NotificationService.cancelAllBillDueReminders()
+
+        // Audit 2026-04-23 Max Audit P1-14: wipe feedback log + tmp CSV
+        // exports. These are in Documents/ + tmp/ and escaped the
+        // UserDefaults prefix sweep above.
+        FeedbackService.clearAll()
+        let tmp = FileManager.default.temporaryDirectory
+        if let files = try? FileManager.default.contentsOfDirectory(atPath: tmp.path) {
+            for name in files where name.hasPrefix("BudgetVault_Export") && name.hasSuffix(".csv") {
+                try? FileManager.default.removeItem(at: tmp.appendingPathComponent(name))
+            }
+        }
     }
 
     private func formatHour(_ hour: Int) -> String {

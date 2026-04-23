@@ -193,7 +193,24 @@ struct BudgetVaultApp: App {
                                 }
                             }
                             Task { await storeKit.checkEntitlements() }
-                            NotificationService.scheduleReengagementNotifications()
+                            // Audit 2026-04-23 Max Audit P1-46: only
+                            // re-arm re-engagement notifications once
+                            // the user has actually completed onboarding.
+                            // Post-delete-all users would otherwise get
+                            // "No expenses logged in 3 days" while mid-
+                            // re-onboarding.
+                            if UserDefaults.standard.bool(forKey: AppStorageKeys.hasCompletedOnboarding) {
+                                NotificationService.scheduleReengagementNotifications()
+                            }
+                            // Audit 2026-04-23 Max Audit P1-11: re-arm
+                            // any user-enabled recurring notifications
+                            // on every foreground. iOS can drop pending
+                            // triggers (OS restarts, permission resets,
+                            // system-wide wipe) — a toggle in UserDefaults
+                            // that maps to no actual pending request is
+                            // a silent failure. Cheap no-op when
+                            // triggers are already scheduled.
+                            NotificationService.reArmUserEnabledReminders()
                         } else if newPhase == .background {
                             try? container.mainContext.save()
                             scheduleBackgroundRefresh()

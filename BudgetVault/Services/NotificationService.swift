@@ -170,8 +170,18 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
 
         let content = UNMutableNotificationContent()
-        content.title = "Bill Due Tomorrow"
-        content.body = "\(expenseName) is due tomorrow."
+        // Audit 2026-04-23 Max Audit P0-5: redact the bill name on the
+        // lock screen when biometric lock is on. Therapy / legal /
+        // medical recurring bills should not render identifying info
+        // to anyone glancing at a locked device.
+        let lockEnabled = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
+        if lockEnabled {
+            content.title = "A bill is due tomorrow"
+            content.body = "Tap to open BudgetVault."
+        } else {
+            content.title = "Bill Due Tomorrow"
+            content.body = "\(expenseName) is due tomorrow."
+        }
         content.sound = .default
 
         // 1 day before due date, at 9am
@@ -194,6 +204,27 @@ enum NotificationService {
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         center.addLogged(request)
+    }
+
+    /// Audit 2026-04-23 Max Audit P1-11: re-arm every user-enabled
+    /// recurring notification on app launch. iOS can silently drop
+    /// pending triggers (OS restart, permission reset, simulator wipe),
+    /// so a UserDefault that says "on" without a matching pending
+    /// request is a silent failure. Idempotent — each `schedule*` call
+    /// removes prior identifiers before adding.
+    static func reArmUserEnabledReminders() {
+        let ud = UserDefaults.standard
+        if ud.bool(forKey: AppStorageKeys.dailyReminderEnabled) {
+            let hour = ud.object(forKey: AppStorageKeys.dailyReminderHour) as? Int ?? 20
+            scheduleDailyReminder(hour: hour)
+        }
+        if ud.bool(forKey: AppStorageKeys.closeVaultReminderEnabled) {
+            scheduleEveningCloseVault()
+        }
+        // weeklyDigest + morningBriefing are intentionally rescheduled
+        // from `DashboardView.task` with live budget data (they need a
+        // current Budget to produce a useful body), so they aren't
+        // re-armed here — Dashboard foregrounding handles them.
     }
 
     /// Audit 2026-04-23 Smoke-9 Fix 3: bulk helpers for the Settings
@@ -235,7 +266,13 @@ enum NotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "Weekly Pulse"
-        if weeklySpent > 0 {
+        // Audit 2026-04-23 Max Audit P0-5: redact dollar figures on the
+        // lock screen when biometric lock is on — parity with
+        // `checkAndScheduleCategoryAlerts`.
+        let lockEnabled = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
+        if lockEnabled {
+            content.body = "Weekly pulse ready. Tap to open BudgetVault."
+        } else if weeklySpent > 0 {
             var body = "You spent \(spentFormatted) this week across \(transactionCount) transaction\(transactionCount == 1 ? "" : "s")."
             if lastWeekSpent > 0 {
                 let delta = weeklySpent - lastWeekSpent
@@ -282,9 +319,11 @@ enum NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: reengagementIdentifiers)
 
         // 3-day reminder
+        // Audit 2026-04-23 Max Audit P1-44: softened — removed question-
+        // framing, stayed declarative.
         let content3 = UNMutableNotificationContent()
         content3.title = "BudgetVault"
-        content3.body = "You haven't logged expenses in 3 days. Quick catch-up?"
+        content3.body = "No expenses logged in 3 days."
         content3.sound = .default
         content3.userInfo = ["type": "reengagement"]
 
@@ -295,7 +334,7 @@ enum NotificationService {
         // 7-day reminder
         let content7 = UNMutableNotificationContent()
         content7.title = "BudgetVault"
-        content7.body = "Your budget is waiting. Tap to see where you stand."
+        content7.body = "A week since your last log."
         content7.sound = .default
         content7.userInfo = ["type": "reengagement"]
 
@@ -305,8 +344,8 @@ enum NotificationService {
 
         // 14-day reminder
         let content14 = UNMutableNotificationContent()
-        content14.title = "Half the month is gone"
-        content14.body = "Your budget is mostly untracked. There's still time to finish strong."
+        content14.title = "Two weeks idle"
+        content14.body = "Pick up where you left off whenever you're ready."
         content14.sound = .default
         content14.userInfo = ["type": "reengagement"]
 
@@ -316,8 +355,8 @@ enum NotificationService {
 
         // 30-day reminder (final attempt)
         let content30 = UNMutableNotificationContent()
-        content30.title = "Fresh start?"
-        content30.body = "New month, clean slate. Come back and take control of your budget."
+        content30.title = "A new month begins"
+        content30.body = "Your vault is waiting when you want to check in."
         content30.sound = .default
         content30.userInfo = ["type": "reengagement"]
 
@@ -342,14 +381,20 @@ enum NotificationService {
 
         // Audit 2026-04-23 Brand P0: softer declarative tone, no
         // exclamation.
+        // Audit 2026-04-23 Max Audit P0-5: redact daily allowance $ on
+        // lock screen when biometric lock is on.
         let content = UNMutableNotificationContent()
         content.title = "Today's allowance"
-
-        var body = "You can spend \(allowanceFormatted)/day for the next \(daysRemaining) day\(daysRemaining == 1 ? "" : "s")."
-        if upcomingBills > 0 {
-            body += " \(upcomingBills) bill\(upcomingBills == 1 ? "" : "s") coming this week."
+        let lockEnabled = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
+        if lockEnabled {
+            content.body = "Tap to open BudgetVault."
+        } else {
+            var body = "You can spend \(allowanceFormatted)/day for the next \(daysRemaining) day\(daysRemaining == 1 ? "" : "s")."
+            if upcomingBills > 0 {
+                body += " \(upcomingBills) bill\(upcomingBills == 1 ? "" : "s") coming this week."
+            }
+            content.body = body
         }
-        content.body = body
         content.sound = .default
 
         var components = DateComponents()
@@ -379,8 +424,14 @@ enum NotificationService {
         if let threeDaysBefore = Calendar.current.date(byAdding: .day, value: -3, to: periodEnd),
            threeDaysBefore > Date() {
             let content3 = UNMutableNotificationContent()
-            content3.title = "3 Days Left"
-            content3.body = "3 days left in your budget period. You have \(remainingFormatted) remaining. Can you make it?"
+            // Audit 2026-04-23 Max Audit P1-44: removed challenge framing.
+            // Audit 2026-04-23 Max Audit P0-5: redact remaining $ on
+            // lock screen when biometric lock is on.
+            let lockEnabled = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
+            content3.title = "3 days remaining"
+            content3.body = lockEnabled
+                ? "Your budget period ends in 3 days."
+                : "Your budget period ends in 3 days. \(remainingFormatted) remaining."
             content3.sound = .default
 
             var components3 = Calendar.current.dateComponents([.year, .month, .day], from: threeDaysBefore)
@@ -393,8 +444,8 @@ enum NotificationService {
         // On reset day
         if periodEnd > Date() {
             let contentReset = UNMutableNotificationContent()
-            contentReset.title = "Fresh Start!"
-            contentReset.body = "New month, fresh start! Your budget has reset."
+            contentReset.title = "Budget reset"
+            contentReset.body = "A new period just began."
             contentReset.sound = .default
 
             var componentsReset = Calendar.current.dateComponents([.year, .month, .day], from: periodEnd)
