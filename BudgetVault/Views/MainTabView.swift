@@ -34,6 +34,13 @@ struct MainTabView: View {
             }
         }
         .tint(BudgetVaultTheme.accentSoft)
+        // Audit 2026-04-23 Smoke-4 R1: opaque tab bar so Settings Form
+        // rows don't render under it (translucent default let rows at
+        // y≈768 overlap tab bar at y≈791, and iOS routed taps to tab-
+        // bar buttons). Making the bar opaque forces iOS to reserve
+        // safe-area inset so content ends above the tab bar.
+        .toolbarBackground(.visible, for: .tabBar)
+        .toolbarBackground(BudgetVaultTheme.navyDark, for: .tabBar)
         // VaultRevamp v2.1: force dark color scheme app-wide so system
         // chrome (tab bar, nav bars, default Text colors) resolves to
         // navy-compatible values. The History tab uses explicit
