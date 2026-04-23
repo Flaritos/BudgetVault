@@ -416,6 +416,24 @@ enum BudgetVaultSchemaV1: VersionedSchema {
     }
 
     // MARK: - NetWorthAccount
+    //
+    // Audit 2026-04-23 D4 (middle-path retirement):
+    //
+    // MEMORY.md says "Net Worth: REMOVED (wrong app, hurts brand)" —
+    // the product decision was made, but the entities still ship in
+    // BudgetVaultSchemaV1 and nothing in the UI surfaces them.
+    //
+    // Full deletion requires BudgetVaultSchemaV2 + a destructive
+    // CustomMigrationStage AND a CloudKit zone reset (CloudKit
+    // rejects schema-deployed zones getting entities dropped without
+    // admin intervention). That's multi-step ops work.
+    //
+    // Interim posture (chosen today): keep the entities in V1 so
+    // existing installs don't migrate, but:
+    //   1. no code path creates NetWorthAccount / NetWorthSnapshot
+    //   2. inits emit a warning log if anything tries to
+    //   3. tests verify no NetWorth rows are written
+    // Retirement finishes when V2 is authored (tracked separately).
 
     @Model
     final class NetWorthAccount {
@@ -427,7 +445,13 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var lastUpdated: Date = Date.now
         var isActive: Bool = true
 
+        @available(*, deprecated, message: "NetWorthAccount is retired. Entity persists in V1 schema until V2 migration; do not create new records.")
         init(name: String, emoji: String = "🏦", balanceCents: Int64 = 0, accountType: String = "asset") {
+            // Audit 2026-04-23 D4: loud runtime warning so any code
+            // path still creating these surfaces in Console.app.
+            #if DEBUG
+            print("⚠️  DEPRECATED: NetWorthAccount retired. See Schema/BudgetVaultSchemaV1.swift D4 note.")
+            #endif
             self.id = UUID()
             self.name = name
             self.emoji = emoji
@@ -444,6 +468,7 @@ enum BudgetVaultSchemaV1: VersionedSchema {
     }
 
     // MARK: - NetWorthSnapshot
+    // See D4 note on NetWorthAccount above.
 
     @Model
     final class NetWorthSnapshot {
@@ -453,7 +478,11 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         var totalLiabilitiesCents: Int64 = 0
         var netWorthCents: Int64 = 0
 
+        @available(*, deprecated, message: "NetWorthSnapshot is retired. Entity persists in V1 schema until V2 migration; do not create new records.")
         init(date: Date = .now, totalAssetsCents: Int64, totalLiabilitiesCents: Int64) {
+            #if DEBUG
+            print("⚠️  DEPRECATED: NetWorthSnapshot retired. See Schema/BudgetVaultSchemaV1.swift D4 note.")
+            #endif
             self.id = UUID()
             self.date = date
             self.totalAssetsCents = totalAssetsCents
@@ -476,6 +505,14 @@ enum BudgetVaultMigrationPlan: SchemaMigrationPlan {
         [BudgetVaultSchemaV1.self]
     }
 
+    // Audit 2026-04-23 D4: empty today. V2 TODO:
+    //   - Drop NetWorthAccount + NetWorthSnapshot via
+    //     CustomMigrationStage.
+    //   - Pre-migration: count existing NetWorth rows and log.
+    //   - Post-migration: reset CloudKit zone or open a new private
+    //     zone so the schema drop propagates. SwiftData + CloudKit
+    //     reject entity drops on deployed zones without admin action.
+    //   - Update SchemaStabilityTests baseline roster.
     static var stages: [MigrationStage] { [] }
 }
 
