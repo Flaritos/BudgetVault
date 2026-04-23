@@ -558,12 +558,19 @@ struct TransactionEntryView: View {
                         Text("\(symbol)\(dollars)")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .foregroundStyle(isActive ? .white : BudgetVaultTheme.titanium300)
+                            // Audit 2026-04-23 A11y P1: 32pt chip height
+                            // failed WCAG 2.5.5 and MobAI tap-imprecision
+                            // hit adjacent chips during smoke. Bump to 44pt
+                            // with transparent hit area around the visible
+                            // 32pt pill so the surface doesn't grow visibly.
                             .frame(minWidth: 56, minHeight: 32)
                             .padding(.horizontal, 4)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(isActive ? BudgetVaultTheme.accentSoft.opacity(0.15) : Color.clear)
                             )
+                            .contentShape(Rectangle())
+                            .frame(minHeight: 44)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
                                     .strokeBorder(

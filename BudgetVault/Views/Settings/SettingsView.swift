@@ -31,8 +31,17 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showCurrencyPicker = false
     @State private var showCSVImport = false
-    @State private var exportURL: URL?
-    @State private var showExportShare = false
+    // Audit 2026-04-23 MobAI M4 re-smoke: prior two-state flip
+    // (`exportURL` + `showExportShare`) produced intermittent silent
+    // failures where the sheet presented before `exportURL` landed
+    // in the render pass, leaving an empty sheet that dismissed on
+    // its own. Swapped to a single `Identifiable` wrapper + `.sheet(item:)`
+    // which atomically ties the presentation to a non-nil value.
+    struct ExportShareItem: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
+    @State private var exportShareItem: ExportShareItem?
     @State private var tempCurrency = ""
     @State private var showBudgetTemplates = false
     @State private var showAchievements = false
@@ -141,10 +150,8 @@ struct SettingsView: View {
         .sheet(isPresented: $showCSVImport) {
             CSVImportView()
         }
-        .sheet(isPresented: $showExportShare) {
-            if let url = exportURL {
-                ShareSheetView(url: url)
-            }
+        .sheet(item: $exportShareItem) { item in
+            ShareSheetView(url: item.url)
         }
         .sheet(isPresented: $showBudgetTemplates) {
             BudgetTemplateSheetView()
@@ -181,8 +188,7 @@ struct SettingsView: View {
                 // Trigger export, then show final confirm
                 do {
                     let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium, resetDay: resetDay)
-                    exportURL = url
-                    showExportShare = true
+                    exportShareItem = ExportShareItem(url: url)
                 } catch {
                     // If export fails, show error — do NOT proceed to deletion
                     exportErrorMessage = error.localizedDescription
@@ -448,8 +454,7 @@ struct SettingsView: View {
                 settingsLog.info("Export CSV tapped. premiumOnly=\(isPremium || storeKit.isPremium, privacy: .public)")
                 do {
                     let url = try CSVExporter.export(context: modelContext, premiumOnly: isPremium || storeKit.isPremium, resetDay: resetDay)
-                    exportURL = url
-                    showExportShare = true
+                    exportShareItem = ExportShareItem(url: url)
                     settingsLog.info("Export CSV succeeded. url=\(url.lastPathComponent, privacy: .public)")
                 } catch {
                     exportErrorMessage = error.localizedDescription
