@@ -700,6 +700,11 @@ struct ChatOnboardingView: View {
                         .fill(BudgetVaultTheme.accentSoft
                             .opacity(isActive ? 0.18 : 0.08))
                 )
+                // Audit 2026-04-23 A11y P1: visible pill stays at
+                // current size, but expand hit target to 44pt per
+                // WCAG 2.5.5 / Apple HIG.
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(
@@ -1060,6 +1065,9 @@ struct ChatOnboardingView: View {
                                 lineWidth: tempCurrency == currency.code ? 2 : 1
                             )
                     )
+                    // Audit 2026-04-23 A11y P1: 44pt hit target.
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .accessibilityAddTraits(tempCurrency == currency.code ? .isSelected : [])
                 }
                 .buttonStyle(.plain)

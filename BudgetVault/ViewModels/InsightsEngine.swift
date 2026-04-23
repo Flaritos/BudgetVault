@@ -3,10 +3,16 @@ import BudgetVaultShared
 
 struct Insight: Identifiable {
     let id = UUID()
-    let icon: String
     let title: String
     let message: String
     let severity: Severity
+
+    // Audit 2026-04-23 Brand/AI P0 (D5): removed `icon: String` field.
+    // Was populated with emoji at ~20 call sites but NEVER read — the
+    // only rendering paths (InsightsView:493 + DashboardView:1388)
+    // both use `severity.iconName` (SF Symbol). Dropping the field
+    // removes the Mint-style emoji visual that diluted the vault
+    // aesthetic while also cutting dead code.
 
     enum Severity: String {
         case warning, info, success, nudge
@@ -50,7 +56,6 @@ enum InsightsEngine {
             let pct = cat.budgetedAmountCents > 0 ? Double(spent) / Double(cat.budgetedAmountCents) : 0
             if pct >= 0.9 && cat.budgetedAmountCents > 0 {
                 insights.append(Insight(
-                    icon: cat.emoji,
                     title: "\(cat.name) is almost maxed",
                     message: "You've spent \(Int(pct * 100))% of your \(cat.name) budget.",
                     severity: .warning
@@ -69,7 +74,6 @@ enum InsightsEngine {
             let projected = Int64(dailyRate * Double(daysInPeriod))
             if projected > totalBudgetedCents && totalSpent > 0 {
                 insights.append(Insight(
-                    icon: "📈",
                     title: "On pace to overspend",
                     message: "At your current rate, you'll spend \(CurrencyFormatter.format(cents: projected)) this month.",
                     severity: .warning
@@ -96,7 +100,6 @@ enum InsightsEngine {
             }
             if isOutlier {
                 insights.append(Insight(
-                    icon: cat.emoji,
                     title: "Unusual \(cat.name) expense",
                     message: "\"\(largest.note.isEmpty ? "Transaction" : largest.note)\" at \(CurrencyFormatter.format(cents: largest.amountCents)) is well above your typical \(cat.name) spend.",
                     severity: .info
@@ -131,7 +134,6 @@ enum InsightsEngine {
                 if totalSpent < prevSpentAtSamePoint && prevSpentAtSamePoint > 0 {
                     let saved = prevSpentAtSamePoint - totalSpent
                     insights.append(Insight(
-                        icon: "🎉",
                         title: "Spending less than last month",
                         message: "You've spent \(CurrencyFormatter.format(cents: saved)) less than this point last month.",
                         severity: .success
@@ -144,7 +146,6 @@ enum InsightsEngine {
         let streak = currentStreak ?? UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
         if streak >= 7 {
             insights.append(Insight(
-                icon: "🔥",
                 title: "\(streak)-day streak!",
                 // Audit 2026-04-23 Brand: softer declarative, drop exclamation.
                 message: "\(streak)-day logging streak active.",
@@ -161,7 +162,6 @@ enum InsightsEngine {
                 // Audit 2026-04-22 P2-14: softer nudge copy — the old
                 // exclamation-point version read as alarmed/judgmental.
                 insights.append(Insight(
-                    icon: "\u{1F525}",
                     title: "Keep the streak going",
                     message: "A quick log before midnight keeps your \(streak)-day streak alive.",
                     severity: .nudge
@@ -191,7 +191,6 @@ enum InsightsEngine {
 
             if weekendAvg > weekdayAvg * 2 && weekendDays.count >= 2 {
                 insights.append(Insight(
-                    icon: "🎡",
                     title: "Weekend warrior",
                     message: "You spend \(CurrencyFormatter.format(cents: Int64(weekendAvg)))/day on weekends vs \(CurrencyFormatter.format(cents: Int64(weekdayAvg)))/day on weekdays.",
                     severity: .info
@@ -240,7 +239,6 @@ enum InsightsEngine {
 
                     if allIncreasing && monthsIncreasing >= 2 {
                         insights.append(Insight(
-                            icon: "📊",
                             title: "\(cat.name) keeps rising",
                             message: "\(cat.name) spending has increased for \(monthsIncreasing + 1) months in a row.",
                             severity: .warning
@@ -283,7 +281,6 @@ enum InsightsEngine {
 
             if bestDay > 0 && bestDay <= 7 {
                 insights.append(Insight(
-                    icon: "📅",
                     title: "Your lightest day: \(dayNames[bestDay])",
                     message: "You spend an average of \(CurrencyFormatter.format(cents: bestAvg)) on \(dayNames[bestDay])s.",
                     severity: .info
@@ -315,7 +312,6 @@ enum InsightsEngine {
                 // the observational tone avoids the "we're judging you"
                 // feel the old copy had.
                 insights.append(Insight(
-                    icon: "\u{1F4B8}",
                     title: "Front-loaded month",
                     message: "\(pct)% of your spending landed in the first three days.",
                     severity: .nudge
@@ -338,14 +334,12 @@ enum InsightsEngine {
             if savingsRate >= 0.2 {
                 let pct = Int(savingsRate * 100)
                 insights.append(Insight(
-                    icon: "🏦",
                     title: "\(pct)% of budget unspent",
                     message: "You're on track to keep \(CurrencyFormatter.format(cents: budget.totalIncomeCents - totalSpent)) this month.",
                     severity: .success
                 ))
             } else if savingsRate < 0 {
                 insights.append(Insight(
-                    icon: "🚨",
                     title: "Over budget",
                     message: "You've spent \(CurrencyFormatter.format(cents: totalSpent - budget.totalIncomeCents)) more than your income this month.",
                     severity: .warning
@@ -366,7 +360,6 @@ enum InsightsEngine {
             let fitScore = max(0, Int((1.0 - totalDeviation / 2.0) * 100))
             if fitScore >= 80 {
                 insights.append(Insight(
-                    icon: "🎯",
                     title: "Budget fit: \(fitScore)%",
                     // Audit 2026-04-23 Brand: declarative tone.
                     message: "Your spending tracks your plan closely this month.",
@@ -374,7 +367,6 @@ enum InsightsEngine {
                 ))
             } else if fitScore < 50 && daysSoFar > 7 {
                 insights.append(Insight(
-                    icon: "🎯",
                     title: "Budget fit: \(fitScore)%",
                     message: "Your actual spending differs a lot from your planned budget. Consider adjusting your categories.",
                     severity: .nudge
@@ -406,7 +398,6 @@ enum InsightsEngine {
                 let daysUntilEmpty = dailyDrain > 0 ? Int(Double(cat.budgetedAmountCents - catSpent) / dailyDrain) : daysInPeriod
                 if daysUntilEmpty > 0 && daysUntilEmpty < (daysInPeriod - daysSoFar) {
                     insights.append(Insight(
-                        icon: "⏳",
                         title: "\(cat.name) draining fast",
                         message: "At this rate, \(cat.name) will be empty in \(daysUntilEmpty) days with \(daysInPeriod - daysSoFar) days left.",
                         severity: .warning
@@ -430,7 +421,6 @@ enum InsightsEngine {
 
             if zeroSpendDays >= 3 {
                 insights.append(Insight(
-                    icon: "🧘",
                     title: "\(zeroSpendDays) no-spend days",
                     // Audit 2026-04-23 Brand: declarative tone.
                     message: "\(zeroSpendDays) no-spend days logged this month.",
@@ -461,14 +451,12 @@ enum InsightsEngine {
                     let pctChange = abs(Double(diff) / Double(lastYearSpent) * 100)
                     if diff < 0 && pctChange >= 10 {
                         insights.append(Insight(
-                            icon: "📉",
                             title: "Down from last year",
                             message: "You've spent \(Int(pctChange))% less than \(DateHelpers.monthYearString(month: lastYear.month, year: lastYear.year)).",
                             severity: .success
                         ))
                     } else if diff > 0 && pctChange >= 15 {
                         insights.append(Insight(
-                            icon: "📈",
                             title: "Up from last year",
                             message: "Spending is up \(Int(pctChange))% compared to \(DateHelpers.monthYearString(month: lastYear.month, year: lastYear.year)).",
                             severity: .info
@@ -494,7 +482,6 @@ enum InsightsEngine {
             let fixedPct = Int(Double(recurringSpent) * 100.0 / Double(totalSpent))
             if fixedPct >= 70 {
                 insights.append(Insight(
-                    icon: "🔒",
                     title: "\(fixedPct)% goes to fixed costs",
                     message: "Most of your spending is fixed. Your flexible budget is \(CurrencyFormatter.format(cents: discretionarySpent)).",
                     severity: .info
