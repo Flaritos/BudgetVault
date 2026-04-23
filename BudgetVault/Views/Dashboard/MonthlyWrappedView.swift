@@ -196,12 +196,17 @@ struct MonthlyWrappedView: View {
         return (top.key, top.value)
     }
 
+    // Audit 2026-04-23 Perf P1: hoisted DateFormatter.
+    private static let monthNameFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM"
+        return f
+    }()
+
     private var monthName: String {
         let comps = DateComponents(year: budget.year, month: budget.month, day: 1)
         guard let date = calendar.date(from: comps) else { return "" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM"
-        return formatter.string(from: date).uppercased()
+        return Self.monthNameFormatter.string(from: date).uppercased()
     }
 
     private var personalityType: (name: String, emoji: String, description: String, traits: [(String, String)]) {
@@ -1094,12 +1099,17 @@ struct MonthlyWrappedView: View {
 
     // MARK: - Helpers
 
+    // Audit 2026-04-23 Perf P1: hoisted from per-call allocation.
+    private static let dayStringFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
     private func dayString(_ day: Int) -> String {
         let comps = DateComponents(year: budget.year, month: budget.month, day: day)
         guard let date = calendar.date(from: comps) else { return "Day \(day)" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        return Self.dayStringFormatter.string(from: date)
     }
 }
 

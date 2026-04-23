@@ -246,12 +246,18 @@ struct SpendingHeatmapView: View {
 
     // MARK: - Helpers
 
+    // Audit 2026-04-23 Perf P1: hoisted — called per heatmap cell
+    // for accessibility labels (up to 31 per month).
+    private static let dayDateStringFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f
+    }()
+
     private func dayDateString(_ day: Int) -> String {
         let comps = DateComponents(year: budget.year, month: budget.month, day: day)
         guard let date = calendar.date(from: comps) else { return "" }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
+        return Self.dayDateStringFormatter.string(from: date)
     }
 
     private func intensityColor(for spentCents: Int64) -> Color {

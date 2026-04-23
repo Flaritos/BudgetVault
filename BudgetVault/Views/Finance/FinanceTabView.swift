@@ -573,10 +573,15 @@ struct FinanceTabView: View {
         return count == 1 ? "1 ACTIVE" : "\(count) ACTIVE"
     }
 
+    // Audit 2026-04-23 Perf P1: hoisted DateFormatter.
+    private static let wrappedSubtitleFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM"
+        return f
+    }()
+
     private var wrappedSubtitle: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM"
-        let month = formatter.string(from: Date()).uppercased()
+        let month = Self.wrappedSubtitleFormatter.string(from: Date()).uppercased()
         return wrappedIsNew ? "\(month) READY" : "\(month)"
     }
 

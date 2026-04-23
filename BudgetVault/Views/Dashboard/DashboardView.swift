@@ -107,6 +107,8 @@ struct DashboardView: View {
     @State private var cachedBudget: Budget?
     @State private var cachedSpentMap: [UUID: Int64] = [:]
     @State private var cachedInsights: [Insight] = []
+    // Audit 2026-04-23 Perf P1: visibleCategories cache.
+    @State private var cachedVisibleCategories: [Category] = []
 
     // Audit 2026-04-22 P1-25: store handles for every deferred Task
     // that drives user-visible state (toast chains, animated reveals,
@@ -127,7 +129,11 @@ struct DashboardView: View {
         return allBudgets.first { $0.month == month && $0.year == year }
     }
 
-    private var visibleCategories: [Category] {
+    // Audit 2026-04-23 Perf P1: filter+sort ran 8× per body eval.
+    // Cache into @State, refresh via refreshCachedValues() call chain.
+    private var visibleCategories: [Category] { cachedVisibleCategories }
+
+    private func computeVisibleCategories() -> [Category] {
         guard let budget = currentBudget else { return [] }
         return (budget.categories ?? [])
             .filter { !$0.isHidden }
@@ -1848,6 +1854,7 @@ struct DashboardView: View {
             map[cat.id] = cat.spentCents(in: budget)
         }
         cachedSpentMap = map
+        cachedVisibleCategories = computeVisibleCategories()
         cachedInsights = InsightsEngine.generateInsights(
             budget: budget,
             previousBudget: previousBudget,
