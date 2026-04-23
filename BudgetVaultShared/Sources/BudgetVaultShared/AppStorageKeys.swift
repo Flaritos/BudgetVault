@@ -58,6 +58,9 @@ public enum AppStorageKeys {
     public static let dailyReminderHour = "dailyReminderHour"
     public static let weeklyDigestEnabled = "weeklyDigestEnabled"
     public static let billDueReminders = "billDueReminders"
+    // Audit 2026-04-23 Smoke-9 Fix 1: wire up the v3.2 "close today's
+    // vault" habit-anchor reminder (9pm daily). Was dead code until now.
+    public static let closeVaultReminderEnabled = "closeVaultReminderEnabled"
 
     // MARK: - Cloud
     public static let iCloudSyncEnabled = "iCloudSyncEnabled"

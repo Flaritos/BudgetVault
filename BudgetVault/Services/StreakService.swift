@@ -68,6 +68,14 @@ enum StreakService {
             NotificationService.scheduleStreakAtRisk(streakCount: streak)
         } else {
             NotificationService.cancelStreakAtRisk()
+            // Audit 2026-04-23 Smoke-9 Fix 1: after streakAtRisk is
+            // cancelled, re-arm the close-vault 9pm reminder. Without
+            // this, closeVault's "skip if streakAtRisk is scheduled"
+            // guard silently dropped the schedule on at-risk days and
+            // the 9pm ping never recovered the next day.
+            if UserDefaults.standard.bool(forKey: AppStorageKeys.closeVaultReminderEnabled) {
+                NotificationService.scheduleEveningCloseVault()
+            }
         }
 
         // Write to widget suite
@@ -89,6 +97,11 @@ enum StreakService {
         recordLogEntry()
         UserDefaults.standard.set(todayString, forKey: "lastNoSpendDay")
         NotificationService.cancelStreakAtRisk()
+        // Mirror processOnForeground: re-arm closeVault now that
+        // streakAtRisk is gone (the skip-guard would otherwise eat it).
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.closeVaultReminderEnabled) {
+            NotificationService.scheduleEveningCloseVault()
+        }
         return UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak)
     }
 

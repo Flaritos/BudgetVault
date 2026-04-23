@@ -28,7 +28,13 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         }
 
         // Handle tap on daily reminder notification
-        if let type = userInfo["type"] as? String, type == "dailyReminder" {
+        // Audit 2026-04-23 Smoke-9 Fix 4: also route closeVault taps to
+        // the transaction entry sheet. Previously only dailyReminder
+        // opened entry; closeVault (now wired up per Fix 1) would only
+        // foreground the app to the last-used tab — dead-end UX for
+        // what is supposed to be a habit-anchor "log now" prompt.
+        if let type = userInfo["type"] as? String,
+           type == "dailyReminder" || type == "closeVault" {
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: .openTransactionEntry, object: nil)
             }

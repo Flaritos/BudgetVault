@@ -178,10 +178,44 @@ enum NotificationService {
         guard let reminderDate = Calendar.current.date(byAdding: .day, value: -1, to: dueDate) else { return }
         var components = Calendar.current.dateComponents([.year, .month, .day], from: reminderDate)
         components.hour = 9
+        components.minute = 0
+        // Audit 2026-04-23 Smoke-9 Fix 2: past-date guard. Before this,
+        // scheduling a recurring expense due today (or tomorrow if it's
+        // already past 9am) built a trigger whose `dateMatching` resolved
+        // to a past instant — iOS silently drops past triggers, so the
+        // user got no reminder at all. Now we skip (with a log) instead
+        // of registering a dead notification.
+        guard let triggerDate = Calendar.current.date(from: components),
+              triggerDate > Date() else {
+            notificationLog.info("billDue-\(id, privacy: .public) skipped: trigger \(components, privacy: .public) is in the past (due=\(dueDate, privacy: .public)).")
+            return
+        }
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         center.addLogged(request)
+    }
+
+    /// Audit 2026-04-23 Smoke-9 Fix 3: bulk helpers for the Settings
+    /// `billDueReminders` toggle. Previously flipping the toggle on
+    /// only affected *newly-created* recurring expenses — every
+    /// existing expense stayed unreminded forever. Now flipping on
+    /// iterates every recurring expense; flipping off wipes every
+    /// `billDue-*` from pending notifications in one pass.
+    static func scheduleAllBillDueReminders(expenses: [(name: String, nextDueDate: Date, id: String)]) {
+        for expense in expenses {
+            scheduleBillDueReminder(expenseName: expense.name, dueDate: expense.nextDueDate, id: expense.id)
+        }
+    }
+
+    static func cancelAllBillDueReminders() {
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { requests in
+            let billIDs = requests.map(\.identifier).filter { $0.hasPrefix("billDue-") }
+            guard !billIDs.isEmpty else { return }
+            center.removePendingNotificationRequests(withIdentifiers: billIDs)
+            notificationLog.info("cancelAllBillDueReminders removed \(billIDs.count, privacy: .public) pending.")
+        }
     }
 
     // MARK: - Weekly Summary (Personalized)

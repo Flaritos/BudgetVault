@@ -22,6 +22,9 @@ struct SettingsView: View {
     @AppStorage(AppStorageKeys.billDueReminders) private var billDueReminders = false
     @AppStorage(AppStorageKeys.morningBriefingEnabled) private var morningBriefingEnabled = false
     @AppStorage(AppStorageKeys.morningBriefingHour) private var morningBriefingHour = 8
+    // Audit 2026-04-23 Smoke-9 Fix 1: close-vault 9pm habit-anchor
+    // reminder — wired up with its own Settings toggle.
+    @AppStorage(AppStorageKeys.closeVaultReminderEnabled) private var closeVaultReminderEnabled = false
     @AppStorage(AppStorageKeys.reviewPromptCount) private var reviewPromptCount = 0
     @AppStorage(AppStorageKeys.iCloudSyncEnabled) private var iCloudSyncEnabled = false
 
@@ -681,8 +684,40 @@ struct SettingsView: View {
                         requestNotificationPermission { granted in
                             if !granted {
                                 billDueReminders = false
+                            } else {
+                                // Audit 2026-04-23 Smoke-9 Fix 3: bulk-
+                                // schedule reminders for every recurring
+                                // expense already in the vault when the
+                                // toggle flips on. Before this, the
+                                // toggle only affected NEWLY-created
+                                // expenses — users with a pre-populated
+                                // recurring list flipped the toggle on
+                                // and got nothing.
+                                scheduleAllExistingBillDueReminders()
                             }
                         }
+                    } else {
+                        NotificationService.cancelAllBillDueReminders()
+                    }
+                }
+
+            Toggle(isOn: $closeVaultReminderEnabled) {
+                Label("Close-Vault Reminder", systemImage: "lock.circle.fill")
+                    .labelStyle(ChamberLabelStyle())
+            }
+                .tint(BudgetVaultTheme.electricBlue)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
+                .onChange(of: closeVaultReminderEnabled) { _, enabled in
+                    if enabled {
+                        requestNotificationPermission { granted in
+                            if granted {
+                                NotificationService.scheduleEveningCloseVault()
+                            } else {
+                                closeVaultReminderEnabled = false
+                            }
+                        }
+                    } else {
+                        NotificationService.cancelEveningCloseVault()
                     }
                 }
 
@@ -957,6 +992,21 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    /// Audit 2026-04-23 Smoke-9 Fix 3: pull every `RecurringExpense`
+    /// from the model context and schedule a bill-due reminder for
+    /// each. Called when the `billDueReminders` toggle flips from
+    /// off→on so pre-existing expenses start reminding.
+    private func scheduleAllExistingBillDueReminders() {
+        let descriptor = FetchDescriptor<RecurringExpense>()
+        guard let expenses = try? modelContext.fetch(descriptor), !expenses.isEmpty else {
+            settingsLog.info("scheduleAllExistingBillDueReminders: nothing to schedule.")
+            return
+        }
+        let tuples = expenses.map { (name: $0.name, nextDueDate: $0.nextDueDate, id: $0.id.uuidString) }
+        NotificationService.scheduleAllBillDueReminders(expenses: tuples)
+        settingsLog.info("scheduleAllExistingBillDueReminders: scheduled \(tuples.count, privacy: .public).")
+    }
 
     /// Requests notification authorization and calls `completion` on the main thread with the result.
     private func requestNotificationPermission(completion: @escaping (Bool) -> Void) {
