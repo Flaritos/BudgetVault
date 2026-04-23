@@ -805,6 +805,13 @@ struct DashboardView: View {
         let cadenceLabel = cadenceLabel(for: budget)
         let headerSublabel = vaultHeaderSublabel(for: budget)
         let statusText: String = spentFraction < 0.75 ? "On track" : spentFraction < 0.9 ? "Watch it" : "Over budget"
+        // Audit 2026-04-23 dial perfection: arc + status text now share
+        // one color so the visual signal and the copy agree. Prior
+        // arc was always `neonGreen` even when the text said "Over
+        // budget" — a literal red/green contradiction at the same pixel.
+        let statusColor: Color = spentFraction < 0.75
+            ? BudgetVaultTheme.positive
+            : (spentFraction < 0.9 ? BudgetVaultTheme.caution : BudgetVaultTheme.negative)
 
         // Full-bleed navy vault-interior gradient behind the chamber cards.
         ZStack(alignment: .top) {
@@ -889,21 +896,38 @@ struct DashboardView: View {
                                     state: vaultClosingAnimation
                                         ? .progress(1.0)
                                         : .progress(spentFraction),
-                                    showNumerals: false
+                                    showNumerals: false,
+                                    arcTint: statusColor
                                 )
-                                .frame(width: 50, height: 50)
+                                // Audit 2026-04-23 dial perfection: the
+                                // prior `.frame(width: 50, height: 50)`
+                                // fought VaultDial's internal 56pt
+                                // frame so the PNG overflowed the
+                                // layout slot by 3pt per side. Dropped
+                                // the outer frame — medium (56pt) is
+                                // the intended natural size here.
                                 .animation(.spring(response: 0.5, dampingFraction: 0.8), value: vaultClosingAnimation)
                                 .animation(.easeOut(duration: 0.5), value: spentFraction)
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(statusText)
                                         .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(BudgetVaultTheme.bodyOnDark)
-                                    Text("\(periodPct)% Period \u{00B7} \(spentPct)% Spent")
-                                        .font(BudgetVaultTheme.engravedLabel(size: 9))
-                                        .textCase(.uppercase)
-                                        .tracking(2.0)
-                                        .foregroundStyle(BudgetVaultTheme.titanium300)
+                                        .foregroundStyle(statusColor)
+                                        .contentTransition(.interpolate)
+                                        .animation(.easeInOut(duration: 0.35), value: statusText)
+                                    HStack(spacing: 0) {
+                                        Text("\(periodPct)% Period \u{00B7} ")
+                                            .contentTransition(.numericText(countsDown: false))
+                                            .animation(.easeOut(duration: 0.4), value: periodPct)
+                                        Text("\(spentPct)% Spent")
+                                            .contentTransition(.numericText(countsDown: false))
+                                            .animation(.easeOut(duration: 0.4), value: spentPct)
+                                    }
+                                    .font(BudgetVaultTheme.engravedLabel(size: 9))
+                                    .textCase(.uppercase)
+                                    .tracking(2.0)
+                                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                                    .monospacedDigit()
                                 }
 
                                 Spacer(minLength: 0)

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BudgetVault · Settings redesign mockups</title>
+<style>
+  :root {
+    /* Theme tokens — mirror BudgetVaultTheme.swift */
+    --navy-dark: #0F1B33;
+    --navy-mid: #12213d;
+    --navy-elevated: #1A2B52;
+    --navy-abyss: #070E1F;
+    --chamber-deep: #0c1730;
+    --chamber-stroke: rgba(168, 178, 194, 0.14);
+    --chamber-stroke-strong: rgba(168, 178, 194, 0.28);
+    --electric-blue: #2563EB;
+    --accent-soft: #60A5FA;
+    --positive: #10B981;
+    --caution: #F59E0B;
+    --negative: #EF4444;
+    --titanium-100: #E4E8EE;
+    --titanium-200: #C8CFDA;
+    --titanium-300: #A8B2C2;
+    --titanium-400: #828D9E;
+    --titanium-500: #5E6A7C;
+    --titanium-600: #434D5E;
+    --titanium-700: #2E3645;
+    --titanium-800: #1D2330;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #05090f;
+    color: var(--titanium-200);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    min-height: 100vh;
+  }
+  body {
+    padding: 48px 24px 96px;
+  }
+  h1 {
+    color: var(--titanium-100);
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.4px;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .subtitle {
+    color: var(--titanium-400);
+    text-align: center;
+    font-size: 14px;
+    margin-bottom: 48px;
+  }
+  .gallery {
+    display: flex;
+    justify-content: center;
+    gap: 36px;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .option {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .option-meta {
+    max-width: 380px;
+    text-align: center;
+  }
+  .option-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.15);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    color: var(--accent-soft);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .option-title {
+    color: var(--titanium-100);
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .option-blurb {
+    color: var(--titanium-400);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* Phone frame */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: radial-gradient(ellipse at 50% 20%, var(--navy-elevated) 0%, var(--navy-dark) 35%, var(--navy-abyss) 100%);
+    border: 2px solid #1a1e28;
+    border-radius: 44px;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 6px #08090d,
+      0 24px 60px rgba(0,0,0,0.6),
+      0 0 0 1px rgba(255,255,255,0.02);
+  }
+  .phone::before {
+    /* Dynamic Island */
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 32px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+  }
+  .phone-content {
+    position: absolute;
+    inset: 0;
+    padding: 58px 0 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Nav bar */
+  .navbar {
+    padding: 18px 24px 16px;
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid rgba(168, 178, 194, 0.06);
+  }
+  .navbar .title {
+    color: white;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  /* Tab bar */
+  .tabbar {
+    margin-top: auto;
+    height: 83px;
+    background: linear-gradient(to top, rgba(7, 14, 31, 0.98), rgba(15, 27, 51, 0.96));
+    border-top: 1px solid rgba(168, 178, 194, 0.08);
+    display: flex;
+    padding-bottom: 22px;
+  }
+  .tabbar .item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--titanium-500);
+    font-size: 10px;
+  }
+  .tabbar .item.active {
+    color: var(--accent-soft);
+  }
+  .tab-icon {
+    width: 24px; height: 24px;
+  }
+
+  /* Scrollable content */
+  .scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 20px 20px;
+  }
+
+  /* ===== Engraved section header ===== */
+  .engraved {
+    color: var(--titanium-300);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
+    padding: 20px 4px 10px;
+  }
+
+  /* ===== Shared chamber row ===== */
+  .chamber {
+    background: linear-gradient(145deg, rgba(26, 43, 82, 0.6) 0%, rgba(12, 23, 48, 0.9) 100%);
+    border: 1px solid var(--chamber-stroke);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.03),
+      0 1px 2px rgba(0,0,0,0.4);
+  }
+  .chamber .row {
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(168, 178, 194, 0.05);
+    min-height: 52px;
+  }
+  .chamber .row:last-child { border-bottom: none; }
+  .chamber .row .icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-soft);
+  }
+  .chamber .row .label {
+    flex: 1;
+    color: var(--titanium-100);
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .chamber .row .value {
+    color: var(--titanium-300);
+    font-size: 14px;
+  }
+  .chamber .row .chevron {
+    color: var(--titanium-500);
+    font-size: 13px;
+  }
+  .chamber .row.destructive .icon { color: var(--negative); }
+  .chamber .row.destructive .label { color: var(--negative); }
+  .chamber .row.premium .icon { color: var(--caution); }
+  .chamber .row.locked .icon { color: var(--caution); }
+
+  /* Toggle */
+  .toggle {
+    width: 44px;
+    height: 26px;
+    background: var(--titanium-700);
+    border-radius: 13px;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .toggle.on { background: var(--electric-blue); }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* SVG icon helper: use simple 24x24 stroke icons */
+  svg.icn {
+    width: 20px; height: 20px;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    fill: none; stroke: currentColor;
+  }
+
+  /* ===== Option A — Chamber Panel ===== */
+
+  /* ===== Option B — Vault Door hero ===== */
+  .hero-vault {
+    padding: 20px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.14) 0%, transparent 50%),
+      linear-gradient(to bottom, rgba(26, 43, 82, 0.35), transparent);
+    border-bottom: 1px solid rgba(168, 178, 194, 0.08);
+    margin-bottom: 8px;
+  }
+  .hero-title {
+    color: white;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.3px;
+  }
+  .hero-sub {
+    color: var(--titanium-300);
+    font-size: 11px;
+    letter-spacing: 2.2px;
+    text-transform: uppercase;
+  }
+
+  .dial {
+    width: 124px;
+    height: 124px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dial .ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, #141c2f 0%, #0a1120 60%, #060a14 100%);
+    border: 2px solid rgba(168, 178, 194, 0.2);
+    box-shadow:
+      inset 0 0 30px rgba(37, 99, 235, 0.18),
+      inset 0 2px 6px rgba(255,255,255,0.08),
+      0 0 40px rgba(37, 99, 235, 0.1);
+  }
+  .dial .ticks {
+    position: absolute; inset: 8px; border-radius: 50%;
+    background:
+      conic-gradient(
+        from 0deg,
+        var(--titanium-600) 0deg 1deg,
+        transparent 1deg 30deg,
+        var(--titanium-600) 30deg 31deg,
+        transparent 31deg 60deg,
+        var(--titanium-600) 60deg 61deg,
+        transparent 61deg 90deg,
+        var(--titanium-600) 90deg 91deg,
+        transparent 91deg 120deg,
+        var(--titanium-600) 120deg 121deg,
+        transparent 121deg 150deg,
+        var(--titanium-600) 150deg 151deg,
+        transparent 151deg 180deg,
+        var(--titanium-600) 180deg 181deg,
+        transparent 181deg 210deg,
+        var(--titanium-600) 210deg 211deg,
+        transparent 211deg 240deg,
+        var(--titanium-600) 240deg 241deg,
+        transparent 241deg 270deg,
+        var(--titanium-600) 270deg 271deg,
+        transparent 271deg 300deg,
+        var(--titanium-600) 300deg 301deg,
+        transparent 301deg 330deg,
+        var(--titanium-600) 330deg 331deg,
+        transparent 331deg 360deg
+      );
+    -webkit-mask-image: radial-gradient(circle, transparent 56%, black 58%, black 72%, transparent 74%);
+            mask-image: radial-gradient(circle, transparent 56%, black 58%, black 72%, transparent 74%);
+  }
+  .dial .pointer {
+    position: absolute;
+    top: 2px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 12px solid var(--accent-soft);
+    filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.55));
+  }
+  .dial .boss {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--titanium-200), var(--titanium-500) 60%, var(--titanium-700));
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+  }
+  .dial .lock-glyph {
+    width: 14px;
+    height: 14px;
+    color: var(--accent-soft);
+  }
+
+  .bolts {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .bolt {
+    width: 28px; height: 10px;
+    background: linear-gradient(to right, var(--electric-blue), var(--accent-soft));
+    border-radius: 2px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.25),
+      0 0 6px rgba(96, 165, 250, 0.35);
+  }
+  .bolt.off {
+    background: var(--titanium-700);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 24px;
+    align-items: baseline;
+  }
+  .hero-stat .num {
+    color: white;
+    font-size: 22px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.3px;
+  }
+  .hero-stat .lbl {
+    color: var(--titanium-400);
+    font-size: 10px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  /* ===== Option C — Grid Command Center ===== */
+  .panel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 4px;
+  }
+  .panel {
+    background:
+      linear-gradient(145deg, rgba(26, 43, 82, 0.7) 0%, rgba(8, 13, 27, 0.95) 100%);
+    border: 1px solid var(--chamber-stroke);
+    border-radius: 16px;
+    padding: 16px 14px 18px;
+    height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    /* brushed-titanium plate inside */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(110deg, transparent 30%, rgba(96, 165, 250, 0.05) 50%, transparent 70%);
+    pointer-events: none;
+  }
+  .panel .panel-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-soft);
+    background: rgba(96, 165, 250, 0.09);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+  }
+  .panel.destructive .panel-icon {
+    color: var(--negative);
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.24);
+  }
+  .panel.premium .panel-icon {
+    color: var(--caution);
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.24);
+  }
+  .panel .panel-title {
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .panel .panel-meta {
+    color: var(--titanium-400);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+  .panel .panel-flag {
+    position: absolute;
+    top: 12px; right: 14px;
+    padding: 3px 8px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--positive);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    border-radius: 999px;
+  }
+  .panel .panel-flag.caution {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: var(--caution);
+  }
+
+  /* ===== Summary strip shared by B & C ===== */
+  .summary-strip {
+    background: linear-gradient(to right, rgba(37, 99, 235, 0.14), rgba(96, 165, 250, 0.04));
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 0 16px;
+  }
+  .summary-strip .badge {
+    padding: 4px 10px;
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--positive);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    border-radius: 999px;
+  }
+  .summary-strip .text {
+    color: var(--titanium-200);
+    font-size: 13px;
+    flex: 1;
+  }
+
+  /* Row leading icon background tile — used in Option A's richer rows */
+  .tile {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(96, 165, 250, 0.08);
+    border: 1px solid rgba(96, 165, 250, 0.16);
+    color: var(--accent-soft);
+  }
+  .tile.caution { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.2); color: var(--caution); }
+  .tile.positive { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); color: var(--positive); }
+  .tile.negative { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.2); color: var(--negative); }
+
+  .hingeline {
+    height: 2px;
+    background: linear-gradient(to right, transparent, rgba(168, 178, 194, 0.25), transparent);
+    margin: 8px 0;
+  }
+
+</style>
+</head>
+<body>
+  <h1>BudgetVault Settings · Vault Redesign</h1>
+  <p class="subtitle">Three directions. Same theme palette (navy &middot; titanium &middot; electric blue &middot; amber &middot; neon). Pick one or mix.</p>
+
+  <div class="gallery">
+    <!-- ========== OPTION A ========== -->
+    <div class="option">
+      <div class="phone">
+        <div class="phone-content">
+          <div class="navbar"><div class="title">Settings</div></div>
+          <div class="scroll">
+            <!-- Premium active badge -->
+            <div class="summary-strip">
+              <div class="badge">PREMIUM</div>
+              <div class="text">Vault Intelligence active &middot; Emma's Vault</div>
+            </div>
+
+            <div class="engraved">Security</div>
+            <div class="chamber">
+              <div class="row">
+                <div class="tile"><svg class="icn" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></div>
+                <div class="label">Lock with Face ID</div>
+                <div class="toggle"></div>
+              </div>
+              <div class="row locked">
+                <div class="tile caution"><svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></div>
+                <div class="label">Require after 1 minute</div>
+                <div class="value">1 min</div>
+                <div class="chevron">&rsaquo;</div>
+              </div>
+            </div>
+
+            <div class="engraved">Profile</div>
+            <div class="chamber">
+              <div class="row">
+                <div class="tile"><svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+                <div class="label">Vault name</div>
+                <div class="value">Emma</div>
+                <div class="chevron">&rsaquo;</div>
+              </div>
+              <div class="row">
+                <div class="tile"><svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+                <div class="label">Reset day</div>
+                <div class="value">1st</div>
+                <div class="chevron">&rsaquo;</div>
+              </div>
+              <div class="row">
+                <div class="tile"><svg class="icn" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></div>
+                <div class="label">Currency</div>
+                <div class="value">USD $</div>
+                <div class="chevron">&rsaquo;</div>
+              </div>
+            </div>
+
+            <div class="engraved">Data</div>
+            <div class="chamber">
+              <div class="row">
+                <div class="tile positive"><svg class="icn" viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg></div>
+                <div class="label">Export CSV</div>
+                <div class="chevron">&rsaquo;</div>
+              </div>
+              <div class="row premium">
+                <div class="tile caution"><svg class="icn" viewBox="0 0 24 24"><path d="M12 20V8M6 14l6-6 6 6M4 4h16"/></svg></div>
+                <div class="label">Import CSV</div>
+                <div class="value">PREMIUM</div>
+                <div class="chevron">&rsaquo;</div>
+              </div>
+              <div class="row destructive">
+                <div class="tile negative"><svg class="icn" viewBox="0 0 24 24"><path d="M5 6h14M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14"/></svg></div>
+                <div class="label">Delete All Data</div>
+                <div class="chevron">&rsaquo;</div>
+              </div>
+            </div>
+
+            <div class="engraved">About</div>
+            <div class="chamber">
+              <div class="row">
+                <div class="tile"><svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h0"/></svg></div>
+                <div class="label">Version</div>
+                <div class="value">3.3.0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="item"><div class="tab-icon">&#8962;</div><span>Home</span></div>
+            <div class="item"><div class="tab-icon">&#128339;</div><span>History</span></div>
+            <div class="item"><div class="tab-icon">&#128274;</div><span>Vault</span></div>
+            <div class="item active"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="option-meta">
+        <div class="option-tag">Option A</div>
+        <div class="option-title">Chamber Panels</div>
+        <div class="option-blurb">
+          Keeps the flat list, but every section becomes a single
+          glass chamber with gradient fill, stroke, and a tile-framed
+          icon per row. Role color — amber for premium, red for
+          destructive. Minimal risk, immediately on-brand.
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== OPTION B ========== -->
+    <div class="option">
+      <div class="phone">
+        <div class="phone-content">
+          <div class="navbar"><div class="title">Settings</div></div>
+          <div class="scroll">
+            <!-- Vault Door Hero -->
+            <div class="hero-vault">
+              <div class="dial">
+                <div class="ring"></div>
+                <div class="ticks"></div>
+                <div class="boss">
+                  <svg class="lock-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="11" width="14" height="9" rx="2"/>
+                    <path d="M8 11V8a4 4 0 018 0v3"/>
+                  </svg>
+                </div>
+                <div class="pointer"></div>
+              </div>
+              <div>
+                <div class="hero-title" style="text-align:center">Emma's Vault</div>
+                <div class="hero-sub" style="text-align:center; margin-top:4px">Day 23 of 30 &middot; $47.61/day</div>
+              </div>
+              <div class="bolts">
+                <div class="bolt"></div>
+                <div class="bolt"></div>
+                <div class="bolt"></div>
+                <div class="bolt off"></div>
+              </div>
+              <div class="hero-stats">
+                <div class="hero-stat"><div class="num">12</div><div class="lbl">Day Streak</div></div>
+                <div class="hero-stat"><div class="num">$1.8k</div><div class="lbl">Saved</div></div>
+                <div class="hero-stat"><div class="num">∞</div><div class="lbl">Premium</div></div>
+              </div>
+            </div>
+
+            <div class="engraved" style="padding-top:8px">Security</div>
+            <div class="chamber">
+              <div class="row"><div class="icon"><svg class="icn" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></div><div class="label">Lock with Face ID</div><div class="toggle on"></div></div>
+              <div class="row"><div class="icon"><svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></div><div class="label">Auto-lock</div><div class="value">1 min</div><div class="chevron">&rsaquo;</div></div>
+            </div>
+
+            <div class="engraved">Profile</div>
+            <div class="chamber">
+              <div class="row"><div class="icon"><svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div><div class="label">Vault name</div><div class="value">Emma</div><div class="chevron">&rsaquo;</div></div>
+              <div class="row"><div class="icon"><svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div class="label">Reset day</div><div class="value">1st</div><div class="chevron">&rsaquo;</div></div>
+              <div class="row"><div class="icon"><svg class="icn" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></div><div class="label">Currency</div><div class="value">USD $</div><div class="chevron">&rsaquo;</div></div>
+            </div>
+
+            <div class="engraved">Data</div>
+            <div class="chamber">
+              <div class="row"><div class="icon" style="color:var(--positive)"><svg class="icn" viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg></div><div class="label">Export CSV</div><div class="chevron">&rsaquo;</div></div>
+              <div class="row destructive"><div class="icon"><svg class="icn" viewBox="0 0 24 24"><path d="M5 6h14M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14"/></svg></div><div class="label">Delete All Data</div><div class="chevron">&rsaquo;</div></div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="item"><div class="tab-icon">&#8962;</div><span>Home</span></div>
+            <div class="item"><div class="tab-icon">&#128339;</div><span>History</span></div>
+            <div class="item"><div class="tab-icon">&#128274;</div><span>Vault</span></div>
+            <div class="item active"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="option-meta">
+        <div class="option-tag">Option B — Recommended</div>
+        <div class="option-title">Vault Door Hero</div>
+        <div class="option-blurb">
+          Top hero: VaultDial + "Emma's Vault · Day 23 of 30", bolt
+          row status, and three micro-stats (streak, saved, premium).
+          List below uses the (A) chamber pattern. Settings suddenly
+          feels like a vault's control panel, not a list.
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== OPTION C ========== -->
+    <div class="option">
+      <div class="phone">
+        <div class="phone-content">
+          <div class="navbar"><div class="title">Settings</div></div>
+          <div class="scroll">
+            <!-- Compact hero -->
+            <div style="display:flex; align-items:center; gap:14px; padding:16px 4px 20px;">
+              <div class="dial" style="width:72px; height:72px;">
+                <div class="ring"></div>
+                <div class="ticks"></div>
+                <div class="boss" style="width:20px; height:20px;">
+                  <svg class="lock-glyph" style="width:10px; height:10px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+                </div>
+                <div class="pointer" style="border-top-width:8px; border-left-width:5px; border-right-width:5px"></div>
+              </div>
+              <div style="flex:1">
+                <div style="color:white; font-weight:700; font-size:17px">Emma's Vault</div>
+                <div style="color:var(--titanium-400); font-size:12px; margin-top:2px">Premium &middot; 12 day streak</div>
+              </div>
+              <div style="padding:4px 10px; background:rgba(16, 185, 129, 0.18); border:1px solid rgba(16, 185, 129, 0.35); border-radius:999px; color:var(--positive); font-size:10px; font-weight:700; letter-spacing:1.4px;">
+                ON TRACK
+              </div>
+            </div>
+
+            <div class="hingeline"></div>
+
+            <!-- 2x3 grid of panels -->
+            <div class="panel-grid">
+              <div class="panel">
+                <div class="panel-icon">
+                  <svg class="icn" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+                </div>
+                <div>
+                  <div class="panel-title">Security</div>
+                  <div class="panel-meta">Face ID &middot; Auto-lock</div>
+                </div>
+                <div class="panel-flag">ON</div>
+              </div>
+              <div class="panel">
+                <div class="panel-icon">
+                  <svg class="icn" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+                </div>
+                <div>
+                  <div class="panel-title">Profile</div>
+                  <div class="panel-meta">Name &middot; Currency</div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-icon">
+                  <svg class="icn" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </div>
+                <div>
+                  <div class="panel-title">Notifications</div>
+                  <div class="panel-meta">Daily &middot; Weekly</div>
+                </div>
+                <div class="panel-flag caution">2 OFF</div>
+              </div>
+              <div class="panel premium">
+                <div class="panel-icon">
+                  <svg class="icn" viewBox="0 0 24 24"><path d="M12 2l3 7 7 .6-5.3 4.7 1.7 6.9L12 17l-6.4 4.2 1.7-6.9L2 9.6l7-.6z"/></svg>
+                </div>
+                <div>
+                  <div class="panel-title">Premium</div>
+                  <div class="panel-meta">Active &middot; Lifetime</div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-icon">
+                  <svg class="icn" viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>
+                </div>
+                <div>
+                  <div class="panel-title">Data</div>
+                  <div class="panel-meta">Export &middot; Import</div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-icon">
+                  <svg class="icn" viewBox="0 0 24 24"><path d="M3 12c3-5 9-7 13-4M21 12c-3 5-9 7-13 4"/></svg>
+                </div>
+                <div>
+                  <div class="panel-title">iCloud Sync</div>
+                  <div class="panel-meta">Encrypted</div>
+                </div>
+                <div class="panel-flag">ON</div>
+              </div>
+              <div class="panel destructive" style="grid-column: span 2; height:72px; flex-direction:row; align-items:center">
+                <div class="panel-icon" style="margin-right:14px">
+                  <svg class="icn" viewBox="0 0 24 24"><path d="M5 6h14M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="panel-title">Delete All Data</div>
+                  <div class="panel-meta">Permanently wipe the vault</div>
+                </div>
+                <div class="chevron" style="color: var(--negative)">&rsaquo;</div>
+              </div>
+            </div>
+
+            <div style="padding: 18px 4px 4px; color: var(--titanium-500); font-size: 11px; text-align:center; letter-spacing:1.4px; text-transform:uppercase">
+              Version 3.3.0 &middot; budgetvault.io
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="item"><div class="tab-icon">&#8962;</div><span>Home</span></div>
+            <div class="item"><div class="tab-icon">&#128339;</div><span>History</span></div>
+            <div class="item"><div class="tab-icon">&#128274;</div><span>Vault</span></div>
+            <div class="item active"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="option-meta">
+        <div class="option-tag">Option C</div>
+        <div class="option-title">Command Center Grid</div>
+        <div class="option-blurb">
+          Compact summary hero + a 2-col grid of "instrument panels".
+          Each panel carries icon, title, quick meta, and a status flag
+          (ON/OFF/CAUTION). Tapping opens the full detail view.
+          Biggest visual change, most distinctive, but every row
+          becomes a tap-to-drill navigation instead of inline controls.
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

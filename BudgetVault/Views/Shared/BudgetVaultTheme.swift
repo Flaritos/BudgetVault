@@ -200,6 +200,21 @@ enum BudgetVaultTheme {
         endPoint: .bottomTrailing
     )
 
+    // Audit 2026-04-23 Settings redesign: subtle diagonal gradient used
+    // as `.listRowBackground` on Settings Form rows. Replaces the flat
+    // `chamberDeep` so rows read as "glass chamber panels" (mockup
+    // Option A) while the Form still provides iOS grouping + scroll
+    // semantics. Low opacity on the lift color keeps the repeat across
+    // rows visually imperceptible.
+    static let chamberRowGradient = LinearGradient(
+        colors: [
+            navyElevated.opacity(0.55),
+            Color(hex: "#0A0F1C")  // chamberDeep, opaque bottom
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     // MARK: - Wax Seal (no-spend day ritual only)
     // Used only on the History screen to mark no-spend days. Do not use elsewhere.
     static let waxSealRed = Color(hex: "#8B1A1A")

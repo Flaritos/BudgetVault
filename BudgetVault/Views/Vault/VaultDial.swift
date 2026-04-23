@@ -100,6 +100,14 @@ struct VaultDial: View {
     /// Default 0 = rest state (identical to a static PNG).
     var faceRotationDegrees: Double = 0
 
+    /// Audit 2026-04-23 dial perfection: caller-provided color for the
+    /// progress arc. Default stays `neonGreen` (original look) so
+    /// existing non-spending uses keep their green arc, but the Home
+    /// Dashboard now passes a semantic color keyed to
+    /// On-track / Watch-it / Over-budget thresholds so the ring tracks
+    /// `statusText` instead of contradicting it.
+    var arcTint: Color = BudgetVaultTheme.neonGreen
+
     @ScaledMetric(relativeTo: .largeTitle) private var scaleFactor: CGFloat = 1.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -222,18 +230,29 @@ struct VaultDial: View {
             // Arc lives in 260-space at radius ~90 (just inside the ticks).
             // Convert to point units via dim / 260.
             let k = dim / 260
+            // Audit 2026-04-23 dial perfection: `3.5 * k` collapsed to
+            // 0.75pt at `.medium` (56pt dial) which is sub-pixel on
+            // Retina and effectively invisible. Floor at 2.5pt so the
+            // arc remains legible at every dashboard-adjacent size.
+            let stroke = max(3.5 * k, 2.5)
             Circle()
                 .trim(from: 0, to: max(0.001, min(p, 1.0)))
                 .stroke(
-                    BudgetVaultTheme.neonGreen,
+                    arcTint,
                     style: StrokeStyle(
-                        lineWidth: 3.5 * k,
+                        lineWidth: stroke,
                         lineCap: .round
                     )
                 )
                 .rotationEffect(.degrees(-90))
                 .frame(width: 180 * k, height: 180 * k)
+                // Matching glow behind the arc so the color shift
+                // reads as "the vault is breathing" rather than a
+                // subtle UI tweak. Radius scales with the dial so the
+                // hero gets a bigger halo than the medium variant.
+                .shadow(color: arcTint.opacity(0.5), radius: max(4 * k, 3))
                 .animation(reduceMotion ? .none : .easeOut(duration: 0.5), value: p)
+                .animation(reduceMotion ? .none : .easeInOut(duration: 0.35), value: arcTint)
         }
     }
 

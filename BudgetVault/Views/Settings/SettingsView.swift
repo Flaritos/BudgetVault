@@ -83,12 +83,18 @@ struct SettingsView: View {
                     premiumUpgradeCard
                         .padding(.horizontal, BudgetVaultTheme.spacingLG)
                         .padding(.top, BudgetVaultTheme.spacingMD)
+                } else {
+                    // Audit 2026-04-23 Settings Option A: premium users
+                    // get a summary strip above the Form (matches
+                    // mockup) instead of the old inline
+                    // `premiumActiveBadge` section. Strip pulls the
+                    // premium state up into the ambient chrome.
+                    premiumSummaryStrip
+                        .padding(.horizontal, BudgetVaultTheme.spacingLG)
+                        .padding(.top, BudgetVaultTheme.spacingMD)
                 }
 
                 Form {
-                    if isPremium || storeKit.isPremium {
-                        premiumActiveBadge
-                    }
                     securitySection
                     profileSection
                     dataSection
@@ -111,8 +117,14 @@ struct SettingsView: View {
                 // chamber palette. `.scrollContentBackground(.hidden)` hides
                 // the default grouped-list backdrop so our navy can show
                 // through; each section's rows then pin their backdrop via
-                // `.listRowBackground(chamberDeep)`.
+                // `.listRowBackground(chamberRowGradient)`.
                 .scrollContentBackground(.hidden)
+                // Audit 2026-04-23 Settings Option A redesign: all row
+                // Labels render as tile-icon + title via ChamberLabelStyle.
+                // Specific rows (Delete / Import / Export) override the
+                // role on their own Label to get destructive/premium/
+                // positive coloring.
+                .labelStyle(ChamberLabelStyle())
                 // Audit 2026-04-23 Smoke-3 R1: without this the last
                 // Form row (Export CSV / Delete All Data) sits in the
                 // tab bar's expanded hit zone — taps routed to tab-bar
@@ -313,6 +325,54 @@ struct SettingsView: View {
         .accessibilityLabel("Upgrade to BudgetVault Premium. Open the full vault.")
     }
 
+    /// Audit 2026-04-23 Settings Option A: above-Form summary strip for
+    /// premium users. Mirrors `docs/settings-mockups/index.html` top
+    /// badge — "PREMIUM" pill + a short status line. Reads as ambient
+    /// chrome, not a list row.
+    @ViewBuilder
+    private var premiumSummaryStrip: some View {
+        HStack(spacing: 10) {
+            Text("PREMIUM")
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1.6)
+                .foregroundStyle(BudgetVaultTheme.accentSoft)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(BudgetVaultTheme.accentSoft.opacity(0.14))
+                )
+                .overlay(
+                    Capsule().strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.3), lineWidth: 1)
+                )
+            Text("Vault Intelligence active")
+                .font(.system(size: 13))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark)
+            Spacer(minLength: 0)
+            Image(systemName: "star.fill")
+                .font(.system(size: 11))
+                .foregroundStyle(BudgetVaultTheme.positive)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            LinearGradient(
+                colors: [
+                    BudgetVaultTheme.electricBlue.opacity(0.14),
+                    BudgetVaultTheme.accentSoft.opacity(0.04)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            ),
+            in: RoundedRectangle(cornerRadius: 14)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.25), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("BudgetVault Premium, active. Vault Intelligence active.")
+    }
+
     /// Slim active-state badge for premium users. Lives inside the
     /// Form as the first section so the nav-title-to-first-row rhythm
     /// stays consistent with iOS Settings convention.
@@ -368,7 +428,7 @@ struct SettingsView: View {
                 Label("Biometric Lock", systemImage: "faceid")
             }
             .tint(BudgetVaultTheme.electricBlue)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
         } header: {
             EngravedSectionHeader(title: "Security")
         }
@@ -398,7 +458,7 @@ struct SettingsView: View {
                     }
                     .accessibilityLabel("Name")
             }
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Button {
                 tempCurrency = selectedCurrency
@@ -419,7 +479,7 @@ struct SettingsView: View {
                         .foregroundStyle(BudgetVaultTheme.titanium400)
                 }
             }
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Picker("Budget Reset Day", selection: $resetDay) {
                 ForEach(1...28, id: \.self) { day in
@@ -427,12 +487,12 @@ struct SettingsView: View {
                 }
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Text("Changing the reset day takes effect next month.")
                 .font(.caption)
                 .foregroundStyle(BudgetVaultTheme.titanium400)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
         } header: {
             EngravedSectionHeader(title: "Profile")
         }
@@ -445,7 +505,7 @@ struct SettingsView: View {
     private var dataSection: some View {
         Section {
             TipView(recurringExpenseTip)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Button {
                 showRecurring = true
@@ -453,7 +513,7 @@ struct SettingsView: View {
                 Label("Recurring Expenses", systemImage: "repeat")
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Button {
                 // Audit 2026-04-23 M4: diagnostic log to verify the
@@ -470,9 +530,10 @@ struct SettingsView: View {
                 }
             } label: {
                 Label("Export CSV (Full History)", systemImage: "square.and.arrow.up")
+                    .labelStyle(ChamberLabelStyle(role: .positive))
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Button {
                 if isPremium {
@@ -483,6 +544,7 @@ struct SettingsView: View {
             } label: {
                 HStack {
                     Label("Import CSV", systemImage: "square.and.arrow.down")
+                        .labelStyle(ChamberLabelStyle(role: isPremium ? .standard : .premium))
                     if !isPremium {
                         Spacer()
                         // Phase 8.2 §4.7: premium-gated star → caution
@@ -495,7 +557,7 @@ struct SettingsView: View {
                 }
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Button {
                 showBudgetTemplates = true
@@ -503,7 +565,7 @@ struct SettingsView: View {
                 Label("Budget Templates", systemImage: "doc.on.doc")
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             // v3.2 audit M7: removed "Multi-Budget Profiles — Coming Soon"
             // row. Shipped Settings shouldn't advertise unshipped features.
@@ -516,7 +578,7 @@ struct SettingsView: View {
                 Label("Milestones", systemImage: "star.leadinghalf.filled")
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Button(role: .destructive) {
                 // Audit 2026-04-23 M5: diagnostic log (MobAI reported
@@ -525,9 +587,9 @@ struct SettingsView: View {
                 showDeleteAllConfirm = true
             } label: {
                 Label("Delete All Data", systemImage: "trash.fill")
-                    .foregroundStyle(BudgetVaultTheme.negative)
+                    .labelStyle(ChamberLabelStyle(role: .destructive))
             }
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
         } header: {
             EngravedSectionHeader(title: "Data")
         }
@@ -539,7 +601,7 @@ struct SettingsView: View {
         Section {
             Toggle("Daily Reminder", isOn: $dailyReminderEnabled)
                 .tint(BudgetVaultTheme.electricBlue)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: dailyReminderEnabled) { _, enabled in
                     if enabled {
                         requestNotificationPermission { granted in
@@ -561,7 +623,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(BudgetVaultTheme.accentSoft)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: dailyReminderHour) { _, newHour in
                     NotificationService.scheduleDailyReminder(hour: newHour)
                 }
@@ -569,7 +631,7 @@ struct SettingsView: View {
 
             Toggle("Weekly Summary", isOn: $weeklyDigestEnabled)
                 .tint(BudgetVaultTheme.electricBlue)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: weeklyDigestEnabled) { _, enabled in
                     if enabled {
                         requestNotificationPermission { granted in
@@ -590,7 +652,7 @@ struct SettingsView: View {
 
             Toggle("Bill Due Reminders", isOn: $billDueReminders)
                 .tint(BudgetVaultTheme.electricBlue)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: billDueReminders) { _, enabled in
                     if enabled {
                         requestNotificationPermission { granted in
@@ -603,7 +665,7 @@ struct SettingsView: View {
 
             Toggle("Morning Briefing", isOn: $morningBriefingEnabled)
                 .tint(BudgetVaultTheme.electricBlue)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: morningBriefingEnabled) { _, enabled in
                     if enabled {
                         requestNotificationPermission { granted in
@@ -624,7 +686,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(BudgetVaultTheme.accentSoft)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             }
         } header: {
             EngravedSectionHeader(title: "Notifications")
@@ -665,7 +727,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(BudgetVaultTheme.accentSoft)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             } header: {
                 EngravedSectionHeader(title: "Support")
             }
@@ -685,7 +747,7 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(BudgetVaultTheme.positive)
                 }
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             } else {
                 Button {
                     showPaywall = true
@@ -703,7 +765,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(BudgetVaultTheme.accentSoft)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             }
 
             if !isPremium && !storeKit.isPremium {
@@ -712,7 +774,7 @@ struct SettingsView: View {
                 }
                 .font(.subheadline)
                 .tint(BudgetVaultTheme.accentSoft)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             }
 
             if storeKit.tipProduct != nil {
@@ -733,7 +795,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(BudgetVaultTheme.accentSoft)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             }
         } header: {
             EngravedSectionHeader(title: "Premium")
@@ -766,7 +828,7 @@ struct SettingsView: View {
                 }
             ))
             .tint(BudgetVaultTheme.electricBlue)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             if iCloudSyncEnabled {
                 HStack {
@@ -781,13 +843,13 @@ struct SettingsView: View {
                             .foregroundStyle(BudgetVaultTheme.titanium300)
                     }
                 }
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
                 if let error = cloudSync.syncError {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(BudgetVaultTheme.negative)
-                        .listRowBackground(BudgetVaultTheme.chamberDeep)
+                        .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 }
             }
 
@@ -799,7 +861,7 @@ struct SettingsView: View {
                  : "iCloud Sync is off. All data stays on this device only.")
                 .font(.caption)
                 .foregroundStyle(BudgetVaultTheme.titanium400)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
         } header: {
             EngravedSectionHeader(title: "iCloud Sync")
         }
@@ -820,7 +882,7 @@ struct SettingsView: View {
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
                     .foregroundStyle(BudgetVaultTheme.titanium300)
             }
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             ShareLink(item: URL(string: "https://budgetvault.io")!,
                        subject: Text("BudgetVault"),
@@ -829,7 +891,7 @@ struct SettingsView: View {
                 Label("Share BudgetVault", systemImage: "heart.fill")
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             // v3.2 audit L9: removed the .foregroundStyle(.primary)
             // override that rendered the bubble icon black; now it
@@ -840,26 +902,26 @@ struct SettingsView: View {
                 Label("Send Feedback", systemImage: "bubble.left.and.bubble.right.fill")
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Text(iCloudSyncEnabled
                  ? "Your data syncs securely via iCloud. End-to-end encrypted."
                  : "Your data never leaves this device.")
                 .font(.caption)
                 .foregroundStyle(BudgetVaultTheme.titanium400)
-                .listRowBackground(BudgetVaultTheme.chamberDeep)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Link(destination: URL(string: "https://budgetvault.io/privacy")!) {
                 Label("Privacy Policy", systemImage: "hand.raised.fill")
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Link(destination: URL(string: "https://budgetvault.io/terms")!) {
                 Label("Terms of Service", systemImage: "doc.text.fill")
             }
             .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
+            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
         } header: {
             EngravedSectionHeader(title: "About")
         }
