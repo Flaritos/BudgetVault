@@ -32,7 +32,12 @@ struct BoltRow: View {
                 bolt(engaged: index < engaged)
             }
         }
-        .accessibilityHidden(true)
+        // Audit 2026-04-23 A11y P0: was .accessibilityHidden so VO
+        // users never heard "Step 2 of 4" during onboarding. Expose
+        // as a grouped element with a human-readable progress label.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(engaged) of \(count)")
+        .accessibilityAddTraits(.updatesFrequently)
     }
 
     private func bolt(engaged: Bool) -> some View {

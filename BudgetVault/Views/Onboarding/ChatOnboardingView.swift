@@ -579,6 +579,14 @@ struct ChatOnboardingView: View {
                                 .focused($vaultNameFocused)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 24)
+                                // Audit 2026-04-23 A11y P0: was invisible
+                                // to VoiceOver ("text field, empty" with
+                                // no role context). Provide an explicit
+                                // label + value + hint so blind users
+                                // can complete vault-name entry.
+                                .accessibilityLabel("Vault name")
+                                .accessibilityValue(vaultName.isEmpty ? "Empty" : vaultName)
+                                .accessibilityHint("Up to 24 characters. Engraved on your dashboard.")
                                 .onChange(of: vaultName) { _, newValue in
                                     if newValue.count > 24 { vaultName = String(newValue.prefix(24)) }
                                 }

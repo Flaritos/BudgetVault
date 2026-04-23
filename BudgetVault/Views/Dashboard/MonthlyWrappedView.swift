@@ -318,7 +318,10 @@ struct MonthlyWrappedView: View {
             .padding(.trailing, 16)
         }
         .preferredColorScheme(.dark)
-        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+        // Audit 2026-04-23 A11y P1: cap removed so AX4/AX5 users can
+        // read Wrapped. Slides use VStack/Spacer layouts that reflow.
+        // If layout breaks under larger sizes, fix the layout —
+        // don't deny users their accessibility preference.
         .alert("Image Saved", isPresented: $showSaveSuccess) {
             Button("OK", role: .cancel) {}
         } message: {
