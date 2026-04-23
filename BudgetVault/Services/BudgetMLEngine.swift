@@ -312,13 +312,16 @@ enum BudgetMLEngine {
             let recentRate: Double
 
             let txDays = Set(txs.map { calendar.startOfDay(for: $0.date) }).count
+            // Audit 2026-04-23 AI P1: sparse-category forecast — require
+            // ≥3 distinct tx-days before projecting. Poisson variance
+            // on N=2 is too wide; a user with 2 txs in 5 days (0.4/day)
+            // projected over 25 remaining days = 10 expected txs, but
+            // the 95% CI spans 4–16. Skipping these categories prevents
+            // "You'll spend $800 on Car Repair this month" on the back
+            // of 2 oil-change receipts.
             if txDays < 3 {
-                // Sparse: use per-transaction average * expected remaining transactions
-                let avgPerTx = Double(cat.spentCents(in: budget)) / Double(txs.count)
-                let txPerDay = Double(txs.count) / Double(daysSoFar)
-                let expectedRemainingTxs = txPerDay * Double(daysRemaining)
-                projectedRemaining = Int64(avgPerTx * expectedRemainingTxs)
-                recentRate = avgPerTx * txPerDay
+                // Skip sparse forecast entirely — not enough signal.
+                continue
             } else {
                 let dailyAmounts = buildDailyAmounts(txs: txs, periodStart: budget.periodStart, days: daysSoFar)
                 let smoothed = exponentialSmoothing(dailyAmounts, alpha: 0.3)
