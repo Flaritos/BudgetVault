@@ -112,6 +112,15 @@ struct TransactionEntryView: View {
                     typeToggle
                     dateChipRow
                     amountDisplay
+                    // Audit 2026-04-23 Smoke-3: quick-amount chips
+                    // moved here (immediately under the amount display)
+                    // from below noteChamber. Prior position sat at
+                    // y≈551 — behind the pinned keypad at y=503–720 —
+                    // so taps landed on keypad digits. Chips belong
+                    // with the amount input anyway; they read
+                    // naturally as "quick presets" between entering
+                    // the number and the rest of the form.
+                    if !isIncome { quickAmountChips }
                     budgetContextHint
                     suggestedAmountButton
                     autoSortedBadge
@@ -124,7 +133,6 @@ struct TransactionEntryView: View {
                     if showNoteSuggestions && !noteSuggestions.isEmpty {
                         noteSuggestionStrip
                     }
-                    if !isIncome { quickAmountChips }
                 }
                 .padding(.horizontal, BudgetVaultTheme.spacingLG)
                 .padding(.top, BudgetVaultTheme.spacingMD)

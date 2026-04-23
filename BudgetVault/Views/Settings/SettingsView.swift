@@ -113,6 +113,13 @@ struct SettingsView: View {
                 // through; each section's rows then pin their backdrop via
                 // `.listRowBackground(chamberDeep)`.
                 .scrollContentBackground(.hidden)
+                // Audit 2026-04-23 Smoke-3 R1: without this the last
+                // Form row (Export CSV / Delete All Data) sits in the
+                // tab bar's expanded hit zone — taps routed to tab-bar
+                // buttons instead. `.contentMargins` pushes the
+                // scrollable area up so the last row clears the tab
+                // bar's strike zone even at minimum scroll.
+                .contentMargins(.bottom, 40, for: .scrollContent)
             }
         }
         .navigationTitle("Settings")
