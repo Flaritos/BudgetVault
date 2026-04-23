@@ -410,12 +410,29 @@ enum NotificationService {
             let spentFormatted = formatCentsForNotification(spent)
             let budgetedFormatted = formatCentsForNotification(budgeted)
 
+            // Audit 2026-04-23 Security P1: when biometric lock is
+            // enabled, category names may be privacy-sensitive
+            // ("Therapy", "Medication", "Legal retainer"). The lock-
+            // screen notification banner doesn't require the full
+            // name to be useful — a generic "Category over budget"
+            // prompt still drives the user to open the app. Hide
+            // identifying info behind the lock.
+            let lockEnabled = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
+
             if pct >= 1.0 {
-                content.title = "\(category.emoji) \(category.name) Over Budget"
-                content.body = "\(spentFormatted) of \(budgetedFormatted) spent"
+                content.title = lockEnabled
+                    ? "Category over budget"
+                    : "\(category.emoji) \(category.name) Over Budget"
+                content.body = lockEnabled
+                    ? "Tap to open BudgetVault."
+                    : "\(spentFormatted) of \(budgetedFormatted) spent"
             } else {
-                content.title = "\(category.emoji) \(category.name) at \(Int(pct * 100))%"
-                content.body = "\(spentFormatted) of \(budgetedFormatted) spent"
+                content.title = lockEnabled
+                    ? "Category at \(Int(pct * 100))%"
+                    : "\(category.emoji) \(category.name) at \(Int(pct * 100))%"
+                content.body = lockEnabled
+                    ? "Tap to open BudgetVault."
+                    : "\(spentFormatted) of \(budgetedFormatted) spent"
             }
 
             UserDefaults.standard.set(Date(), forKey: throttleKey)

@@ -42,16 +42,35 @@ enum KeychainService {
     @discardableResult
     static func set(_ value: Bool, forKey key: String) -> OSStatus {
         let data = Data([value ? 1 : 0])
-        let query: [String: Any] = [
+        // Audit 2026-04-23 Security P2: prior `SecItemDelete` + `SecItemAdd`
+        // sequence is NON-atomic. A crash or kill between the two calls
+        // leaves NO Keychain entry — StoreKitManager.checkEntitlements
+        // would then read nil and (combined with our M3+S1 fix) preserve
+        // cached state, which is OK but suboptimal. Prefer an atomic
+        // SecItemUpdate when the item already exists; fall back to
+        // SecItemAdd only when SecItemUpdate returns errSecItemNotFound.
+        let lookup: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
+            kSecAttrAccount as String: key
+        ]
+        let attributesToUpdate: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
-        // Delete any existing item first, then insert.
-        SecItemDelete(query as CFDictionary)
-        return SecItemAdd(query as CFDictionary, nil)
+        let updateStatus = SecItemUpdate(lookup as CFDictionary, attributesToUpdate as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return errSecSuccess
+        }
+        if updateStatus == errSecItemNotFound {
+            // First write — no prior item; add one.
+            var addQuery = lookup
+            addQuery[kSecValueData as String] = data
+            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            return SecItemAdd(addQuery as CFDictionary, nil)
+        }
+        // Other failures (e.g. errSecInteractionNotAllowed) — propagate.
+        return updateStatus
     }
 
     /// Retrieve a Bool value from the Keychain, or nil if not found.

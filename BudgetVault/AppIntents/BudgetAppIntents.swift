@@ -28,14 +28,35 @@ struct AddExpenseIntent: AppIntent {
                 userInfo["amount"] = amount
             }
             if let categoryName, !categoryName.isEmpty, categoryName.count <= 100 {
-                userInfo["category"] = categoryName
+                userInfo["category"] = Self.stripControlAndBidi(categoryName)
             }
             if let note, note.count <= 500 {
-                userInfo["note"] = note
+                userInfo["note"] = Self.stripControlAndBidi(note)
             }
             NotificationCenter.default.post(name: .openTransactionEntry, object: nil, userInfo: userInfo)
         }
         return .result()
+    }
+
+    /// Audit 2026-04-23 Security P2: strip control characters + bidi
+    /// overrides (U+202A–U+202E, U+2066–U+2069, U+200E/U+200F) from
+    /// Siri-provided text. Note text flows to CSV export where a
+    /// `<RLO>=cmd` payload could disguise a CSV-injection attempt
+    /// past the formula-prefix guard (which only checks the FIRST
+    /// visible character). Blocking bidi upstream stops that class
+    /// of attack at the source.
+    private static func stripControlAndBidi(_ input: String) -> String {
+        input.unicodeScalars.filter { scalar in
+            let value = scalar.value
+            if scalar.properties.generalCategory == .control { return false }
+            // Bidi / embedding controls: LRE, RLE, PDF, LRO, RLO, LRI, RLI, FSI, PDI, LRM, RLM
+            let bidiRanges: [ClosedRange<UInt32>] = [
+                0x202A...0x202E,
+                0x2066...0x2069,
+                0x200E...0x200F,
+            ]
+            return !bidiRanges.contains { $0.contains(value) }
+        }.reduce(into: "") { $0.append(Character($1)) }
     }
 }
 
