@@ -36,8 +36,10 @@ struct EnvelopeDepositBox: View {
 
             VStack(alignment: .leading, spacing: 8 * scale) {
                 HStack {
+                    // Audit 2026-04-23 A11y P1: name + sublabel ignored
+                    // Dynamic Type; scale with the rest of the envelope.
                     Text(name)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 11 * scale, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.85))
                     Spacer()
                     Circle()
@@ -57,8 +59,9 @@ struct EnvelopeDepositBox: View {
                 // Audit 2026-04-22 P1-37: was 10pt @ 0.55 opacity (3.9:1
                 // on navy — fails WCAG body-text contrast). Raise opacity
                 // to 0.75 so the ratio clears 4.5:1.
+                // Audit 2026-04-23 A11y P1: also scale with Dynamic Type.
                 Text("of \(CurrencyFormatter.format(cents: allocatedCents))")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 10 * scale, weight: .medium))
                     .foregroundStyle(.white.opacity(0.75))
 
                 // Progress bar — 2pt, pipColor fill over pipColor @ 18% bg

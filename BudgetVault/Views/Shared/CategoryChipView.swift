@@ -8,6 +8,9 @@ struct CategoryChipView: View {
     var isSelected: Bool = false
     var chipSize: CGFloat = 44
     var chipWidth: CGFloat = 56
+    // Audit 2026-04-23 A11y P1: honor Reduce Motion on the scale
+    // bounce that fires on every chip tap.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // Round 5 N13: selected state was too subtle — just a 3pt stroke.
@@ -25,7 +28,7 @@ struct CategoryChipView: View {
                         .strokeBorder(isSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 3 : 1)
                 )
                 .scaleEffect(isSelected ? 1.05 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
             Text(name)
                 .font(.caption2)
                 .lineLimit(1)

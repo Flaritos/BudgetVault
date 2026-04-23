@@ -1618,9 +1618,21 @@ struct DashboardView: View {
                     Text("1 freeze ready")
                         .font(.system(size: 9, weight: .medium))
                 }
-                .foregroundStyle(.white.opacity(0.4))
+                // Audit 2026-04-23 A11y P1: was `.white.opacity(0.4)`
+                // at 9pt — contrast ≈ 3.2:1 on navy (fails 4.5:1).
+                // Raised to 0.7 for WCAG compliance.
+                .foregroundStyle(.white.opacity(0.7))
             }
         }
+        // Audit 2026-04-23 A11y P1: group badge parts so VoiceOver
+        // reads once ("12-day streak, 1 freeze available") instead
+        // of 4 separate utterances.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            StreakService.hasAvailableFreeze()
+                ? "Streak: \(currentStreak) day\(currentStreak == 1 ? "" : "s"), 1 freeze available"
+                : "Streak: \(currentStreak) day\(currentStreak == 1 ? "" : "s")"
+        )
     }
 
     @ViewBuilder
