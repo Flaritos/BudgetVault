@@ -63,14 +63,49 @@ final class BiometricAuthService {
                 localizedReason: "Unlock BudgetVault"
             )
             isAuthenticated = success
-            errorMessage = success ? nil : "Authentication failed"
+            errorMessage = success ? nil : "Authentication failed. Try again."
         } catch {
             // Audit fix: failing closed includes NOT preserving a
             // prior `isAuthenticated = true`. If the user was unlocked
             // from a previous session and re-auth throws (canceled,
             // fallback declined, etc.), treat it as a fresh lock.
             isAuthenticated = false
-            errorMessage = error.localizedDescription
+            errorMessage = Self.message(for: error, biometricName: biometricName)
+        }
+    }
+
+    // Audit 2026-04-22 P0-13: previously surfaced
+    // `error.localizedDescription` for every LAError — user saw "Canceled
+    // by the user" for a Cancel tap, and got nothing actionable for
+    // lockout / not-enrolled. Map the codes that actually reach users
+    // into purpose-built copy; keep the system fallback for the long tail.
+    private static func message(for error: Error, biometricName: String) -> String? {
+        guard let laError = error as? LAError else {
+            return error.localizedDescription
+        }
+        switch laError.code {
+        case .userCancel, .systemCancel, .appCancel:
+            // Silent — user or system dismissed the prompt; showing an
+            // error here just adds noise. The lock screen already
+            // communicates state.
+            return nil
+        case .authenticationFailed:
+            return "\(biometricName) didn't recognize you. Try again or use your passcode."
+        case .biometryNotEnrolled:
+            return "No \(biometricName) is set up on this device. Add one in iOS Settings or use your passcode."
+        case .biometryLockout:
+            return "\(biometricName) is locked. Unlock your iPhone with your passcode to re-enable it."
+        case .biometryNotAvailable:
+            return "\(biometricName) isn't available on this device. Use your passcode instead."
+        case .passcodeNotSet:
+            return "Set a passcode in iOS Settings to use App Lock."
+        case .userFallback:
+            // User explicitly chose passcode; the `.deviceOwnerAuthentication`
+            // policy should have handled it — if we got here, the passcode
+            // prompt was dismissed. Treat as a cancel.
+            return nil
+        @unknown default:
+            return laError.localizedDescription
         }
     }
 }

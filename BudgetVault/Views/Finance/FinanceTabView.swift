@@ -7,28 +7,42 @@ struct FinanceTabView: View {
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
-    // TODO: migrate to AppStorageKeys (matches DashboardView)
-    @AppStorage("lastWrappedViewed") private var lastWrappedViewed = ""
+    @AppStorage(AppStorageKeys.lastWrappedViewed) private var lastWrappedViewed = ""
     @Environment(StoreKitManager.self) private var storeKit
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
-    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    // Audit 2026-04-22 P0-7: bounded to last 13 months (current + MoM +
+    // 12mo seasonal).
+    @Query private var allTransactions: [Transaction]
     @Query(filter: #Predicate<DebtAccount> { $0.isActive }, sort: \DebtAccount.createdAt)
     private var activeDebts: [DebtAccount]
 
+    init() {
+        let cutoff = Calendar.current.date(byAdding: .month, value: -13, to: Date()) ?? .distantPast
+        _allTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: [SortDescriptor(\Transaction.date, order: .reverse)]
+        )
+    }
+
     @State private var showPaywall = false
     @State private var navigateToBudgetSetup = false
+    // Audit 2026-04-22 P0-8 + P1-33: the old `insights` computed property
+    // re-ran InsightsEngine on every body eval. Now cached and refreshed
+    // only when the currentBudget identity changes (mirrors DashboardView
+    // + InsightsView patterns).
+    @State private var cachedInsights: [Insight] = []
 
     // MARK: - Neon Accent Colors
 
-    private let neonBlue = BudgetVaultTheme.neonBlue
+    private let neonBlue = BudgetVaultTheme.accentSoft
     private let neonGreen = BudgetVaultTheme.neonGreen
     private let neonYellow = BudgetVaultTheme.neonYellow
     private let neonPurple = BudgetVaultTheme.neonPurple
     private let neonOrange = BudgetVaultTheme.neonOrange
 
     private let categoryColors: [Color] = [
-        BudgetVaultTheme.neonBlue, BudgetVaultTheme.neonGreen, BudgetVaultTheme.neonOrange,
+        BudgetVaultTheme.accentSoft, BudgetVaultTheme.neonGreen, BudgetVaultTheme.neonOrange,
         BudgetVaultTheme.neonPurple, BudgetVaultTheme.neonYellow, BudgetVaultTheme.negative
     ]
 
@@ -74,9 +88,12 @@ struct FinanceTabView: View {
         else { return BudgetVaultTheme.dangerGradient }
     }
 
-    private var insights: [Insight] {
-        guard let budget = currentBudget else { return [] }
-        return Array(InsightsEngine.generateInsights(
+    private func refreshCachedInsights() {
+        guard let budget = currentBudget else {
+            cachedInsights = []
+            return
+        }
+        cachedInsights = Array(InsightsEngine.generateInsights(
             budget: budget,
             previousBudget: previousBudget,
             allBudgets: allBudgets,
@@ -111,6 +128,12 @@ struct FinanceTabView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView()
                 .presentationDragIndicator(.visible)
+        }
+        .task(id: currentBudget?.id) {
+            refreshCachedInsights()
+        }
+        .onChange(of: allTransactions.count) { _, _ in
+            refreshCachedInsights()
         }
     }
 
@@ -535,7 +558,7 @@ struct FinanceTabView: View {
     // MARK: - Tool subtitles
 
     private var insightsSubtitle: String {
-        let count = insights.count
+        let count = cachedInsights.count
         return count == 1 ? "1 FINDING" : "\(count) FINDINGS"
     }
 
@@ -571,7 +594,7 @@ extension Insight.Severity {
         switch self {
         case .success: return BudgetVaultTheme.neonGreen
         case .warning: return BudgetVaultTheme.neonYellow
-        case .info: return BudgetVaultTheme.neonBlue
+        case .info: return BudgetVaultTheme.accentSoft
         case .nudge: return BudgetVaultTheme.neonPurple
         }
     }
@@ -591,7 +614,17 @@ extension Insight.Severity {
 struct MonthlyWrappedShell: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
-    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    // Audit 2026-04-22 P0-7: Wrapped only renders the most recent period;
+    // 2-month cutoff is ample (covers period boundary rollovers).
+    @Query private var allTransactions: [Transaction]
+
+    init() {
+        let cutoff = Calendar.current.date(byAdding: .month, value: -2, to: Date()) ?? .distantPast
+        _allTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: [SortDescriptor(\Transaction.date, order: .reverse)]
+        )
+    }
 
     private var currentBudget: Budget? {
         let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: max(resetDay, 1))

@@ -415,6 +415,7 @@
 
       private func render(_ variant: MonthlyWrappedShareCard.Variant) -> UIImage? {
           // Force a non-brand accent to verify the card overrides it.
+          // Superseded 2026-04-22: theme picker retired in v3.3.1 — accentColorHex no longer exists. Test no longer needed.
           UserDefaults.standard.set("#F43F5E", forKey: AppStorageKeys.accentColorHex)
 
           let card = MonthlyWrappedShareCard(

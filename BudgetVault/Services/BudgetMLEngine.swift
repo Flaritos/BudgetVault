@@ -20,7 +20,10 @@ enum BudgetMLEngine {
 
         let daysInPeriod = calendar.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30
         let daysSoFar = max(1, calendar.dateComponents([.day], from: budget.periodStart, to: today).day ?? 1)
-        guard daysSoFar >= 3 else { return nil } // need at least 3 data points
+        // Audit 2026-04-22 P0-6 Fix 5: raised from 3 → 5. With 1-2 data
+        // points the weighted regression extrapolates nonsense (MobAI
+        // caught predicted $4.67 when user had already spent $12.50).
+        guard daysSoFar >= 5 else { return nil }
 
         // Build daily cumulative spending series
         var dailySpending = [Double](repeating: 0, count: daysSoFar)
@@ -45,8 +48,16 @@ enum BudgetMLEngine {
         let result = weightedLinearRegression(x: x, y: y, weights: weights)
 
         // Predict at day = daysInPeriod
-        let predicted = Int64(max(0, result.slope * Double(daysInPeriod) + result.intercept))
+        let rawPredicted = Int64(max(0, result.slope * Double(daysInPeriod) + result.intercept))
         let currentTotal = Int64(cumulative.last ?? 0)
+
+        // Audit 2026-04-22 P0-6 Fix 5: the predicted month-end total is
+        // cumulative spending — it can never be less than what's already
+        // been spent. Regression on sparse early-period data can produce
+        // a negative-slope extrapolation that violates this invariant.
+        // Floor at max(currentTotal, simpleProjected).
+        let simpleProjectedPreview = Int64(Double(currentTotal) / Double(daysSoFar) * Double(daysInPeriod))
+        let predicted = max(rawPredicted, currentTotal, simpleProjectedPreview)
 
         // Confidence based on MAPE of daily (non-cumulative) spending and data coverage
         let mape: Double = {

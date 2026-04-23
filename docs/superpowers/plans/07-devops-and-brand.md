@@ -643,6 +643,7 @@ When iCloud sync is **on**, the only acceptable variant is:
 - `electricBlue` `#2563EB` — single brand accent. Used for the Vault dial, the lock-open animation, the share QR.
 
 ### Tier 2 — Functional accents (user-overridable via `accentColorOptions`)
+<!-- Superseded 2026-04-22: theme picker retired in v3.3.1. `userAccentColor` now always returns `accentSoft`. Tier 2 collapsed into Tier 1. -->
 - `Color.accentColor` — interactive controls (buttons, links, segmented pickers).
 - Default = `electricBlue`; users may pick from the 10 swatches in Settings.
 

@@ -13,6 +13,7 @@ final class CloudSyncService {
     var modelContainer: ModelContainer?
 
     private var remoteChangeObserver: Any?
+    private var iCloudAccountObserver: Any?
 
     init() {
         // SwiftData's CloudKit integration fires this notification on remote changes
@@ -23,10 +24,36 @@ final class CloudSyncService {
         ) { [weak self] _ in
             self?.handleRemoteChange()
         }
+
+        // Audit 2026-04-22 P0-14: re-check iCloud account status when the
+        // user signs in/out of iCloud while the app is running.
+        iCloudAccountObserver = NotificationCenter.default.addObserver(
+            forName: .NSUbiquityIdentityDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshAvailability()
+        }
     }
 
     deinit {
         if let observer = remoteChangeObserver { NotificationCenter.default.removeObserver(observer) }
+        if let observer = iCloudAccountObserver { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    /// Audit 2026-04-22 P0-14: surface the "iCloud toggled on but no
+    /// iCloud account signed in" case. Previously the Settings UI showed
+    /// a cheerful "Last Sync: Never" with no explanation — sync was
+    /// silently impossible. Call this on toggle-on and when the account
+    /// identity changes.
+    func refreshAvailability() {
+        if FileManager.default.ubiquityIdentityToken == nil {
+            syncError = "Sign in to iCloud in iOS Settings to enable sync."
+        } else if syncError == "Sign in to iCloud in iOS Settings to enable sync." {
+            // Only clear our own message — preserve any CloudKit error
+            // surfaced elsewhere in the app.
+            syncError = nil
+        }
     }
 
     private func handleRemoteChange() {

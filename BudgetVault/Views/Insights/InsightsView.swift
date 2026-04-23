@@ -8,8 +8,17 @@ struct InsightsView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
-    // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
-    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    // Audit 2026-04-22 P0-7: bounded to last 13 months. Insight #15
+    // (seasonal trend) requires 12 mo; 13 gives a 1-month buffer.
+    @Query private var allTransactions: [Transaction]
+
+    init() {
+        let cutoff = Calendar.current.date(byAdding: .month, value: -13, to: Date()) ?? .distantPast
+        _allTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: [SortDescriptor(\Transaction.date, order: .reverse)]
+        )
+    }
 
     @State private var showPaywall = false
     @State private var selectedRange: DateRange = .thisMonth
@@ -123,7 +132,7 @@ struct InsightsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .colorMultiply(BudgetVaultTheme.brightBlue)
+                    .colorMultiply(BudgetVaultTheme.accentSoft)
                     .padding(.horizontal)
 
                     if let budget = currentBudget {
@@ -133,9 +142,9 @@ struct InsightsView: View {
                             insightsDarkCard {
                                 HStack(spacing: 6) {
                                     Circle()
-                                        .fill(BudgetVaultTheme.brightBlue)
+                                        .fill(BudgetVaultTheme.accentSoft)
                                         .frame(width: 8, height: 8)
-                                        .shadow(color: BudgetVaultTheme.brightBlue.opacity(0.6), radius: 4)
+                                        .shadow(color: BudgetVaultTheme.accentSoft.opacity(0.6), radius: 4)
                                     Text("SPENDING TREND")
                                         .font(.system(size: 11, weight: .bold))
                                         .foregroundStyle(.white.opacity(0.5))
@@ -167,7 +176,7 @@ struct InsightsView: View {
                                             x: .value("Month", item.month),
                                             y: .value("Spent", Double(truncating: MoneyHelpers.centsToDollars(item.spent) as NSDecimalNumber))
                                         )
-                                        .foregroundStyle(BudgetVaultTheme.brightBlue.gradient)
+                                        .foregroundStyle(BudgetVaultTheme.accentSoft.gradient)
                                         .cornerRadius(4)
                                     }
                                     .frame(height: 200)
@@ -203,7 +212,7 @@ struct InsightsView: View {
                         }
 
                         // PREMIUM: Smart Forecasts (consolidated teaser 1)
-                        premiumSection("AI PREDICTION", dotColor: BudgetVaultTheme.brightBlue) {
+                        premiumSection("AI PREDICTION", dotColor: BudgetVaultTheme.accentSoft) {
                             VStack(spacing: 12) {
                                 if let prediction = cachedPrediction {
                                     SpendingPredictionCard(prediction: prediction)

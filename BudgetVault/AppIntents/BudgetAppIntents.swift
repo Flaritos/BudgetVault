@@ -19,9 +19,20 @@ struct AddExpenseIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         await MainActor.run {
             var userInfo: [String: Any] = [:]
-            if let amount { userInfo["amount"] = amount }
-            if let categoryName { userInfo["category"] = categoryName }
-            if let note { userInfo["note"] = note }
+            // Audit 2026-04-22 P1-35: Siri / Shortcuts can pass NaN,
+            // negative, or astronomically large Doubles (1e308) into a
+            // Double parameter. Validate before forwarding to the entry
+            // sheet so garbage input doesn't round-trip into a
+            // `Decimal(Double.nan)` which traps at runtime.
+            if let amount, amount.isFinite, amount > 0, amount < 10_000_000 {
+                userInfo["amount"] = amount
+            }
+            if let categoryName, !categoryName.isEmpty, categoryName.count <= 100 {
+                userInfo["category"] = categoryName
+            }
+            if let note, note.count <= 500 {
+                userInfo["note"] = note
+            }
             NotificationCenter.default.post(name: .openTransactionEntry, object: nil, userInfo: userInfo)
         }
         return .result()

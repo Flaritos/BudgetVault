@@ -307,7 +307,7 @@ struct MoveMoneyView: View {
             Group {
                 if canMove {
                     LinearGradient(
-                        colors: [BudgetVaultTheme.brightBlue, BudgetVaultTheme.electricBlue],
+                        colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.electricBlue],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )

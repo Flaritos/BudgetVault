@@ -146,10 +146,14 @@ enum CSVImporter {
             }
 
             // Find or create category in this budget
+            // Audit 2026-04-22 P1-31: match existing categories case-
+            // insensitively. A CSV that mixed "Food" and "food" rows
+            // previously created two duplicate categories — inflating
+            // the category list and silently splitting spend totals.
             let category: Category?
             if row.isIncome {
                 category = nil
-            } else if let existing = (budget.categories ?? []).first(where: { $0.name == mappedCategory }) {
+            } else if let existing = (budget.categories ?? []).first(where: { $0.name.caseInsensitiveCompare(mappedCategory) == .orderedSame }) {
                 category = existing
             } else {
                 let newCat = Category(name: mappedCategory, emoji: "📦", sortOrder: (budget.categories ?? []).count)

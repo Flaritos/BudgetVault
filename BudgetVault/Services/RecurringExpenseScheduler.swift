@@ -34,8 +34,13 @@ enum RecurringExpenseScheduler {
                 // H1: Resolve category to the current budget period
                 var resolvedCategory = expense.category
                 if let cat = resolvedCategory, cat.budget?.id != currentBudget?.id {
-                    // Category belongs to an old budget — find equivalent in current budget by name
-                    if let match = (currentBudget?.categories ?? []).first(where: { $0.name == cat.name }) {
+                    // Category belongs to an old budget — find equivalent in current budget by name.
+                    // Audit 2026-04-22 P1-32: match case-insensitively so
+                    // a "Groceries" recurring expense still resolves if
+                    // the user renamed the category to "groceries" in
+                    // the current month. Consistent with CSVImporter
+                    // (P1-31) and the learning service.
+                    if let match = (currentBudget?.categories ?? []).first(where: { $0.name.caseInsensitiveCompare(cat.name) == .orderedSame }) {
                         resolvedCategory = match
                     } else {
                         // No matching category in current budget — skip this posting

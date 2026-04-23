@@ -1159,7 +1159,7 @@ public enum AppStorageKeys {
 
     // MARK: - Appearance
     public static let selectedCurrency = "selectedCurrency"
-    public static let accentColorHex = "accentColorHex"
+    public static let accentColorHex = "accentColorHex" // Superseded 2026-04-22: theme picker retired in v3.3.1 — key removed.
 
     // MARK: - Security
     public static let biometricLockEnabled = "biometricLockEnabled"

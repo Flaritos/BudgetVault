@@ -12,8 +12,6 @@ final class MonthlyWrappedShareCardTests: XCTestCase {
     private let target = CGSize(width: 1080, height: 1920)
 
     private func render(_ variant: MonthlyWrappedShareCard.Variant) -> UIImage? {
-        UserDefaults.standard.set("#F43F5E", forKey: AppStorageKeys.accentColorHex)
-
         let card = MonthlyWrappedShareCard(
             variant: variant,
             monthName: "MARCH",

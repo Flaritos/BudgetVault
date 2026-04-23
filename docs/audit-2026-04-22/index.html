@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BudgetVault v3.3.1 — Pre-Ship Audit (2026-04-22)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    background: #0A0F1C;
+    color: #F5F7FA;
+    padding: 48px 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 4px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 36px 0 12px; letter-spacing: -0.01em; border-bottom: 1px solid #1A2744; padding-bottom: 8px; }
+  h3 { font-size: 15px; font-weight: 600; margin: 18px 0 6px; color: #A8B2C2; text-transform: uppercase; letter-spacing: 0.05em; }
+  p, li { color: #C8CFDA; font-size: 14px; }
+  ul { margin: 8px 0 12px 22px; }
+  .sub { color: #828D9E; font-size: 13px; margin-bottom: 28px; }
+  .verdict { background: #1A2744; border-left: 3px solid #F43F5E; padding: 14px 18px; border-radius: 6px; margin: 20px 0; }
+  .verdict.go { border-left-color: #60A5FA; }
+  .verdict strong { color: #F5F7FA; }
+  .finding { background: #0F1B33; border: 1px solid #1A2744; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+  .finding .id { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; margin-right: 8px; vertical-align: middle; }
+  .finding .title { font-size: 14px; font-weight: 600; color: #F5F7FA; }
+  .finding .body { margin-top: 6px; color: #A8B2C2; font-size: 13px; }
+  .p0 { background: #F43F5E; color: white; }
+  .p1 { background: #F59E0B; color: #0A0F1C; }
+  .p2 { background: #3B82F6; color: white; }
+  .p3 { background: #64748B; color: white; }
+  code, .mono { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; background: #070E1F; color: #60A5FA; padding: 1px 5px; border-radius: 3px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 20px 0; }
+  .stat { background: #0F1B33; border: 1px solid #1A2744; border-radius: 8px; padding: 18px; text-align: center; }
+  .stat .value { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .label { font-size: 11px; color: #828D9E; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .screens { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+  .screen img { width: 100%; border-radius: 8px; border: 1px solid #2E3645; background: #000; }
+  .screen .cap { font-size: 11px; color: #828D9E; margin-top: 6px; }
+  .agents { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .agent { background: #0F1B33; border: 1px solid #1A2744; border-radius: 8px; padding: 12px 14px; font-size: 13px; }
+  .agent .name { font-weight: 600; color: #F5F7FA; }
+  .agent .count { font-size: 11px; color: #828D9E; margin-top: 2px; }
+  a { color: #60A5FA; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>BudgetVault v3.3.1 — Pre-Ship Audit</h1>
+<div class="sub">2026-04-22 · 13 specialist agents + MobAI exhaustive sweep on iPhone 17 Pro</div>
+
+<div class="verdict">
+  <strong>Ship Verdict: NO-GO</strong> — 5 submission blockers. Version still reads 3.3.0, export-compliance plist key missing, price mismatch between StoreKit config and memory of record, screenshots pre-date VaultRevamp, App Icon missing dark/tinted variants.
+  <br><br>
+  <strong>Minimum viable ship-diff:</strong> ~5 edits (version bump + plist key + price reconciliation + re-export screenshots + icon variants). Could be done in 30-60 minutes plus icon design time.
+</div>
+
+<div class="stat-grid">
+  <div class="stat"><div class="value">13</div><div class="label">Agents</div></div>
+  <div class="stat"><div class="value" style="color:#F43F5E">12</div><div class="label">P0 Blockers</div></div>
+  <div class="stat"><div class="value" style="color:#F59E0B">20</div><div class="label">P1 Issues</div></div>
+  <div class="stat"><div class="value" style="color:#3B82F6">24</div><div class="label">P2 Polish</div></div>
+</div>
+
+<h2>Round 1 — Code Audit Panel</h2>
+<div class="agents">
+  <div class="agent"><div class="name">Code Reviewer</div><div class="count">3 P2 — theme-removal clean</div></div>
+  <div class="agent"><div class="name">Security Engineer</div><div class="count">0 P0 · 2 P1 · 5 P2</div></div>
+  <div class="agent"><div class="name">Mobile App Builder</div><div class="count">3 P0 · 5 P1</div></div>
+  <div class="agent"><div class="name">Accessibility Auditor</div><div class="count">3 P0 · 7 P1</div></div>
+  <div class="agent"><div class="name">Brand Guardian</div><div class="count">2 P0 · 6 P1 · 4 P2</div></div>
+  <div class="agent"><div class="name">Minimal Change Engineer</div><div class="count">2 P0 · 3 P1 · 2 P2</div></div>
+  <div class="agent"><div class="name">Reality Checker</div><div class="count">5 BLOCKERS — NO-GO</div></div>
+  <div class="agent"><div class="name">AI Engineer</div><div class="count">4 P0 · 3 P1 · 4 P2</div></div>
+  <div class="agent"><div class="name">Performance Benchmarker</div><div class="count">3 P0 · 7 P1 · 5 P2</div></div>
+  <div class="agent"><div class="name">Database Optimizer</div><div class="count">0 P0 · 5 P1 · 5 P2</div></div>
+  <div class="agent"><div class="name">Legal Compliance</div><div class="count">0 P0 · 2 P1 · 2 P2</div></div>
+  <div class="agent"><div class="name">SRE (error handling)</div><div class="count">4 P0 · 8 P1 · 6 P2</div></div>
+  <div class="agent"><div class="name">App Store Optimizer</div><div class="count">Concrete copy for name/sub/keywords/desc</div></div>
+</div>
+
+<h2>Round 1 — P0 Ship Blockers (5)</h2>
+
+<div class="finding">
+  <div><span class="id p0">SHIP</span><span class="title">1. Version still reads 3.3.0</span></div>
+  <div class="body"><code>project.yml:46,128</code> — bump <code>MARKETING_VERSION "3.3.1"</code> + <code>CURRENT_PROJECT_VERSION "3"</code>. ASC rejects duplicate uploads.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">SHIP</span><span class="title">2. ITSAppUsesNonExemptEncryption missing</span></div>
+  <div class="body">Add to <code>BudgetVault/Info.plist</code> + widget <code>Info.plist</code>. Every upload otherwise gets stuck at ASC compliance modal.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">SHIP</span><span class="title">3. Price mismatch — $14.99 vs $9.99</span></div>
+  <div class="body"><code>Configuration.storekit:5</code> says $14.99; 10+ hardcoded $14.99 strings in code; MEMORY.md says $9.99. Pick one and make it canonical.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">SHIP</span><span class="title">4. App Store screenshots pre-date VaultRevamp</span></div>
+  <div class="body"><code>docs/appstore-v33/composed/</code> captured before theme-picker removal. Re-export from current composer.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">SHIP</span><span class="title">5. App Icon missing dark + tinted variants</span></div>
+  <div class="body"><code>Assets.xcassets/AppIcon.appiconset/Contents.json</code> — single universal slot. iOS 18 tinted/dark home screen users get flat default.</div>
+</div>
+
+<h2>Round 1 — P0 Code Quality (12)</h2>
+
+<div class="finding">
+  <div><span class="id p0">BUG</span><span class="title">6. InsightsEngine — 4 statistical correctness bugs</span></div>
+  <div class="body">
+    <code>InsightsEngine.swift:65</code> — "on pace" projects vs income instead of category caps<br>
+    <code>:93-102</code> — MoM "same day" comparison miscounts days across 28/30/31-day months<br>
+    <code>:272</code> — "Savings Rate" fires when income=0 but budget&gt;0, claims "95% unspent" on day 1<br>
+    <code>:76-89</code> — Outlier detection (mean + 2×) is fragile for small N
+  </div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">PERF</span><span class="title">7. Unbounded @Query in 6 views</span></div>
+  <div class="body">Dashboard/History/Finance/Insights/TransactionEntry/RecurringExpense load full Transaction table then filter in Swift. Fine at current scale; ugly at 2k+ rows.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">PERF</span><span class="title">8. InsightsEngine blocks main thread</span></div>
+  <div class="body">Synchronous call from <code>DashboardView.swift:1786</code>, <code>FinanceTabView.swift:79</code> (recomputes every body eval — no cache), <code>InsightsView.swift:565</code>. 100-300ms stutter on log.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">A11Y</span><span class="title">9. titanium500 body text fails WCAG 1.4.3</span></div>
+  <div class="body"><code>#5E6A7C</code> on navy = 3.25:1 contrast (needs 4.5:1). Occurrences: <code>AchievementGridView.swift:133,194</code>, <code>SettingsView.swift:357</code>. Swap to <code>titanium400</code> (5.8:1).</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">A11Y</span><span class="title">10. No VoiceOver announcement on achievement unlock</span></div>
+  <div class="body"><code>AchievementSheet.swift:143</code> — haptic fires but no <code>UIAccessibility.post(.screenChanged)</code>.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">BRAND</span><span class="title">11. 86 literal hex calls in onboarding</span></div>
+  <div class="body"><code>ChatOnboardingView.swift:251-876</code> bypasses token system; introduces 2 novel blues not in the palette.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">BRAND</span><span class="title">12. Three "brand blues" coexist</span></div>
+  <div class="body"><code>BudgetVaultTheme.swift:15-48</code>: <code>electricBlue #2563EB</code> + <code>brightBlue #3B82F6</code> + <code>accentSoft #60A5FA</code>. Consolidate to two tokens.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">UX</span><span class="title">13. Biometric collapses all LAErrors to generic text</span></div>
+  <div class="body"><code>BiometricAuthService.swift:67-74</code> — distinguishable cases (<code>.biometryLockout</code>, <code>.biometryNotEnrolled</code>) should map to actionable user copy.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">UX</span><span class="title">14. CloudKit quota / no-account failures invisible</span></div>
+  <div class="body"><code>CloudSyncService.swift:32-43</code> — toggle iCloud on with no iCloud account → silent no-op forever.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">UX</span><span class="title">15. CSV import fails on non-UTF-8</span></div>
+  <div class="body"><code>CSVImportView.swift:353</code> — Excel/Numbers default UTF-16 or CP1252. Fall back across encodings.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">UX</span><span class="title">16. StoreKit surfaces raw error strings</span></div>
+  <div class="body"><code>StoreKitManager.swift:144-147</code> — map <code>StoreKitError</code> / <code>Product.PurchaseError</code> to user copy; add Retry on <code>.networkError</code>.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">HYG</span><span class="title">17. Dead @AppStorage + typo'd var name</span></div>
+  <div class="body"><code>DashboardView.swift:77</code> — <code>hasDissmissedLaunchBanner</code> declared, never read, and misspelled.</div>
+</div>
+
+<h2>Round 2 — MobAI Live Observations (on-device)</h2>
+
+<h3>Bugs confirmed on-screen</h3>
+
+<div class="finding">
+  <div><span class="id p0">LIVE</span><span class="title">A. Smart Spending Forecast contradicts itself</span></div>
+  <div class="body">Insights detail at $12.50 spent: card says "Predicted month-end total: $4.67" (less than already spent — impossible), trend "Accelerating", warning card below says "$17.85." Two predictors disagree 4×. Live manifestation of InsightsEngine bugs.</div>
+</div>
+
+<div class="finding">
+  <div><span class="id p0">LIVE</span><span class="title">B. Wrapped slide 1 nonsense on zero income</span></div>
+  <div class="body">"SAVED $0.00 / 0% / Out of $0.00 earned, you spent just $12.50." Cannot save 0% of $0. Copy should detect zero-income state.</div>
+</div>
+
+<h3>Screens verified good</h3>
+<div class="screens">
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/01-insights.png" alt="Insights"><div class="cap">Insights hero + trend chart</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/02-insights-scrolled.png" alt="Insights forecast bug"><div class="cap">Forecast bug ($4.67 vs $12.50 spent)</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/03-debt-empty.png" alt="Debt empty"><div class="cap">Debt tracker empty state</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/04-debt-add.png" alt="Add Debt form"><div class="cap">Add Debt form with emoji picker</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/05-wrapped-slide1-bug.png" alt="Wrapped bug"><div class="cap">Wrapped slide 1 zero-income bug</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/06-wrapped-slide2.png" alt="Wrapped 2"><div class="cap">Wrapped slide 2 — category breakdown</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/07-wrapped-slide5-share.png" alt="Wrapped share"><div class="cap">Wrapped slide 5 — share CTA</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/08-milestones.png" alt="Milestones"><div class="cap">Milestones grid (3/12 earned)</div></div>
+  <div class="screen"><img src="../../mobai-reports/smoke-test/io.budgetvault.app/v3.3.1-exhaustive/09-income-mode.png" alt="Income mode"><div class="cap">Log sheet — Income segment</div></div>
+</div>
+
+<h2>P1 Items (20) — strongly recommended</h2>
+<ul>
+  <li>iCloud KVS observer not removed on toggle-off (Security)</li>
+  <li>iCloud KVS values not validated on read (Security)</li>
+  <li>Widget PrivacyInfo.xcprivacy thin (Legal Compliance)</li>
+  <li>Delete All Data doesn't wipe Keychain / onboarding flag (Legal Compliance + SRE)</li>
+  <li>Launch-path file-protection walk runs every launch (Perf)</li>
+  <li>Month rollover synchronous on foreground (Perf)</li>
+  <li>@MainActor hygiene breaks Swift 6 migration (Mobile App Builder)</li>
+  <li>6 fire-and-forget Tasks without cancellation (Mobile App Builder)</li>
+  <li>7 DispatchQueue.main.asyncAfter sites (Mobile App Builder)</li>
+  <li>7 UNUserNotificationCenter.add() completion handlers ignored (SRE)</li>
+  <li>BGTaskScheduler.submit error swallowed (SRE)</li>
+  <li>handleBackgroundRefresh has no deadline guard (SRE)</li>
+  <li>Transaction.category deleteRule implicit (DB)</li>
+  <li>Category uniqueness not case-normalized (DB)</li>
+  <li>RecurringExpenseScheduler case-sensitive category match (DB)</li>
+  <li>FinanceTabView.insights no cache (Perf + AI)</li>
+  <li>Launch pricing magic number (SRE)</li>
+  <li>AppIntent amount unvalidated — Siri NaN/Infinity/negative (SRE)</li>
+  <li>Keychain OSStatus ignored by StoreKitManager (SRE)</li>
+  <li>7 Dynamic Type / a11y items (A11y)</li>
+</ul>
+
+<h2>P2 Hygiene (24)</h2>
+<p>See <a href="findings.md">findings.md</a> for the full list. Highlights: delete unused 1.5MB BrandMark imageset, move 14 legacy mockup HTMLs out of repo root, hoist 12 Formatter allocations to static, add <code>.drawingGroup()</code> to VaultDial/FlipDigit for scroll perf, add launch screen color, update 5 stale audit-doc references to retired <code>accentColorHex</code>.</p>
+
+<h2>Recommended ASO Copy</h2>
+<ul>
+  <li><strong>Name (30):</strong> BudgetVault: Private Budget</li>
+  <li><strong>Subtitle (30):</strong> Envelope budget, on-device AI</li>
+  <li><strong>Keywords (100):</strong> envelope,ledger,offline,private,nosub,onetime,allowance,ynab,monarch,copilot,debt,cashflow,daily</li>
+  <li><strong>Promo text (170):</strong> Your financial data belongs on your phone, not in a spreadsheet somewhere. No bank sync, no subscription, no tracking. Just envelope budgeting — $9.99, once.</li>
+  <li><strong>Description opener:</strong> The budget app that works without your bank login. $9.99. Once. Forever.</li>
+  <li><strong>What's New v3.3.1:</strong> Refined Vault. Retired theme picker — one canonical dark look. Accessibility pass. Dozens of fixes.</li>
+</ul>
+
+<h2>Documents</h2>
+<p><a href="findings.md">findings.md</a> — full raw finding list with file:line citations.</p>
+
+</body>
+</html>

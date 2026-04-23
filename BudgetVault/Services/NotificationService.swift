@@ -1,7 +1,26 @@
 import Foundation
+import os
 import UIKit
 import UserNotifications
 import BudgetVaultShared
+
+private let notificationLog = Logger(subsystem: "io.budgetvault.app", category: "notifications")
+
+// Audit 2026-04-22 P1-27: single helper so every `center.addLogged(request)`
+// in this file logs its error instead of discarding it. Previously 13
+// call sites silently swallowed scheduling failures — users wondering
+// why their daily reminder stopped firing had zero signal to debug
+// against. Marker-subsystem routing so Console.app / the unified log
+// can filter on io.budgetvault.app/notifications.
+private extension UNUserNotificationCenter {
+    func addLogged(_ request: UNNotificationRequest) {
+        add(request) { error in
+            if let error {
+                notificationLog.error("add(\(request.identifier, privacy: .public)) failed: \(error.localizedDescription, privacy: .private)")
+            }
+        }
+    }
+}
 
 enum NotificationService {
 
@@ -71,7 +90,7 @@ enum NotificationService {
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
 
             let request = UNNotificationRequest(identifier: "dailyReminder-\(weekday)", content: content, trigger: trigger)
-            center.add(request)
+            center.addLogged(request)
         }
     }
 
@@ -97,7 +116,7 @@ enum NotificationService {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
         let request = UNNotificationRequest(identifier: "streakAtRisk", content: content, trigger: trigger)
-        center.add(request)
+        center.addLogged(request)
     }
 
     static func cancelStreakAtRisk() {
@@ -134,7 +153,7 @@ enum NotificationService {
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
 
             let request = UNNotificationRequest(identifier: "closeVault", content: content, trigger: trigger)
-            center.add(request)
+            center.addLogged(request)
         }
     }
 
@@ -161,7 +180,7 @@ enum NotificationService {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        center.add(request)
+        center.addLogged(request)
     }
 
     // MARK: - Weekly Summary (Personalized)
@@ -208,7 +227,7 @@ enum NotificationService {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
 
         let request = UNNotificationRequest(identifier: "weeklySummary", content: content, trigger: trigger)
-        center.add(request)
+        center.addLogged(request)
     }
 
     static func cancelWeeklySummary() {
@@ -236,7 +255,7 @@ enum NotificationService {
 
         let trigger3 = UNTimeIntervalNotificationTrigger(timeInterval: 3 * 24 * 60 * 60, repeats: false)
         let request3 = UNNotificationRequest(identifier: "reengagement3Day", content: content3, trigger: trigger3)
-        center.add(request3)
+        center.addLogged(request3)
 
         // 7-day reminder
         let content7 = UNMutableNotificationContent()
@@ -247,7 +266,7 @@ enum NotificationService {
 
         let trigger7 = UNTimeIntervalNotificationTrigger(timeInterval: 7 * 24 * 60 * 60, repeats: false)
         let request7 = UNNotificationRequest(identifier: "reengagement7Day", content: content7, trigger: trigger7)
-        center.add(request7)
+        center.addLogged(request7)
 
         // 14-day reminder
         let content14 = UNMutableNotificationContent()
@@ -258,7 +277,7 @@ enum NotificationService {
 
         let trigger14 = UNTimeIntervalNotificationTrigger(timeInterval: 14 * 24 * 60 * 60, repeats: false)
         let request14 = UNNotificationRequest(identifier: "reengagement14Day", content: content14, trigger: trigger14)
-        center.add(request14)
+        center.addLogged(request14)
 
         // 30-day reminder (final attempt)
         let content30 = UNMutableNotificationContent()
@@ -269,7 +288,7 @@ enum NotificationService {
 
         let trigger30 = UNTimeIntervalNotificationTrigger(timeInterval: 30 * 24 * 60 * 60, repeats: false)
         let request30 = UNNotificationRequest(identifier: "reengagement30Day", content: content30, trigger: trigger30)
-        center.add(request30)
+        center.addLogged(request30)
     }
 
     /// Cancel all re-engagement notifications.
@@ -302,7 +321,7 @@ enum NotificationService {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
 
         let request = UNNotificationRequest(identifier: "morningBriefing", content: content, trigger: trigger)
-        center.add(request)
+        center.addLogged(request)
     }
 
     static func cancelMorningBriefing() {
@@ -331,7 +350,7 @@ enum NotificationService {
             components3.hour = 9
             let trigger3 = UNCalendarNotificationTrigger(dateMatching: components3, repeats: false)
             let request3 = UNNotificationRequest(identifier: "periodEnd3Days", content: content3, trigger: trigger3)
-            center.add(request3)
+            center.addLogged(request3)
         }
 
         // On reset day
@@ -345,7 +364,7 @@ enum NotificationService {
             componentsReset.hour = 9
             let triggerReset = UNCalendarNotificationTrigger(dateMatching: componentsReset, repeats: false)
             let requestReset = UNNotificationRequest(identifier: "periodReset", content: contentReset, trigger: triggerReset)
-            center.add(requestReset)
+            center.addLogged(requestReset)
         }
     }
 
@@ -401,7 +420,7 @@ enum NotificationService {
             // Fire in 2 seconds (immediate feedback when app foregrounds)
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
             let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-            center.add(request)
+            center.addLogged(request)
         }
     }
 

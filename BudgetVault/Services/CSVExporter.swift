@@ -57,6 +57,15 @@ enum CSVExporter {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("BudgetVault_Export.csv")
         do {
             try csv.write(to: tempURL, atomically: true, encoding: .utf8)
+            // Audit 2026-04-22 P2-7: `temporaryDirectory` inherits
+            // weaker default protection than Application Support. A CSV
+            // export contains every transaction + note — encrypt at
+            // rest so a locked device doesn't reveal the file to an
+            // attacker who can read NSFileProtection class files.
+            try? FileManager.default.setAttributes(
+                [.protectionKey: FileProtectionType.complete],
+                ofItemAtPath: tempURL.path
+            )
         } catch {
             throw ExportError.writeFailed
         }

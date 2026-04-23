@@ -42,6 +42,9 @@ struct FlipDigitDisplay: View {
     var contextLabel: String? = nil
 
     @ScaledMetric(relativeTo: .title) private var scale: CGFloat = 1.0
+    // Audit 2026-04-22 P1-37: dynamically-scaled seam height. 1pt fixed
+    // disappears at XL Accessibility sizes where the plate grows.
+    @ScaledMetric(relativeTo: .title) private var seamHeight: CGFloat = 1.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var formatted: String {
@@ -93,16 +96,19 @@ struct FlipDigitDisplay: View {
             )
             .overlay(
                 // Hairline horizontal seam at 50%
+                // Audit 2026-04-22 P1-37: scale the seam so it doesn't
+                // vanish under XL Accessibility sizes where the plate
+                // grows but a 1pt line stays 1pt (perceptually thinner).
                 Rectangle()
                     .fill(.black)
-                    .frame(height: 1)
+                    .frame(height: seamHeight)
             )
             .overlay(alignment: .top) {
                 // Below-seam highlight for mechanical flip feel
                 Rectangle()
                     .fill(BudgetVaultTheme.titanium300.opacity(0.08))
-                    .frame(height: 1)
-                    .padding(.top, 1)
+                    .frame(height: seamHeight)
+                    .padding(.top, seamHeight)
             }
             .overlay(
                 RoundedRectangle(cornerRadius: style.plateCornerRadius)

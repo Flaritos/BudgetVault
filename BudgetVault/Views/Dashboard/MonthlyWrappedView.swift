@@ -248,6 +248,18 @@ struct MonthlyWrappedView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
+            // Audit 2026-04-22 P2-12: TabView(.page) eagerly builds all
+            // 5 slides on first render because iOS needs neighbor slides
+            // hot for swipe gestures. Each slide reads derived computed
+            // properties (totalSpentCents, topCategory, etc.) that
+            // filter/reduce periodTransactions — ×5 every body eval.
+            //
+            // Acceptable at current scale because P0-7 bounded
+            // MonthlyWrappedShell's @Query to a 2-month window, so
+            // periodTransactions is small (~30–200 rows). A future
+            // precompute-into-@State refactor is tracked but not done
+            // in this audit pass — the invasive refactor risk exceeds
+            // the measured perf gain on a bounded dataset.
             TabView(selection: $currentPage) {
                 slide1StoryIntro.tag(0)
                 slide2WhereItWent.tag(1)
@@ -404,10 +416,21 @@ struct MonthlyWrappedView: View {
                 }
 
                 VStack(spacing: BudgetVaultTheme.spacingSM) {
-                    Text("Out of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) earned, you spent just \(CurrencyFormatter.format(cents: totalSpentCents)).")
-                        .font(.body)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .multilineTextAlignment(.center)
+                    // Audit 2026-04-22 P0-6 Fix 6: guard zero-income case.
+                    // MobAI caught "Out of $0.00 earned, you spent just $12.50"
+                    // which can't happen logically. Also corrected "earned"
+                    // → "budgeted" — this field is the budget target per
+                    // InsightsEngine:267-270, not a sum of income txns.
+                    Group {
+                        if budget.totalIncomeCents == 0 {
+                            Text("Set a monthly budget to see your savings story.")
+                        } else {
+                            Text("Out of \(CurrencyFormatter.format(cents: budget.totalIncomeCents)) budgeted, you spent just \(CurrencyFormatter.format(cents: totalSpentCents)).")
+                        }
+                    }
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
 
                     Text("The vault held strong. Let's see where it went \u{2192}")
                         .font(.callout.weight(.medium))
@@ -598,8 +621,12 @@ struct MonthlyWrappedView: View {
 
     private var slide4ByTheNumbers: some View {
         ZStack {
+            // Audit 2026-04-22 P2-16: was `electricBlue.opacity(0.08)` —
+            // the only blue cameo across the 5-slide navy+purple deck.
+            // Swapped to `wrappedPurple.opacity(0.08)` so slide 4
+            // lineages with its neighbors (slide 2 + 3 both use purple).
             LinearGradient(
-                colors: [wrappedNavy, BudgetVaultTheme.electricBlue.opacity(0.08), wrappedNavyMid],
+                colors: [wrappedNavy, wrappedPurple.opacity(0.08), wrappedNavyMid],
                 startPoint: .topTrailing,
                 endPoint: .bottomLeading
             )

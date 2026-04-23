@@ -11,8 +11,14 @@ enum SettingsSyncService {
     private static let syncedKeys: [String] = [
         AppStorageKeys.selectedCurrency,
         AppStorageKeys.resetDay,
-        AppStorageKeys.accentColorHex,
     ]
+
+    // Audit 2026-04-22 P1-18: retain the observer handle so we can
+    // actually remove it when the user toggles iCloud off. Previously
+    // the observer stayed registered forever, letting remote writes
+    // continue flowing into UserDefaults via handleExternalChange even
+    // though the toggle claimed sync was disabled.
+    private static var externalChangeObserver: NSObjectProtocol?
 
     /// Audit fix: KVS used to run unconditionally, even when the user
     /// had iCloud sync toggled OFF — contradicting the privacy label.
@@ -28,12 +34,17 @@ enum SettingsSyncService {
     static func configure() {
         guard iCloudSyncEnabled else { return }
 
-        NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: kvStore,
-            queue: .main
-        ) { notification in
-            handleExternalChange(notification)
+        // Audit 2026-04-22 P1-18: guard against double-registration if
+        // configure() is called a second time (e.g., user toggles off
+        // then on again within one session).
+        if externalChangeObserver == nil {
+            externalChangeObserver = NotificationCenter.default.addObserver(
+                forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+                object: kvStore,
+                queue: .main
+            ) { notification in
+                handleExternalChange(notification)
+            }
         }
 
         // Trigger an initial sync pull
@@ -41,6 +52,17 @@ enum SettingsSyncService {
 
         // Push current local values if KVS is empty (first launch on new device)
         pushLocalSettingsIfNeeded()
+    }
+
+    /// Audit 2026-04-22 P1-18: tear down the observer when the user
+    /// disables iCloud sync. Without this, remote writes from other
+    /// devices continue to overwrite local UserDefaults via
+    /// handleExternalChange — contradicting the privacy toggle.
+    static func teardown() {
+        if let observer = externalChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            externalChangeObserver = nil
+        }
     }
 
     /// Write a setting to both UserDefaults and iCloud KVS.
@@ -70,6 +92,12 @@ enum SettingsSyncService {
     static func iCloudToggleChanged(enabled: Bool) {
         if enabled {
             configure()
+        } else {
+            // Audit 2026-04-22 P1-18: actually remove the observer so
+            // inbound KVS writes stop flowing. The `handleExternalChange`
+            // gate below is a belt-and-suspenders defense for anything
+            // that managed to enqueue before teardown.
+            teardown()
         }
     }
 
@@ -85,14 +113,41 @@ enum SettingsSyncService {
     }
 
     private static func handleExternalChange(_ notification: Notification) {
+        // Audit 2026-04-22 P1-18: belt-and-suspenders — even if a stale
+        // observer fires after teardown, respect the current toggle.
+        guard iCloudSyncEnabled else { return }
+
         guard let changedKeys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String] else {
             return
         }
 
         for key in changedKeys where syncedKeys.contains(key) {
-            if let remoteValue = kvStore.object(forKey: key) {
+            if let remoteValue = kvStore.object(forKey: key),
+               isValid(value: remoteValue, forKey: key) {
                 UserDefaults.standard.set(remoteValue, forKey: key)
             }
+        }
+    }
+
+    /// Audit 2026-04-22 P1-19: KVS is trusted by default — any
+    /// compromised device signed into the same iCloud account can push
+    /// arbitrary values. Validate before writing to local UserDefaults:
+    /// `resetDay` must be 1–28 (cap matches the picker's range and the
+    /// "all months work" rule); `selectedCurrency` must be a known
+    /// ISO code. Unknown keys are rejected outright.
+    private static func isValid(value: Any, forKey key: String) -> Bool {
+        switch key {
+        case AppStorageKeys.resetDay:
+            guard let day = value as? Int else { return false }
+            return (1...28).contains(day)
+        case AppStorageKeys.selectedCurrency:
+            guard let code = value as? String else { return false }
+            // 3-letter uppercase ISO codes only; reject anything else
+            // immediately so we don't even do the list lookup on junk.
+            guard code.count == 3, code.allSatisfy({ $0.isASCII && $0.isUppercase }) else { return false }
+            return Locale.commonISOCurrencyCodes.contains(code)
+        default:
+            return false
         }
     }
 }

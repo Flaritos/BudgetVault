@@ -2,7 +2,6 @@ import SwiftUI
 import BudgetVaultShared
 
 struct MainTabView: View {
-    @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @State private var selectedTab = 0
 
@@ -34,7 +33,7 @@ struct MainTabView: View {
                 Label("Settings", systemImage: "gearshape.fill")
             }
         }
-        .tint(BudgetVaultTheme.userAccentColor)
+        .tint(BudgetVaultTheme.accentSoft)
         // VaultRevamp v2.1: force dark color scheme app-wide so system
         // chrome (tab bar, nav bars, default Text colors) resolves to
         // navy-compatible values. The History tab uses explicit

@@ -130,7 +130,9 @@ struct AchievementGridView: View {
                 Text("\(count)")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .tracking(1.5)
-                    .foregroundStyle(BudgetVaultTheme.titanium500)
+                    // Audit 2026-04-22 P0-9: titanium500 on navy = 3.25:1,
+                    // fails WCAG 1.4.3 (4.5:1 required). titanium400 = 5.8:1.
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
                     .padding(.top, 20)
             }
 
@@ -191,7 +193,9 @@ struct AchievementGridView: View {
                 Text("Locked")
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(1.2)
-                    .foregroundStyle(BudgetVaultTheme.titanium500)
+                    // Audit 2026-04-22 P0-9: titanium500 on navy fails WCAG
+                    // 1.4.3 body-text contrast. titanium400 = 5.8:1.
+                    .foregroundStyle(BudgetVaultTheme.titanium400)
             }
         }
         .padding(.horizontal, 16)

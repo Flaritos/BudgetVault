@@ -349,8 +349,13 @@ struct CSVImportView: View {
                 return
             }
 
-            do {
-                let content = try String(contentsOf: url, encoding: .utf8)
+            // Audit 2026-04-22 P0-15: Excel/Numbers default to UTF-16
+            // (often with a BOM) or Windows-1252, not UTF-8. Try a
+            // short ladder of encodings before giving up. Order matters:
+            // UTF-8 catches modern exports; BOM-sniffing UTF-16 handles
+            // Excel-on-Windows defaults; ISO Latin 1 is a lossless
+            // superset of the ASCII range used by most CP1252 content.
+            if let (content, encodingUsed) = Self.readWithEncodingFallback(url: url) {
                 csvContent = content
 
                 let parsed = CSVImporter.parse(csv: content)
@@ -360,13 +365,13 @@ struct CSVImportView: View {
                 selectedCategories = Set(uniqueCategories.prefix(isPremium ? uniqueCategories.count : Self.freeCategoryLimit))
 
                 if parsedRows.isEmpty {
-                    fileError = "No transactions found in this file. Supported formats: YNAB export or generic CSV with Date, Category, Amount columns."
+                    fileError = "No transactions found in this \(encodingUsed)-decoded file. Supported formats: YNAB export or generic CSV with Date, Category, Amount columns."
                     step = .selectFile
                 } else {
                     step = .preview
                 }
-            } catch {
-                fileError = "File must be UTF-8 plain text. \(error.localizedDescription)"
+            } else {
+                fileError = "Couldn't read this file as text. If it's from Excel or Numbers, re-export as \"CSV UTF-8\" and try again."
             }
         }
     }
@@ -374,6 +379,49 @@ struct CSVImportView: View {
     /// Free-tier category cap. Matches `SettingsView.BudgetTemplateSheetView`
     /// and `AppStorage` usage elsewhere. Single source of truth.
     private static let freeCategoryLimit = 6
+
+    /// Audit 2026-04-22 P0-15: attempt to read the file using a ladder
+    /// of encodings common to spreadsheet exports. Returns the decoded
+    /// text and a short label for the encoding that worked (for error
+    /// copy if parsing later fails), or nil if no encoding succeeded.
+    private static func readWithEncodingFallback(url: URL) -> (content: String, encoding: String)? {
+        // Step 1: read raw bytes once so we can try multiple encodings
+        // without repeatedly hitting the filesystem.
+        guard let data = try? Data(contentsOf: url) else { return nil }
+
+        // Step 2: BOM sniff first — if a UTF-16 BOM is present, the
+        // String init for utf16 will honor the byte order mark and
+        // produce clean text. Same for UTF-8 BOM.
+        if data.count >= 2 {
+            let b0 = data[0], b1 = data[1]
+            // UTF-16 LE BOM
+            if b0 == 0xFF && b1 == 0xFE, let s = String(data: data, encoding: .utf16) { return (s, "UTF-16") }
+            // UTF-16 BE BOM
+            if b0 == 0xFE && b1 == 0xFF, let s = String(data: data, encoding: .utf16) { return (s, "UTF-16") }
+        }
+        if data.count >= 3, data[0] == 0xEF, data[1] == 0xBB, data[2] == 0xBF {
+            if let s = String(data: data, encoding: .utf8) { return (s, "UTF-8") }
+        }
+
+        // Step 3: try the common encodings in order. UTF-8 first
+        // (modern default), then the two UTF-16 variants (Windows
+        // Excel without explicit encoding selection), then Windows-1252
+        // (Excel-exported Latin text), then ISO-8859-1 (Latin-1, which
+        // decodes any single-byte stream without throwing).
+        let attempts: [(String.Encoding, String)] = [
+            (.utf8, "UTF-8"),
+            (.utf16LittleEndian, "UTF-16"),
+            (.utf16BigEndian, "UTF-16"),
+            (.windowsCP1252, "Windows-1252"),
+            (.isoLatin1, "Latin-1"),
+        ]
+        for (enc, label) in attempts {
+            if let s = String(data: data, encoding: enc), !s.isEmpty {
+                return (s, label)
+            }
+        }
+        return nil
+    }
 
     private func proceedFromPreview() {
         if !isPremium && uniqueCategories.count > Self.freeCategoryLimit {

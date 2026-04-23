@@ -22,6 +22,9 @@ struct AchievementSheet: View {
     @State private var badgeScale: CGFloat = 0.5
     @State private var confettiActive = false
     @State private var confettiTask: Task<Void, Never>?
+    // Audit 2026-04-22 P1-26: cancellable handle for the deferred
+    // VoiceOver announcement (600ms after appear).
+    @State private var announcementTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var tier: AchievementBadge.Tier {
@@ -143,6 +146,25 @@ struct AchievementSheet: View {
         .onAppear {
             HapticManager.notification(.success)
 
+            // Audit 2026-04-22 P0-10: VoiceOver users previously got only
+            // the haptic buzz. Post an announcement so the achievement is
+            // actually read aloud. Delay slightly so it doesn't collide
+            // with the sheet-transition announcement.
+            // Audit 2026-04-22 P1-26: cancellable Task variant so a
+            // fast-dismiss doesn't post an announcement for a torn-down
+            // sheet.
+            announcementTask?.cancel()
+            announcementTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                let copy = "Milestone unlocked. \(achievement.title). \(achievement.description)"
+                if #available(iOS 17.0, *) {
+                    AccessibilityNotification.Announcement(copy).post()
+                } else {
+                    UIAccessibility.post(notification: .announcement, argument: copy)
+                }
+            }
+
             if reduceMotion {
                 badgeScale = 1.0
                 contentVisible = true
@@ -168,6 +190,7 @@ struct AchievementSheet: View {
         }
         .onDisappear {
             confettiTask?.cancel()
+            announcementTask?.cancel()
             confettiActive = false
         }
         .accessibilityAddTraits(.isModal)

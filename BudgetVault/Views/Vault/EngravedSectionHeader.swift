@@ -14,9 +14,15 @@ import SwiftUI
 struct EngravedSectionHeader: View {
     let title: String
 
+    // Audit 2026-04-22 P1-37: fixed 11pt + uppercase tracking wasn't
+    // scaling under AX sizes — engraved plate labels stayed tiny even
+    // when the rest of the screen grew. Anchor to .caption2 so the
+    // engraved chrome keeps its hierarchy relative to body copy.
+    @ScaledMetric(relativeTo: .caption2) private var headerFontSize: CGFloat = 11
+
     var body: some View {
         Text(title)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.system(size: headerFontSize, weight: .semibold))
             .textCase(.uppercase)
             .tracking(2.4)
             .foregroundStyle(BudgetVaultTheme.titanium300)

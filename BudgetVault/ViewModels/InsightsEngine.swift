@@ -59,10 +59,15 @@ enum InsightsEngine {
         }
 
         // 2. Spending velocity warning
-        if daysSoFar > 0 && daysInPeriod > 0 {
+        // Audit 2026-04-22 P0-6 Fix 1: compared vs totalIncomeCents (the
+        // user's *income* target, often 0). A user with $0 income + $12.50
+        // spent on day 1 would see a false "overspend" warning. Compare
+        // against the sum of category caps — the real overspend threshold.
+        let totalBudgetedCents = categories.reduce(Int64(0)) { $0 + $1.budgetedAmountCents }
+        if daysSoFar > 0 && daysInPeriod > 0 && totalBudgetedCents > 0 {
             let dailyRate = Double(totalSpent) / Double(daysSoFar)
             let projected = Int64(dailyRate * Double(daysInPeriod))
-            if projected > budget.totalIncomeCents && totalSpent > 0 {
+            if projected > totalBudgetedCents && totalSpent > 0 {
                 insights.append(Insight(
                     icon: "📈",
                     title: "On pace to overspend",
@@ -72,30 +77,53 @@ enum InsightsEngine {
             }
         }
 
-        // 3. Transaction > 2x category average
+        // 3. Transaction > 2x category baseline
+        // Audit 2026-04-22 P0-6 Fix 4: mean+2× was fragile with small N —
+        // the outlier polluted the denominator ([$500, $1000] → avg $750,
+        // threshold $1500, misses the $1000 outlier). Branch:
+        //   N = 2 → max > min × 2
+        //   N ≥ 3 → max > median × 2.5 (median is outlier-resistant)
         for cat in categories {
             let txs = (cat.transactions ?? []).filter { !$0.isIncome && $0.date >= budget.periodStart && $0.date < budget.nextPeriodStart }
-            guard txs.count >= 2 else { continue }
-            let avg = txs.reduce(Int64(0)) { $0 + $1.amountCents } / Int64(txs.count)
-            if let largest = txs.max(by: { $0.amountCents < $1.amountCents }),
-               largest.amountCents > avg * 2 {
+            guard txs.count >= 2, let largest = txs.max(by: { $0.amountCents < $1.amountCents }) else { continue }
+            let amounts = txs.map { $0.amountCents }.sorted()
+            let isOutlier: Bool
+            if amounts.count == 2 {
+                isOutlier = largest.amountCents > amounts[0] * 2
+            } else {
+                let median = amounts[amounts.count / 2]
+                isOutlier = Double(largest.amountCents) > Double(median) * 2.5 && median > 0
+            }
+            if isOutlier {
                 insights.append(Insight(
                     icon: cat.emoji,
                     title: "Unusual \(cat.name) expense",
-                    message: "\"\(largest.note.isEmpty ? "Transaction" : largest.note)\" at \(CurrencyFormatter.format(cents: largest.amountCents)) is over 2x your average.",
+                    message: "\"\(largest.note.isEmpty ? "Transaction" : largest.note)\" at \(CurrencyFormatter.format(cents: largest.amountCents)) is well above your typical \(cat.name) spend.",
                     severity: .info
                 ))
             }
         }
 
         // 4. Spent less than previous month at same point
+        // Audit 2026-04-22 P0-6 Fix 2: was adding `daysSoFar` absolute days
+        // to prev.periodStart then clipping to prev.nextPeriodStart with
+        // min(). When daysSoFar (30d March) > prev period length (28d Feb),
+        // this compared partial-current vs FULL-prev — always a false
+        // "spending less" on March 30. Use proportional mapping: compare
+        // the same *fraction* of each period.
         if let prev = previousBudget {
+            let prevDaysInPeriod = calendar.dateComponents([.day], from: prev.periodStart, to: prev.nextPeriodStart).day ?? daysInPeriod
+            let elapsedFraction = Double(daysSoFar) / Double(daysInPeriod)
+            let prevCutoffDays = max(1, Int((elapsedFraction * Double(prevDaysInPeriod)).rounded()))
+            guard let prevCutoff = calendar.date(byAdding: .day, value: prevCutoffDays, to: prev.periodStart) else {
+                return insights
+            }
             let prevSpentAtSamePoint = (prev.categories ?? [])
                 .flatMap { $0.transactions ?? [] }
                 .filter {
                     !$0.isIncome &&
                     $0.date >= prev.periodStart &&
-                    $0.date < min(calendar.date(byAdding: .day, value: daysSoFar, to: prev.periodStart) ?? prev.nextPeriodStart, prev.nextPeriodStart)
+                    $0.date < min(prevCutoff, prev.nextPeriodStart)
                 }
                 .reduce(Int64(0)) { $0 + $1.amountCents }
 
@@ -127,10 +155,12 @@ enum InsightsEngine {
             let todayStr = DateHelpers.dateString(calendar.startOfDay(for: today))
             let hour = calendar.component(.hour, from: today)
             if resolvedLastLogDate != todayStr && hour >= 18 {
+                // Audit 2026-04-22 P2-14: softer nudge copy — the old
+                // exclamation-point version read as alarmed/judgmental.
                 insights.append(Insight(
-                    icon: "⚠️",
-                    title: "Streak at risk!",
-                    message: "You haven't logged anything today. Don't break your \(streak)-day streak!",
+                    icon: "\u{1F525}",
+                    title: "Keep the streak going",
+                    message: "A quick log before midnight keeps your \(streak)-day streak alive.",
                     severity: .nudge
                 ))
             }
@@ -254,10 +284,13 @@ enum InsightsEngine {
 
             if first3DailyAvg > restDailyAvg * 2.5 && first3Spent > 0 && restSpent > 0 {
                 let pct = Int(Double(first3Spent) * 100.0 / Double(totalSpent))
+                // Audit 2026-04-22 P2-14: rephrased from "detected" —
+                // the observational tone avoids the "we're judging you"
+                // feel the old copy had.
                 insights.append(Insight(
-                    icon: "💸",
-                    title: "Payday splurge detected",
-                    message: "You spent \(pct)% of your total in the first 3 days of the month.",
+                    icon: "\u{1F4B8}",
+                    title: "Front-loaded month",
+                    message: "\(pct)% of your spending landed in the first three days.",
                     severity: .nudge
                 ))
             }
@@ -268,7 +301,11 @@ enum InsightsEngine {
         // is the budget target, not actual income transactions. Showing
         // "Saving 98% of income" when the user hasn't logged any income
         // transactions was a trust-killing divide-by-wrong-thing error.
-        if budget.totalIncomeCents > 0 && totalSpent > 0 {
+        // Audit 2026-04-22 P0-6 Fix 3: also gate on elapsedFraction ≥ 0.4
+        // (day 12 of 30) so "95% unspent on day 1" doesn't fire — that's
+        // tautological early in the period, not an insight.
+        let elapsedFraction = Double(daysSoFar) / Double(max(1, daysInPeriod))
+        if budget.totalIncomeCents > 0 && totalSpent > 0 && elapsedFraction >= 0.4 {
             let savingsRate = Double(budget.totalIncomeCents - totalSpent) / Double(budget.totalIncomeCents)
             if savingsRate >= 0.2 {
                 let pct = Int(savingsRate * 100)

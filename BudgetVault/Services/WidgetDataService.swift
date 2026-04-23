@@ -8,6 +8,22 @@ enum WidgetDataService {
     static let suiteName = "group.io.budgetvault.shared"
     static let dataKey = "widgetData"
 
+    /// Audit 2026-04-22 P2-8 — privacy trade-off note:
+    ///
+    /// `topCategories[].name` can be rendered by the widget on the
+    /// lock screen (WidgetKit snapshots persist across app termination
+    /// and iOS does NOT expose a "device locked" state to widget
+    /// render code). For a user who has named a category something
+    /// sensitive — "Therapy", "Legal retainer", "Medication" — the
+    /// category name becomes visible to anyone who can see the lock
+    /// screen.
+    ///
+    /// Current posture: accept the exposure, document in privacy
+    /// policy. Rationale: the widget's core value is at-a-glance
+    /// budget status; stripping category names would degrade it to
+    /// emoji-only. A future setting (`AppStorageKeys.widgetPrivacyMode`)
+    /// could let users opt into emoji-only rendering at the cost of
+    /// widget utility — tracked separately, not in this audit.
     struct WidgetData: Codable {
         let remainingBudgetCents: Int64
         let totalBudgetCents: Int64

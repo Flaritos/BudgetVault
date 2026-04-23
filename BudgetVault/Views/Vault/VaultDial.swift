@@ -33,6 +33,16 @@ import SwiftUI
 /// Three layers — not two — because the chamber is a solid fill, so ticks
 /// can't live "under" it, and the pointer has to render above the
 /// rotating ticks to sweep correctly.
+// Audit 2026-04-22 P2-11: the audit recommended `.drawingGroup()` /
+// `.compositingGroup()` on VaultDial, FlipDigitDisplay, and the
+// envelope cards. After review the recommendation doesn't apply:
+//   - VaultDial's production path uses PNG assets (already GPU raster)
+//     and the tick layer rotates — drawingGroup would make rotation
+//     animations choppy.
+//   - FlipDigitDisplay has flip animations that drawingGroup disrupts.
+//   - EnvelopeDepositBox is a simple LinearGradient + strokeBorder;
+//     a rasterization pass would be more expensive than direct render.
+// Intentional skip. Revisit only if Instruments flags these as hot.
 struct VaultDial: View {
     enum Size {
         case hero       // 240pt — onboarding welcome, vault opens

@@ -20,7 +20,18 @@ struct RecurringExpenseListView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
 
     @Query(sort: \RecurringExpense.nextDueDate) private var allExpenses: [RecurringExpense]
-    @Query(sort: \Transaction.date, order: .reverse) private var recentTransactions: [Transaction]
+    // Audit 2026-04-22 P0-7: bounded to last 90 days. Used to resolve
+    // the most recent spending linked to each recurring rule — older
+    // data has no effect on the display.
+    @Query private var recentTransactions: [Transaction]
+
+    init() {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? .distantPast
+        _recentTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: [SortDescriptor(\Transaction.date, order: .reverse)]
+        )
+    }
 
     @State private var showForm = false
     @State private var editingExpense: RecurringExpense?
@@ -304,7 +315,7 @@ struct RecurringExpenseListView: View {
             }
             .background(
                 LinearGradient(
-                    colors: [BudgetVaultTheme.brightBlue, BudgetVaultTheme.electricBlue],
+                    colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.electricBlue],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )

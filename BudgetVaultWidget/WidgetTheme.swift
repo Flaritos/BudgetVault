@@ -1,5 +1,17 @@
 import SwiftUI
 
+/// Audit 2026-04-22 P2-5: these 6 constants duplicate the main app's
+/// `BudgetVaultTheme` tokens. A proper dedupe would move them into
+/// `BudgetVaultShared`, but that package is currently Foundation-only
+/// — adding SwiftUI is a larger dependency shift than this audit item
+/// justifies. If you change any value below, change the matching
+/// constant in `BudgetVault/Views/Shared/BudgetVaultTheme.swift`:
+///   - positive   → BudgetVaultTheme.positive
+///   - caution    → BudgetVaultTheme.caution
+///   - negative   → BudgetVaultTheme.negative
+///   - neonOrange → BudgetVaultTheme.neonOrange
+///   - navyDark   → BudgetVaultTheme.navyDark
+///   - accentSoft → BudgetVaultTheme.accentSoft
 enum WidgetTheme {
     static let positive = Color(hex: "#10B981")   // green
     static let caution = Color(hex: "#F59E0B")    // yellow/amber

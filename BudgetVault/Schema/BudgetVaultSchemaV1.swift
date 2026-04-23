@@ -208,6 +208,14 @@ enum BudgetVaultSchemaV1: VersionedSchema {
         /// to false so existing rows auto-migrate cleanly.
         var isReconciled: Bool = false
 
+        // Audit 2026-04-22 P1-30: previously a bare `Category?` relied
+        // on SwiftData's implicit deleteRule inference (`.nullify` on
+        // the owning side, `.cascade` on the inverse at Category.
+        // transactions:124). Spelling out `.nullify` here prevents a
+        // future refactor from silently inverting the intent — if a
+        // category is deleted, its transactions should orphan, not
+        // disappear.
+        @Relationship(deleteRule: .nullify)
         var category: Category?
 
         @Relationship(inverse: \RecurringExpense.generatedTransactions)

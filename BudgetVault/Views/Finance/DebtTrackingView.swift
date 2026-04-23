@@ -86,7 +86,7 @@ struct DebtTrackingView: View {
                         } label: {
                             Image(systemName: "plus.circle.fill")
                                 .font(.title2)
-                                .foregroundStyle(BudgetVaultTheme.brightBlue)
+                                .foregroundStyle(BudgetVaultTheme.accentSoft)
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
@@ -210,7 +210,7 @@ struct DebtTrackingView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .colorMultiply(BudgetVaultTheme.brightBlue)
+            .colorMultiply(BudgetVaultTheme.accentSoft)
 
             HStack(spacing: BudgetVaultTheme.spacingSM) {
                 Image(systemName: selectedStrategy.systemImage)

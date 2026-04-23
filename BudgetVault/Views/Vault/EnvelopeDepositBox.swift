@@ -54,9 +54,12 @@ struct EnvelopeDepositBox: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
 
+                // Audit 2026-04-22 P1-37: was 10pt @ 0.55 opacity (3.9:1
+                // on navy — fails WCAG body-text contrast). Raise opacity
+                // to 0.75 so the ratio clears 4.5:1.
                 Text("of \(CurrencyFormatter.format(cents: allocatedCents))")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(.white.opacity(0.75))
 
                 // Progress bar — 2pt, pipColor fill over pipColor @ 18% bg
                 ZStack(alignment: .leading) {

@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=1290, initial-scale=1.0">
-<title>BudgetVault App Store Composer</title>
+<meta charset="utf-8">
+<title>BudgetVault — App Store Screenshots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   :root {
     --navy: #0F1B33;
@@ -12,44 +15,163 @@
     --navy-elev: #14234A;
     --blue: #2563EB;
     --blue-soft: #60A5FA;
+    --blue-bright: #3B82F6;
     --ti-200: #C8CFDA;
     --ti-300: #A8B2C2;
     --ti-400: #828D9E;
     --ti-500: #5E6A7C;
     --ti-700: #2E3645;
-    --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
-    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+    --text: #F5F7FA;
+    --surface: #14141F;
+    --surface-elev: #1E1E2E;
+    --text-secondary: #8888A0;
+    --text-tertiary: #55556A;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   html, body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #050712;
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .toolbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(7, 14, 31, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(96, 165, 250, 0.1);
+    padding: 16px 24px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .toolbar h1 { font-size: 16px; font-weight: 700; }
+  .toolbar .accent { color: var(--blue-soft); }
+  .toolbar button {
+    background: var(--blue); color: white;
+    padding: 8px 16px; border-radius: 8px; border: 0;
+    font: inherit; font-weight: 600; font-size: 13px;
+    cursor: pointer;
+  }
+  .toolbar button.secondary { background: var(--surface); color: var(--text); }
+  .toolbar button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .status { color: var(--text-secondary); font-size: 12px; }
+
+  .content { display: flex; gap: 24px; padding: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .preview-grid {
+    flex: 1; min-width: 600px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+  .preview {
+    position: relative;
+    aspect-ratio: 1320/2868;
+    overflow: hidden;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s;
     background: #000;
-    font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  }
+  .preview:hover { transform: translateY(-2px); }
+  .preview.selected { outline: 3px solid var(--blue-soft); outline-offset: 4px; }
+  .preview .slide-wrap {
+    position: absolute; top: 0; left: 0;
+    width: 1320px; height: 2868px;
+    transform-origin: top left;
+  }
+  .preview .label-num {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(0,0,0,0.7); color: #fff;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    z-index: 1000;
   }
 
+  /* Controls panel */
+  .controls {
+    width: 320px; min-width: 320px;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    position: sticky; top: 100px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+  .controls h2 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--blue-soft); }
+  .controls h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-tertiary); margin: 18px 0 10px; }
+  .controls label {
+    display: block;
+    margin: 10px 0;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .controls label .value { float: right; color: var(--text); font-variant-numeric: tabular-nums; }
+  .controls input[type="range"] { width: 100%; margin-top: 4px; }
+  .controls select { width: 100%; padding: 8px; background: var(--surface-elev); border: 1px solid rgba(255,255,255,0.08); color: var(--text); border-radius: 6px; font: inherit; font-size: 13px; }
+
+  /* Offscreen export container */
+  .export-stage {
+    position: absolute; left: -9999px; top: 0;
+    pointer-events: none;
+  }
+
+  /* ============ SLIDE STYLES ============ */
   .slide {
-    width: 1290px;
-    height: 2796px;
+    width: 1320px; height: 2868px;
     position: relative;
     overflow: hidden;
-    background:
-      radial-gradient(ellipse at 50% 12%, var(--navy-elev) 0%, var(--navy) 42%, var(--navy-deep) 100%);
-    color: white;
-    padding: 140px 80px 0;
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+  }
+  .slide .eyebrow {
+    position: absolute;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--blue-soft);
+  }
+  .slide .headline {
+    position: absolute;
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+  .slide .headline .soft { font-weight: 300; color: var(--ti-300); }
+  .slide .headline .accent { color: var(--blue-soft); }
+  .slide .subhead {
+    position: absolute;
+    font-weight: 400;
+    color: var(--ti-200);
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+  }
+  .slide .brand-mark {
+    position: absolute;
+    bottom: 80px;
+    left: 0; right: 0;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 20px;
+    letter-spacing: 0.28em;
+    color: var(--ti-500);
+    text-transform: uppercase;
+    font-weight: 500;
+    z-index: 10;
+  }
+  .slide .brand-mark .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--blue-soft);
+    box-shadow: 0 0 14px var(--blue-soft);
   }
 
-  /* Top engraved hairline */
-  .slide::before {
-    content: '';
+  /* Engraved hairline at the top */
+  .slide .hairline {
     position: absolute;
-    top: 80px;
-    left: 10%;
-    right: 10%;
+    top: 110px;
+    left: 12%; right: 12%;
     height: 2px;
     background: linear-gradient(90deg,
       transparent 0%,
@@ -58,188 +180,640 @@
       var(--ti-700) 82%,
       transparent 100%
     );
-    opacity: 0.6;
+    opacity: 0.55;
+    z-index: 5;
   }
 
-  .eyebrow {
-    font-family: var(--mono);
-    font-size: 28px;
-    font-weight: 500;
-    letter-spacing: 0.42em;
-    color: var(--blue-soft);
-    text-transform: uppercase;
-    margin-bottom: 42px;
-    margin-top: 40px;
-  }
-
-  .headline {
-    font-size: 104px;
-    font-weight: 700;
-    line-height: 0.98;
-    letter-spacing: -0.03em;
-    color: white;
-    margin-bottom: 36px;
-    max-width: 1100px;
-  }
-
-  .headline .accent { color: var(--blue-soft); }
-  .headline .soft { font-weight: 300; color: var(--ti-300); }
-
-  .subhead {
-    font-size: 32px;
-    line-height: 1.45;
-    color: var(--ti-200);
-    max-width: 1000px;
-    letter-spacing: -0.005em;
-    font-weight: 400;
-    margin-bottom: 60px;
-  }
-
-  /* Device slot — bottom 60% of slide */
-  .device {
-    flex: 1;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    margin-top: auto;
-  }
-
-  .device img {
-    width: 980px;
-    height: auto;
-    display: block;
-    border-radius: 72px;
-    box-shadow:
-      0 0 0 5px #2E3645,
-      0 0 0 6px #0A0A0A,
-      0 60px 120px rgba(0, 0, 0, 0.6),
-      0 24px 48px rgba(0, 0, 0, 0.45),
-      0 0 200px rgba(37, 99, 235, 0.18);
-    margin-bottom: -200px;  /* Let the device bleed off the bottom */
-  }
-
-  /* Brand footer — tiny watermark */
-  .brand-mark {
+  /* Phone device */
+  .phone {
     position: absolute;
-    bottom: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--mono);
-    font-size: 16px;
-    letter-spacing: 0.28em;
-    color: var(--ti-500);
-    text-transform: uppercase;
-    font-weight: 500;
-    z-index: 10;
+    transform-origin: center center;
+  }
+  .phone .phone-inner {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1022/2082;
+  }
+  .phone .screen {
+    position: absolute;
+    left: 5.09%; top: 2.21%;
+    width: 89.82%; height: 95.58%;
+    border-radius: 13.73% / 6.33%;
+    overflow: hidden;
+    z-index: 2;
+    background: #000;
+  }
+  .phone .screen img {
+    display: block;
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top;
+  }
+  .phone .frame {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    display: block;
   }
 
-  .brand-mark .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--blue-soft);
-    box-shadow: 0 0 12px var(--blue-soft);
+  /* ============ Per-slide backgrounds (navy / blue palette) ============ */
+  /* 1 — Home: deep navy with blue hero glow */
+  .slide-bg-1 {
+    background:
+      radial-gradient(ellipse 1200px 900px at 50% 18%, rgba(96,165,250,0.22), transparent 60%),
+      radial-gradient(ellipse 900px 1200px at 80% 90%, rgba(37,99,235,0.12), transparent 55%),
+      linear-gradient(180deg, var(--navy-elev) 0%, var(--navy) 45%, var(--navy-deep) 100%);
   }
-
-  /* Hash-targeted single-slide rendering for Chrome headless */
-  body { display: none; }
-  body:target,
-  body:has(.slide:target) { display: block; }
-
-  /* When rendering a specific slide, hide the others */
-  .slide { display: none; }
-  .slide:target { display: flex; }
-
-  /* Default: show all (for browsing) */
-  body.all .slide { display: flex; }
-  body.all .slide + .slide { margin-top: 40px; }
-  body.all { display: block; }
+  /* 2 — History: cream-neutral wash (ledger feel) */
+  .slide-bg-2 {
+    background:
+      radial-gradient(ellipse 1100px 800px at 0% 10%, rgba(96,165,250,0.14), transparent 55%),
+      linear-gradient(165deg, var(--navy-mid) 0%, var(--navy) 55%, var(--navy-deep) 100%);
+  }
+  /* 3 — Vault: premium deep navy, right-weighted glow */
+  .slide-bg-3 {
+    background:
+      radial-gradient(ellipse 1000px 1400px at 100% 45%, rgba(37,99,235,0.28), transparent 55%),
+      radial-gradient(ellipse 700px 500px at 15% 15%, rgba(96,165,250,0.12), transparent 60%),
+      linear-gradient(180deg, var(--navy-deep) 0%, var(--navy) 60%, var(--navy-deep) 100%);
+  }
+  /* 4 — Milestones: warm-tinged navy */
+  .slide-bg-4 {
+    background:
+      radial-gradient(ellipse 1200px 900px at 50% 15%, rgba(96,165,250,0.2), transparent 60%),
+      radial-gradient(ellipse 800px 600px at 20% 90%, rgba(37,99,235,0.14), transparent 55%),
+      linear-gradient(180deg, var(--navy-elev) 0%, var(--navy) 45%, var(--navy-deep) 100%);
+  }
+  /* 5 — Move Money: diagonal navy */
+  .slide-bg-5 {
+    background:
+      linear-gradient(135deg, rgba(96,165,250,0.18) 0%, transparent 50%, rgba(37,99,235,0.16) 100%),
+      linear-gradient(180deg, var(--navy-mid) 0%, var(--navy-deep) 100%);
+  }
+  /* 6 — Log Expense: centered pop */
+  .slide-bg-6 {
+    background:
+      radial-gradient(ellipse 1300px 1000px at 50% 35%, rgba(59,130,246,0.26), transparent 60%),
+      linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+  }
+  /* 7 — Wrapped: purple-leaning navy (Spotify-Wrapped-ish) */
+  .slide-bg-7 {
+    background:
+      radial-gradient(ellipse 1200px 900px at 30% 20%, rgba(96,165,250,0.24), transparent 55%),
+      radial-gradient(ellipse 1100px 800px at 80% 80%, rgba(37,99,235,0.2), transparent 55%),
+      linear-gradient(165deg, var(--navy-mid) 0%, var(--navy-deep) 100%);
+  }
+  /* 8 — Theme: top-weighted glow */
+  .slide-bg-8 {
+    background:
+      radial-gradient(ellipse 1400px 1000px at 50% 5%, rgba(96,165,250,0.28), transparent 60%),
+      linear-gradient(180deg, var(--navy-elev) 0%, var(--navy-deep) 100%);
+  }
+  /* 9 — Settings: calm/secure navy */
+  .slide-bg-9 {
+    background:
+      radial-gradient(ellipse 900px 1200px at 50% 70%, rgba(37,99,235,0.18), transparent 60%),
+      linear-gradient(180deg, var(--navy-deep) 0%, var(--navy) 50%, var(--navy-deep) 100%);
+  }
 </style>
 </head>
-<body class="all">
+<body>
 
-<section class="slide" id="slide-1">
-  <div class="eyebrow">01 · Home</div>
-  <h1 class="headline">Every day,<br><span class="soft">one number.</span></h1>
-  <p class="subhead">Your daily allowance, flip-digit clear. Spent, saved, sealed — all at a glance. No bank login required.</p>
-  <div class="device"><img src="screenshots/01-home.png" alt="Home"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
+<div class="toolbar">
+  <h1><span class="accent">BudgetVault</span> · App Store Screenshots</h1>
+  <div class="spacer"></div>
+  <span class="status" id="status">Ready</span>
+  <select id="export-size-select" class="secondary" style="padding:8px;background:var(--surface);color:var(--text);border:0;border-radius:8px;font:inherit;font-size:13px;">
+    <option value="1320x2868">6.9" — 1320×2868</option>
+    <option value="1290x2796" selected>6.7" — 1290×2796</option>
+    <option value="1284x2778">6.5" — 1284×2778</option>
+    <option value="1206x2622">6.3" — 1206×2622</option>
+    <option value="1125x2436">6.1" — 1125×2436</option>
+  </select>
+  <button class="secondary" id="btn-export-one">Export Selected</button>
+  <button id="btn-export-all">Export All</button>
+</div>
 
-<section class="slide" id="slide-2">
-  <div class="eyebrow">02 · History</div>
-  <h1 class="headline">A bound ledger<br><span class="soft">of your spending.</span></h1>
-  <p class="subhead">Cream paper, ink on page. Every transaction and no-spend day, sealed with a wax stamp.</p>
-  <div class="device"><img src="screenshots/02-history.png" alt="History"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
+<div class="content">
+  <div class="preview-grid" id="preview-grid"></div>
 
-<section class="slide" id="slide-3">
-  <div class="eyebrow">03 · The Vault</div>
-  <h1 class="headline">Patterns <span class="accent">only you</span><br>can see.</h1>
-  <p class="subhead">100% on-device AI. Your spending stays on your iPhone — always. No cloud, no server, no compromise.</p>
-  <div class="device"><img src="screenshots/03-vault.png" alt="Vault"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
+  <aside class="controls">
+    <h2>Fine-Tune Slide</h2>
+    <label>Slide
+      <select id="ctrl-slide"></select>
+    </label>
 
-<section class="slide" id="slide-4">
-  <div class="eyebrow">04 · Milestones</div>
-  <h1 class="headline">Every habit,<br><span class="soft">a medallion.</span></h1>
-  <p class="subhead">Bronze, silver, gold — earned through consistency, not streaks-for-streaks-sake.</p>
-  <div class="device"><img src="screenshots/05-milestones.png" alt="Milestones"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
+    <h3>Device Size & Position</h3>
+    <label>Size <span class="value" id="val-size">100%</span>
+      <input type="range" id="ctrl-size" min="20" max="150" value="100" step="1">
+    </label>
+    <label>Horizontal offset <span class="value" id="val-x">0%</span>
+      <input type="range" id="ctrl-x" min="-100" max="100" value="0" step="1">
+    </label>
+    <label>Vertical offset <span class="value" id="val-y">0px</span>
+      <input type="range" id="ctrl-y" min="-1200" max="1200" value="0" step="10">
+    </label>
 
-<section class="slide" id="slide-5">
-  <div class="eyebrow">05 · Move Money</div>
-  <h1 class="headline">Reallocate<br><span class="accent">in seconds.</span></h1>
-  <p class="subhead">Envelope-style budgeting without the binder. Pick from, pick to, tap the amount. Done.</p>
-  <div class="device"><img src="screenshots/07-move-money.png" alt="Move Money"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
+    <h3>Device Rotation</h3>
+    <label>Y-axis (turn) <span class="value" id="val-rotY">0°</span>
+      <input type="range" id="ctrl-rotY" min="-90" max="90" value="0" step="1">
+    </label>
+    <label>X-axis (tilt) <span class="value" id="val-rotX">0°</span>
+      <input type="range" id="ctrl-rotX" min="-90" max="90" value="0" step="1">
+    </label>
+    <label>Z-axis (roll) <span class="value" id="val-rotZ">0°</span>
+      <input type="range" id="ctrl-rotZ" min="-90" max="90" value="0" step="1">
+    </label>
 
-<section class="slide" id="slide-6">
-  <div class="eyebrow">06 · Log Expense</div>
-  <h1 class="headline">Seven taps<br><span class="soft">to tracked.</span></h1>
-  <p class="subhead">Flip-digit amount. Instant category. Suggested notes. Money in, money out — nothing else.</p>
-  <div class="device"><img src="screenshots/08-log-expense.png" alt="Log Expense"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
+    <h3>Screenshot</h3>
+    <label>Zoom <span class="value" id="val-zoom">100%</span>
+      <input type="range" id="ctrl-zoom" min="100" max="300" value="100" step="1">
+    </label>
+  </aside>
+</div>
 
-<section class="slide" id="slide-7">
-  <div class="eyebrow">07 · Monthly Wrapped</div>
-  <h1 class="headline">Your month,<br><span class="accent">as a story.</span></h1>
-  <p class="subhead">Five shareable slides. What you saved, where it went, what it says about you. Built for finance, styled like streaming.</p>
-  <div class="device"><img src="screenshots/09-wrapped.png" alt="Monthly Wrapped"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
-
-<section class="slide" id="slide-8">
-  <div class="eyebrow">08 · Personalize</div>
-  <h1 class="headline">Ten accents.<br><span class="soft">Zero gates.</span></h1>
-  <p class="subhead">Pick a color that's yours. Applied to every button, chart, and highlight. Free for everyone.</p>
-  <div class="device"><img src="screenshots/06-theme.png" alt="Theme Picker"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
-
-<section class="slide" id="slide-9">
-  <div class="eyebrow">09 · Settings</div>
-  <h1 class="headline">Locked, synced,<br><span class="accent">yours.</span></h1>
-  <p class="subhead">Biometric lock. Optional iCloud sync. Export when you want. Delete when you need. No servers involved.</p>
-  <div class="device"><img src="screenshots/04-settings.png" alt="Settings"></div>
-  <div class="brand-mark"><span class="dot"></span>BudgetVault<span class="dot"></span></div>
-</section>
+<div class="export-stage" id="export-stage"></div>
 
 <script>
-  // When URL has a hash like #slide-3, show only that slide.
-  if (window.location.hash) {
-    document.body.classList.remove('all');
-  }
-</script>
+// ============ SLIDE CONFIG ============
+// Canvas is 1320 × 2868. Phone aspect is 1022:2082 (≈1:2.037).
+// Phone height at size S% = S/100 × 1320 × 2.037.
+// Constraint: phone.top + phoneHeight ≤ 2868 - 180 (brand-mark zone).
+//
+// Per-layout safe sizes (full-phone-visible):
+//   hero-bottom-phone      : size ≤ 72  (phoneYBase 720)
+//   hero-centered-big-text : size ≤ 70  (phoneYBase 780)
+//   phone-centered-contrast: size ≤ 68  (phoneYBase 760)
+//   phone-right-text-left  : size ≤ 66  (phoneYBase 420, x ±16)
+//   phone-left-text-right  : size ≤ 66  (phoneYBase 420, x ±16)
+//
+// y values are PIXEL offsets (not %), constrained small so user can nudge.
+// All 8 slides use `hero-bottom-phone`: caption block up top, phone
+// centered below. Single consistent cadence across the App Store listing.
+const SLIDES = [
+  {
+    id: 1,
+    bg: 'slide-bg-1',
+    img: 'screenshots/01-home.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '01 · HOME',
+    headline: 'Every day,<br><span class="soft">one number.</span>',
+    subhead: 'Your daily allowance, flip-digit clear. Spent, saved, sealed — all at a glance.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+  {
+    id: 2,
+    bg: 'slide-bg-2',
+    img: 'screenshots/02-history.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '02 · HISTORY',
+    headline: 'A bound ledger<br><span class="soft">of your spending.</span>',
+    subhead: 'Cream paper, ink on page. Every transaction, every no-spend day, sealed with a wax stamp.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+  {
+    id: 3,
+    bg: 'slide-bg-3',
+    img: 'screenshots/03-vault.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '03 · THE VAULT',
+    headline: 'Patterns <span class="accent">only you</span><br>can see.',
+    subhead: '100% on-device AI. Your spending stays on your iPhone — always. No cloud, no server.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+  {
+    id: 4,
+    bg: 'slide-bg-4',
+    img: 'screenshots/05-milestones.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '04 · MILESTONES',
+    headline: 'Every habit,<br><span class="soft">a medallion.</span>',
+    subhead: 'Bronze, silver, gold — earned through consistency, not streaks-for-streaks-sake.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+  {
+    id: 5,
+    bg: 'slide-bg-5',
+    img: 'screenshots/07-move-money.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '05 · MOVE MONEY',
+    headline: 'Reallocate<br><span class="accent">in seconds.</span>',
+    subhead: 'Envelope-style budgeting without the binder. Pick from, pick to, tap the amount. Done.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+  {
+    id: 6,
+    bg: 'slide-bg-6',
+    img: 'screenshots/08-log-expense.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '06 · LOG EXPENSE',
+    headline: 'Seven taps<br><span class="soft">to tracked.</span>',
+    subhead: 'Flip-digit amount. Instant category. Suggested notes. Money in, out — nothing else.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+  {
+    id: 7,
+    bg: 'slide-bg-7',
+    img: 'screenshots/09-wrapped.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '07 · MONTHLY WRAPPED',
+    headline: 'Your month,<br><span class="accent">as a story.</span>',
+    subhead: 'Five shareable slides. What you saved, where it went, what it says about you.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+  {
+    id: 8,
+    bg: 'slide-bg-9',
+    img: 'screenshots/04-settings.png',
+    layout: 'hero-bottom-phone',
+    eyebrow: '08 · SETTINGS',
+    headline: 'Locked, synced,<br><span class="accent">yours.</span>',
+    subhead: 'Biometric lock. Optional iCloud sync. Export when you want. No servers involved.',
+    phone: { size: 72, x: 0, y: 0, rotY: 0, rotX: 0, rotZ: 0, zoom: 100 },
+  },
+];
 
+// ============ STATE ============
+const state = { selected: 1, slides: {} };
+SLIDES.forEach(s => state.slides[s.id] = { ...s.phone });
+
+// ============ URL HASH PERSISTENCE ============
+function saveState() {
+  const data = { selected: state.selected, slides: state.slides };
+  location.hash = encodeURIComponent(JSON.stringify(data));
+}
+function loadState() {
+  try {
+    if (!location.hash) return;
+    const data = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+    if (data.selected) state.selected = data.selected;
+    if (data.slides) {
+      for (const k in data.slides) state.slides[k] = { ...state.slides[k], ...data.slides[k] };
+    }
+  } catch (e) {}
+}
+loadState();
+
+// ============ RENDER SLIDE ============
+function renderSlide(slide, phoneState) {
+  const s = document.createElement('div');
+  s.className = 'slide ' + slide.bg;
+  s.style.width = '1320px';
+  s.style.height = '2868px';
+
+  // Top engraved hairline
+  const hairline = document.createElement('div');
+  hairline.className = 'hairline';
+  s.appendChild(hairline);
+
+  // Eyebrow
+  const eyebrowEl = document.createElement('div');
+  eyebrowEl.className = 'eyebrow';
+  eyebrowEl.textContent = slide.eyebrow;
+
+  // Headline + subhead
+  const headlineEl = document.createElement('div');
+  headlineEl.className = 'headline';
+  headlineEl.innerHTML = slide.headline;
+
+  const subheadEl = document.createElement('div');
+  subheadEl.className = 'subhead';
+  subheadEl.textContent = slide.subhead;
+
+  const L = slide.layout;
+  if (L === 'hero-bottom-phone') {
+    eyebrowEl.style.top = '180px';
+    eyebrowEl.style.left = '0'; eyebrowEl.style.right = '0';
+    eyebrowEl.style.fontSize = '32px';
+    eyebrowEl.style.textAlign = 'center';
+    headlineEl.style.top = '250px';
+    headlineEl.style.left = '80px';
+    headlineEl.style.right = '80px';
+    headlineEl.style.fontSize = '130px';
+    headlineEl.style.textAlign = 'center';
+    subheadEl.style.top = '560px';
+    subheadEl.style.left = '160px';
+    subheadEl.style.right = '160px';
+    subheadEl.style.fontSize = '38px';
+    subheadEl.style.textAlign = 'center';
+  } else if (L === 'phone-right-text-left') {
+    // Canvas 1320px. Phone 64% wide (845px) at x=30 places phone
+    // left edge at x≈634. Text column ends at 1320-780=540. Gives
+    // ~95px buffer between text and phone frame.
+    eyebrowEl.style.top = '180px';
+    eyebrowEl.style.left = '80px';
+    eyebrowEl.style.fontSize = '28px';
+    headlineEl.style.top = '240px';
+    headlineEl.style.left = '80px';
+    headlineEl.style.right = '780px';
+    headlineEl.style.fontSize = '88px';
+    subheadEl.style.top = '640px';
+    subheadEl.style.left = '80px';
+    subheadEl.style.right = '780px';
+    subheadEl.style.fontSize = '32px';
+  } else if (L === 'phone-left-text-right') {
+    // Mirror of phone-right-text-left. Phone at x=-30 places phone
+    // right edge at x≈686. Text column starts at x=780. ~95px buffer.
+    eyebrowEl.style.top = '180px';
+    eyebrowEl.style.right = '80px';
+    eyebrowEl.style.textAlign = 'right';
+    eyebrowEl.style.left = '780px';
+    eyebrowEl.style.fontSize = '28px';
+    headlineEl.style.top = '240px';
+    headlineEl.style.left = '780px';
+    headlineEl.style.right = '80px';
+    headlineEl.style.fontSize = '88px';
+    headlineEl.style.textAlign = 'right';
+    subheadEl.style.top = '640px';
+    subheadEl.style.left = '780px';
+    subheadEl.style.right = '80px';
+    subheadEl.style.fontSize = '32px';
+    subheadEl.style.textAlign = 'right';
+  } else if (L === 'hero-centered-big-text') {
+    eyebrowEl.style.top = '180px';
+    eyebrowEl.style.left = '0'; eyebrowEl.style.right = '0';
+    eyebrowEl.style.fontSize = '32px';
+    eyebrowEl.style.textAlign = 'center';
+    headlineEl.style.top = '240px';
+    headlineEl.style.left = '60px';
+    headlineEl.style.right = '60px';
+    headlineEl.style.fontSize = '140px';
+    headlineEl.style.textAlign = 'center';
+    subheadEl.style.top = '570px';
+    subheadEl.style.left = '180px';
+    subheadEl.style.right = '180px';
+    subheadEl.style.fontSize = '38px';
+    subheadEl.style.textAlign = 'center';
+  } else if (L === 'phone-centered-contrast') {
+    eyebrowEl.style.top = '180px';
+    eyebrowEl.style.left = '0'; eyebrowEl.style.right = '0';
+    eyebrowEl.style.fontSize = '32px';
+    eyebrowEl.style.textAlign = 'center';
+    headlineEl.style.top = '250px';
+    headlineEl.style.left = '80px';
+    headlineEl.style.right = '80px';
+    headlineEl.style.fontSize = '140px';
+    headlineEl.style.textAlign = 'center';
+    subheadEl.style.top = '580px';
+    subheadEl.style.left = '160px';
+    subheadEl.style.right = '160px';
+    subheadEl.style.fontSize = '38px';
+    subheadEl.style.textAlign = 'center';
+  }
+
+  s.appendChild(eyebrowEl);
+  s.appendChild(headlineEl);
+  s.appendChild(subheadEl);
+
+  // Phone positioning: keep full device visible inside 2868px canvas.
+  //   phoneHeight(px) = size% × 1320 × 2.037
+  //   top + phoneHeight ≤ 2868 - 180 (brand-mark zone)
+  // y is a PIXEL offset (not %) so nudges are predictable.
+  const phoneWidthPct = phoneState.size;
+  const phone = document.createElement('div');
+  phone.className = 'phone';
+  phone.style.width = phoneWidthPct + '%';
+  phone.style.left = `calc(50% + ${phoneState.x}% - ${phoneWidthPct/2}%)`;
+  const phoneYBase =
+    L === 'hero-bottom-phone' ? 720 :
+    L === 'hero-centered-big-text' ? 780 :
+    L === 'phone-centered-contrast' ? 760 :
+    420;
+  phone.style.top = `${phoneYBase + phoneState.y}px`;
+  phone.style.filter = 'drop-shadow(0 80px 120px rgba(0,0,0,0.6)) drop-shadow(0 30px 60px rgba(37,99,235,0.2))';
+  phone.style.transform =
+    `perspective(2200px) rotateY(${phoneState.rotY}deg) rotateX(${phoneState.rotX}deg) rotateZ(${phoneState.rotZ}deg)`;
+
+  const inner = document.createElement('div');
+  inner.className = 'phone-inner';
+
+  // Frame (z-index 1, underneath)
+  const frameImg = document.createElement('img');
+  frameImg.className = 'frame';
+  frameImg.src = 'mockup.png';
+  inner.appendChild(frameImg);
+
+  // Screen (z-index 2, on top, fills transparent cutout)
+  const screen = document.createElement('div');
+  screen.className = 'screen';
+  const screenshot = document.createElement('img');
+  screenshot.src = slide.img;
+  screenshot.style.transform = `scale(${phoneState.zoom/100})`;
+  screenshot.style.transformOrigin = 'center top';
+  screen.appendChild(screenshot);
+  inner.appendChild(screen);
+
+  phone.appendChild(inner);
+  s.appendChild(phone);
+
+  // Brand mark watermark
+  const mark = document.createElement('div');
+  mark.className = 'brand-mark';
+  mark.innerHTML = '<span class="dot"></span>BUDGETVAULT<span class="dot"></span>';
+  s.appendChild(mark);
+
+  return s;
+}
+
+// ============ PREVIEW GRID ============
+function renderPreviews() {
+  const grid = document.getElementById('preview-grid');
+  grid.innerHTML = '';
+  SLIDES.forEach(slide => {
+    const card = document.createElement('div');
+    card.className = 'preview';
+    if (slide.id === state.selected) card.classList.add('selected');
+    card.dataset.id = slide.id;
+
+    const num = document.createElement('div');
+    num.className = 'label-num';
+    num.textContent = '#' + slide.id;
+    card.appendChild(num);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'slide-wrap';
+    wrap.appendChild(renderSlide(slide, state.slides[slide.id]));
+    card.appendChild(wrap);
+
+    card.addEventListener('click', () => {
+      state.selected = slide.id;
+      loadSelectedIntoControls();
+      renderPreviews();
+      saveState();
+    });
+    grid.appendChild(card);
+  });
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.preview').forEach(p => {
+      const w = p.clientWidth;
+      const scale = w / 1320;
+      p.querySelector('.slide-wrap').style.transform = `scale(${scale})`;
+    });
+  });
+}
+window.addEventListener('resize', () => requestAnimationFrame(() => {
+  document.querySelectorAll('.preview').forEach(p => {
+    const w = p.clientWidth;
+    const scale = w / 1320;
+    p.querySelector('.slide-wrap').style.transform = `scale(${scale})`;
+  });
+}));
+
+// ============ CONTROLS ============
+const ctrlSlide = document.getElementById('ctrl-slide');
+SLIDES.forEach(s => {
+  const opt = document.createElement('option');
+  opt.value = s.id;
+  opt.textContent = `#${s.id} — ${s.eyebrow}`;
+  ctrlSlide.appendChild(opt);
+});
+
+function loadSelectedIntoControls() {
+  const ps = state.slides[state.selected];
+  ctrlSlide.value = state.selected;
+  ['size','x','y','rotY','rotX','rotZ','zoom'].forEach(key => {
+    document.getElementById('ctrl-' + key).value = ps[key];
+  });
+  updateControlLabels();
+}
+function updateControlLabels() {
+  const ps = state.slides[state.selected];
+  document.getElementById('val-size').textContent = ps.size + '%';
+  document.getElementById('val-x').textContent = ps.x + '%';
+  document.getElementById('val-y').textContent = ps.y + 'px';
+  document.getElementById('val-rotY').textContent = ps.rotY + '°';
+  document.getElementById('val-rotX').textContent = ps.rotX + '°';
+  document.getElementById('val-rotZ').textContent = ps.rotZ + '°';
+  document.getElementById('val-zoom').textContent = ps.zoom + '%';
+}
+
+ctrlSlide.addEventListener('change', e => {
+  state.selected = parseInt(e.target.value);
+  loadSelectedIntoControls();
+  renderPreviews();
+  saveState();
+});
+['size','x','y','rotY','rotX','rotZ','zoom'].forEach(key => {
+  document.getElementById('ctrl-' + key).addEventListener('input', e => {
+    state.slides[state.selected][key] = parseInt(e.target.value);
+    updateControlLabels();
+    renderPreviews();
+    saveState();
+  });
+});
+
+loadSelectedIntoControls();
+renderPreviews();
+
+// ============ EXPORT ============
+
+const IMAGE_CACHE = {};
+function preloadImage(src) {
+  if (IMAGE_CACHE[src]) return IMAGE_CACHE[src];
+  IMAGE_CACHE[src] = new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(src);
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+  return IMAGE_CACHE[src];
+}
+
+async function preloadAll() {
+  const promises = [preloadImage('mockup.png')];
+  SLIDES.forEach(s => promises.push(preloadImage(s.img)));
+  await Promise.all(promises);
+}
+
+async function waitForImagesIn(el) {
+  const imgs = el.querySelectorAll('img');
+  const waits = Array.from(imgs).map(img => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise(resolve => {
+      img.onload = img.onerror = () => resolve();
+      setTimeout(resolve, 3000);
+    });
+  });
+  await Promise.all(waits);
+}
+
+async function exportSlide(slideConfig, w, h) {
+  const stage = document.getElementById('export-stage');
+  stage.innerHTML = '';
+
+  const slide = renderSlide(slideConfig, state.slides[slideConfig.id]);
+  slide.style.position = 'fixed';
+  slide.style.left = '-20000px';
+  slide.style.top = '0px';
+  slide.style.opacity = '1';
+  slide.style.zIndex = '-9999';
+  slide.style.pointerEvents = 'none';
+  stage.appendChild(slide);
+
+  await waitForImagesIn(slide);
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  const scale = w / 1320;
+  const canvas = await html2canvas(slide, {
+    width: 1320,
+    height: 2868,
+    backgroundColor: '#070E1F',
+    scale: scale,
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    imageTimeout: 10000,
+  });
+  stage.innerHTML = '';
+  return canvas.toDataURL('image/png');
+}
+
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function getExportSize() {
+  const val = document.getElementById('export-size-select').value;
+  const [w, h] = val.split('x').map(Number);
+  return { w, h };
+}
+
+document.getElementById('btn-export-one').addEventListener('click', async () => {
+  const slide = SLIDES.find(s => s.id === state.selected);
+  if (!slide) return;
+  const { w, h } = getExportSize();
+  setStatus('Preloading images…');
+  await preloadAll();
+  setStatus(`Exporting #${slide.id}…`);
+  const url = await exportSlide(slide, w, h);
+  downloadDataUrl(url, String(slide.id).padStart(2,'0') + `-${w}x${h}.png`);
+  setStatus('Done');
+});
+
+document.getElementById('btn-export-all').addEventListener('click', async () => {
+  const { w, h } = getExportSize();
+  setStatus('Preloading images…');
+  await preloadAll();
+  for (const slide of SLIDES) {
+    setStatus(`Exporting #${slide.id} of ${SLIDES.length}…`);
+    const url = await exportSlide(slide, w, h);
+    downloadDataUrl(url, String(slide.id).padStart(2,'0') + `-${w}x${h}.png`);
+    await new Promise(r => setTimeout(r, 400));
+  }
+  setStatus('All done ✓');
+});
+
+preloadAll();
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+</script>
 </body>
 </html>

@@ -15,6 +15,9 @@ struct TitaniumKeypad: View {
 
     @ScaledMetric(relativeTo: .title2) private var keyWidth: CGFloat = 104
     @ScaledMetric(relativeTo: .title2) private var keyHeight: CGFloat = 56
+    // Audit 2026-04-22 P1-37: glyph sizes scale with Dynamic Type.
+    @ScaledMetric(relativeTo: .title2) private var keypadIconSize: CGFloat = 22
+    @ScaledMetric(relativeTo: .title2) private var keypadLabelSize: CGFloat = 28
 
     private let digits: [[String]] = [
         ["1", "2", "3"],
@@ -90,14 +93,14 @@ struct TitaniumKeypad: View {
                             endPoint: .bottom
                         )
                     )
-                // Label
+                // Audit 2026-04-22 P1-37: glyph sizes scale with Dynamic Type.
                 Group {
                     if let systemImage {
                         Image(systemName: systemImage)
-                            .font(.system(size: 22, weight: .semibold))
+                            .font(.system(size: keypadIconSize, weight: .semibold))
                     } else {
                         Text(label)
-                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                            .font(.system(size: keypadLabelSize, weight: .semibold, design: .rounded))
                     }
                 }
                 .foregroundStyle(BudgetVaultTheme.titanium800)

@@ -7,6 +7,9 @@ struct MonthlySummaryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var shareImage: Image?
     @State private var showCelebration = false
+    // Audit 2026-04-22 P1-26: cancellable handle for the review-prompt
+    // deferred fire (2s after celebration).
+    @State private var reviewPromptTask: Task<Void, Never>?
 
     private var categories: [Category] {
         (budget.categories ?? []).filter { !$0.isHidden }.sorted { $0.sortOrder < $1.sortOrder }
@@ -161,10 +164,19 @@ struct MonthlySummaryView: View {
                 if budget.remainingCents > 0 {
                     showCelebration = true
                     HapticManager.notification(.success)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        ReviewPromptService.requestIfAppropriate()
+                    // Audit 2026-04-22 P1-26: cancellable Task replaces
+                    // asyncAfter so dismissing the view before 2s
+                    // elapses doesn't still fire the review prompt.
+                    reviewPromptTask?.cancel()
+                    reviewPromptTask = Task {
+                        try? await Task.sleep(for: .seconds(2))
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run { ReviewPromptService.requestIfAppropriate() }
                     }
                 }
+            }
+            .onDisappear {
+                reviewPromptTask?.cancel()
             }
         }
     }

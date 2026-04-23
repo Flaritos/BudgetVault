@@ -12,6 +12,9 @@ struct DashboardView: View {
 
     // MARK: - Scaled Metrics for Dynamic Type
     @ScaledMetric(relativeTo: .body) private var fabSize: CGFloat = 56
+    // Audit 2026-04-22 P1-37: plus-glyph dimensions scale with body.
+    @ScaledMetric(relativeTo: .body) private var plusGlyphThickness: CGFloat = 3
+    @ScaledMetric(relativeTo: .body) private var plusGlyphLength: CGFloat = 22
     @ScaledMetric(relativeTo: .body) private var envelopeCardWidth: CGFloat = 160
     @ScaledMetric(relativeTo: .body) private var envelopeCardHeight: CGFloat = 130
     @ScaledMetric(relativeTo: .body) private var billIconWidth: CGFloat = 36
@@ -19,9 +22,19 @@ struct DashboardView: View {
     @ScaledMetric(relativeTo: .title) private var heroAmountSize: CGFloat = 36
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
-    // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
-    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    // Audit 2026-04-22 P0-7: bounded to last 13 months to cover current
+    // period + previous (MoM) + 12-month seasonal insight without paging
+    // every transaction ever logged into memory.
+    @Query private var allTransactions: [Transaction]
     @Query(sort: \RecurringExpense.nextDueDate) private var recurringExpenses: [RecurringExpense]
+
+    init() {
+        let cutoff = Calendar.current.date(byAdding: .month, value: -13, to: Date()) ?? .distantPast
+        _allTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: [SortDescriptor(\Transaction.date, order: .reverse)]
+        )
+    }
 
     @AppStorage(AppStorageKeys.lastSummaryViewed) private var lastSummaryViewed = ""
     @AppStorage(AppStorageKeys.hasCompletedOnboarding) private var hasCompletedOnboarding = false
@@ -71,12 +84,8 @@ struct DashboardView: View {
     @State private var streakMilestoneValue = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
-    // TODO: migrate to AppStorageKeys
-    @AppStorage("lastWrappedViewed") private var lastWrappedViewed = ""
-    // TODO: migrate to AppStorageKeys
-    @AppStorage("dismissedLaunchBanner") private var hasDissmissedLaunchBanner = false
-    // TODO: migrate to AppStorageKeys
-    @AppStorage("lastCelebratedMilestone") private var lastCelebratedMilestone = 0
+    @AppStorage(AppStorageKeys.lastWrappedViewed) private var lastWrappedViewed = ""
+    @AppStorage(AppStorageKeys.lastCelebratedMilestone) private var lastCelebratedMilestone = 0
     @State private var showFreezeToast = false
     @State private var noSpendConfirmed = false
     /// Observed copy of StreakService.hasClosedToday() — plain state so
@@ -94,6 +103,20 @@ struct DashboardView: View {
     @State private var cachedBudget: Budget?
     @State private var cachedSpentMap: [UUID: Int64] = [:]
     @State private var cachedInsights: [Insight] = []
+
+    // Audit 2026-04-22 P1-25: store handles for every deferred Task
+    // that drives user-visible state (toast chains, animated reveals,
+    // queued sheet presentations). Prior to this, all 4 ran as naked
+    // `Task { ... }` and continued firing after the user swiped away
+    // from the tab — e.g. a no-spend toast would appear 3 seconds
+    // after you left Home. Cancel on disappear. The one exception is
+    // the BudgetLiveActivityService.start Task at ~line 1827: that
+    // writes to a system service (Live Activity is global, not view-
+    // bound) and must complete even if the user navigates away.
+    @State private var noSpendToastTask: Task<Void, Never>?
+    @State private var ringDrawInTask: Task<Void, Never>?
+    @State private var shareCardRevealTask: Task<Void, Never>?
+    @State private var achievementSheetTask: Task<Void, Never>?
 
     private var currentBudget: Budget? {
         let (month, year) = DateHelpers.currentBudgetPeriod(resetDay: resetDay)
@@ -230,13 +253,16 @@ struct DashboardView: View {
                                     vaultClosingAnimation = true
                                     todayClosed = true
                                 }
-                                Task {
+                                noSpendToastTask?.cancel()
+                                noSpendToastTask = Task {
                                     try? await Task.sleep(for: .milliseconds(reduceMotion ? 100 : 700))
+                                    guard !Task.isCancelled else { return }
                                     withAnimation(closingAnim) {
                                         vaultClosingAnimation = false
                                         showNoSpendToast = true
                                     }
                                     try? await Task.sleep(for: .seconds(2.5))
+                                    guard !Task.isCancelled else { return }
                                     withAnimation(reduceMotion ? nil : .default) { showNoSpendToast = false }
                                 }
                             },
@@ -272,13 +298,18 @@ struct DashboardView: View {
                             HapticManager.impact(.medium)
                             activeSheet = .transactionEntry
                         }) {
+                            // Audit 2026-04-22 P1-37: plus-glyph capsules
+                            // were fixed 3×22 / 22×3. At XL Accessibility
+                            // sizes the button dial grows but the "+"
+                            // stayed the same physical size and looked
+                            // lost. @ScaledMetric anchors to body text.
                             ZStack {
                                 Capsule()
                                     .fill(BudgetVaultTheme.electricBlue)
-                                    .frame(width: 3, height: 22)
+                                    .frame(width: plusGlyphThickness, height: plusGlyphLength)
                                 Capsule()
                                     .fill(BudgetVaultTheme.electricBlue)
-                                    .frame(width: 22, height: 3)
+                                    .frame(width: plusGlyphLength, height: plusGlyphThickness)
                             }
                         }
                         .accessibilityLabel("Log expense")
@@ -521,6 +552,15 @@ struct DashboardView: View {
                     withAnimation { showFreezeToast = false }
                 }
             }
+        }
+        .onDisappear {
+            // Audit 2026-04-22 P1-25: cancel every deferred Task when
+            // the view goes away. Without this, toasts kept appearing
+            // after the user navigated to another tab.
+            noSpendToastTask?.cancel()
+            ringDrawInTask?.cancel()
+            shareCardRevealTask?.cancel()
+            achievementSheetTask?.cancel()
         }
         .onChange(of: activeSheet) { oldSheet, newSheet in
             // Handle cleanup when sheets dismiss
@@ -887,16 +927,26 @@ struct DashboardView: View {
         return "Monthly"
     }
 
+    // Audit 2026-04-22 P2-10: hoisted so the formatters are allocated
+    // once, not twice per body re-render.
+    private static let vaultWeekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+
+    private static let vaultMonthDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
     /// "Wed · Apr 22 · Day 23 of 31" — engraved sublabel under the vault name.
     private func vaultHeaderSublabel(for budget: Budget) -> String {
         let now = Date()
         let cal = Calendar.current
-        let weekdayFormatter = DateFormatter()
-        weekdayFormatter.dateFormat = "EEE"
-        let monthDayFormatter = DateFormatter()
-        monthDayFormatter.dateFormat = "MMM d"
-        let weekday = weekdayFormatter.string(from: now)
-        let monthDay = monthDayFormatter.string(from: now)
+        let weekday = Self.vaultWeekdayFormatter.string(from: now)
+        let monthDay = Self.vaultMonthDayFormatter.string(from: now)
         let daysInPeriod = max(1, cal.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)
         let dayOfPeriod = max(1, min(daysInPeriod, (cal.dateComponents([.day], from: budget.periodStart, to: now).day ?? 0) + 1))
         return "\(weekday) \u{00B7} \(monthDay) \u{00B7} Day \(dayOfPeriod) of \(daysInPeriod)"
@@ -1446,7 +1496,7 @@ struct DashboardView: View {
                 icon: "brain.head.profile",
                 title: "Vault Patterns",
                 subtitle: "AI-powered spending predictions and anomaly detection",
-                gradient: [BudgetVaultTheme.electricBlue, BudgetVaultTheme.brightBlue]
+                gradient: [BudgetVaultTheme.electricBlue, BudgetVaultTheme.accentSoft]
             )
 
             premiumFeatureCard(
@@ -1764,8 +1814,10 @@ struct DashboardView: View {
         todayClosed = StreakService.hasClosedToday()
         // v3.2 whimsy: trigger the ring draw-in animation on foreground.
         if !ringDrawnIn {
-            Task {
+            ringDrawInTask?.cancel()
+            ringDrawInTask = Task {
                 try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeOut(duration: 0.7)) {
                     ringDrawnIn = true
                 }
@@ -1886,8 +1938,10 @@ struct DashboardView: View {
             metricLabel: achievement.title
         )
         shareCardImage = card.renderImage()
-        Task {
+        shareCardRevealTask?.cancel()
+        shareCardRevealTask = Task {
             try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
             await MainActor.run { activeSheet = .shareCard }
         }
     }
@@ -1919,8 +1973,10 @@ struct DashboardView: View {
                 // Defer sheet presentation slightly so it doesn't collide
                 // with sheets fired from `.task` (streak milestone fires
                 // at +0.5s).
-                Task { @MainActor in
+                achievementSheetTask?.cancel()
+                achievementSheetTask = Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(300))
+                    guard !Task.isCancelled else { return }
                     if case .none = activeSheet {
                         activeSheet = .newAchievement(first)
                     }

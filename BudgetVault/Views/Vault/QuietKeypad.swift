@@ -14,6 +14,9 @@ struct QuietKeypad: View {
 
     @ScaledMetric(relativeTo: .title2) private var keyWidth: CGFloat = 104
     @ScaledMetric(relativeTo: .title2) private var keyHeight: CGFloat = 52
+    // Audit 2026-04-22 P1-37: glyph sizes scale with Dynamic Type.
+    @ScaledMetric(relativeTo: .title2) private var keypadIconSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .title2) private var keypadLabelSize: CGFloat = 26
 
     private let digits: [[String]] = [
         ["1", "2", "3"],
@@ -63,13 +66,16 @@ struct QuietKeypad: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(BudgetVaultTheme.titanium300.opacity(0.06))
+                // Audit 2026-04-22 P1-37: fixed 20/26pt fonts ignored
+                // Dynamic Type. Scaled metrics anchor to .title so the
+                // numeric keypad respects Accessibility sizes.
                 Group {
                     if let systemImage {
                         Image(systemName: systemImage)
-                            .font(.system(size: 20, weight: .medium))
+                            .font(.system(size: keypadIconSize, weight: .medium))
                     } else {
                         Text(label)
-                            .font(.system(size: 26, weight: .medium, design: .rounded))
+                            .font(.system(size: keypadLabelSize, weight: .medium, design: .rounded))
                     }
                 }
                 .foregroundStyle(.white)

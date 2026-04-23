@@ -85,6 +85,9 @@ struct ChatOnboardingView: View {
     // Welcome dial spin-to-advance state — rotates 720° on "Get started" tap.
     @State private var welcomeDialRotation: Double = 0
     @State private var welcomeAdvancing = false
+    // Audit 2026-04-22 P1-26: cancellable handle for the welcome-screen
+    // advance animation (900ms + 500ms sequential sleeps).
+    @State private var welcomeAdvanceTask: Task<Void, Never>?
     // Income step "Why we ask" disclosure sheet.
     @State private var showWhyWeAsk = false
     @FocusState private var vaultNameFocused: Bool
@@ -180,7 +183,7 @@ struct ChatOnboardingView: View {
         ZStack {
             // Screen background — radial gradient per HTML .screen rule.
             RadialGradient(
-                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                colors: [BudgetVaultTheme.navyElevated, BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                 center: UnitPoint(x: 0.5, y: 0.3),
                 startRadius: 0,
                 endRadius: 600
@@ -222,7 +225,7 @@ struct ChatOnboardingView: View {
                     .font(.system(size: 34, weight: .bold))
                     .tracking(-1.02)    // -0.03em × 34pt
                     .lineSpacing(3.4)   // (1.1 - 1) × 34pt
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 14)
 
@@ -231,7 +234,7 @@ struct ChatOnboardingView: View {
                     .font(.system(size: 9, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(2.16)   // 0.24em × 9pt
-                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
 
                 Spacer()
 
@@ -242,15 +245,15 @@ struct ChatOnboardingView: View {
                     Button { spinDialThenAdvance() } label: {
                         Text("Get started")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Color(hex: "#E8EDF5"))
+                            .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 17)
                             .background(
                                 LinearGradient(
                                     colors: [
-                                        Color(hex: "#60A5FA"),
-                                        Color(hex: "#2563EB"),
-                                        Color(hex: "#1E40AF"),
+                                        BudgetVaultTheme.accentSoft,
+                                        BudgetVaultTheme.electricBlue,
+                                        BudgetVaultTheme.electricBlue,
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -259,16 +262,16 @@ struct ChatOnboardingView: View {
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                                    .strokeBorder(BudgetVaultTheme.electricBlue, lineWidth: 1)
                             )
-                            .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, x: 0, y: 2)
+                            .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.4), radius: 3, x: 0, y: 2)
                     }
 
                     // cta-ghost: transparent, 13pt weight 500, color text-3.
                     Button { skipOnboarding() } label: {
                         Text("I'll set up later")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                            .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                     }
@@ -303,7 +306,7 @@ struct ChatOnboardingView: View {
         ZStack {
             // Screen background — radial per HTML .screen rule.
             RadialGradient(
-                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                colors: [BudgetVaultTheme.navyElevated, BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                 center: UnitPoint(x: 0.5, y: 0.3),
                 startRadius: 0,
                 endRadius: 600
@@ -319,7 +322,7 @@ struct ChatOnboardingView: View {
                         Button { skipOnboarding() } label: {
                             Text("Skip")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                                .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
                         }
                     }
                     .padding(.top, 16)
@@ -337,7 +340,7 @@ struct ChatOnboardingView: View {
                     // Weight-split: bold white + light titanium300.
                     (Text("Four things we\n")
                         .font(.system(size: 26, weight: .bold))
-                        .foregroundColor(Color(hex: "#E8EDF5"))
+                        .foregroundColor(BudgetVaultTheme.bodyOnDark)
                     + Text("will never do.")
                         .font(.system(size: 26, weight: .light))
                         .foregroundColor(BudgetVaultTheme.titanium300))
@@ -374,7 +377,7 @@ struct ChatOnboardingView: View {
                                 .foregroundStyle(BudgetVaultTheme.titanium200)
                             Text("Data Not Collected")
                                 .font(.system(size: 12))
-                                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                                .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                         }
                         Spacer()
                     }
@@ -383,7 +386,7 @@ struct ChatOnboardingView: View {
                     .background(
                         RoundedRectangle(cornerRadius: 6)
                             .fill(LinearGradient(
-                                colors: [Color(hex: "#101A33"), Color(hex: "#070E1F")],
+                                colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                                 startPoint: UnitPoint(x: 0.15, y: 0),
                                 endPoint: UnitPoint(x: 0.85, y: 1)
                             ))
@@ -407,25 +410,25 @@ struct ChatOnboardingView: View {
         Button { advanceToNextStep() } label: {
             Text("I understand")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 17)
                 .background(
                     LinearGradient(
-                        colors: [Color(hex: "#60A5FA"), Color(hex: "#2563EB"), Color(hex: "#1E40AF")],
+                        colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.electricBlue, BudgetVaultTheme.electricBlue],
                         startPoint: .top, endPoint: .bottom
                     ),
                     in: RoundedRectangle(cornerRadius: 12)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                        .strokeBorder(BudgetVaultTheme.electricBlue, lineWidth: 1)
                 )
-                .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, y: 2)
+                .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.4), radius: 3, y: 2)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 16)
-        .background(Color(hex: "#0F1B33").opacity(0.95))
+        .background(BudgetVaultTheme.navyDark.opacity(0.95))
     }
 
     /// Single pledge row — .chamber-style panel with titanium barred-circle glyph.
@@ -447,12 +450,12 @@ struct ChatOnboardingView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 Text(subtitle)
                     .font(.system(size: 9, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(2.16)   // 0.24em × 9pt
-                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
             }
             Spacer(minLength: 0)
         }
@@ -461,7 +464,7 @@ struct ChatOnboardingView: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(LinearGradient(
-                    colors: [Color(hex: "#0F1A30"), Color(hex: "#070E1F")],
+                    colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                     startPoint: UnitPoint(x: 0.15, y: 0),
                     endPoint: UnitPoint(x: 0.85, y: 1)
                 ))
@@ -491,7 +494,7 @@ struct ChatOnboardingView: View {
     private var nameVaultStep: some View {
         ZStack {
             RadialGradient(
-                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                colors: [BudgetVaultTheme.navyElevated, BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                 center: UnitPoint(x: 0.5, y: 0.3),
                 startRadius: 0,
                 endRadius: 600
@@ -507,7 +510,7 @@ struct ChatOnboardingView: View {
                         Button { skipOnboarding() } label: {
                             Text("Skip")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                                .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
                         }
                     }
                     .padding(.top, 16)
@@ -526,14 +529,14 @@ struct ChatOnboardingView: View {
                         .font(.system(size: 28, weight: .bold))
                         .tracking(-0.7)    // -0.025em × 28pt
                         .lineSpacing(4.2)  // (1.15 - 1) × 28pt
-                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                        .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                         .padding(.bottom, 8)
 
                     // Subtitle — 14pt regular, line-height 1.5, text-2. VERBATIM.
                     Text("Appears at the top of your dashboard. You can change this anytime.")
                         .font(.system(size: 14))
                         .lineSpacing(7.0)  // (1.5 - 1) × 14pt
-                        .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                        .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                         .padding(.bottom, 28)
 
                     // Titanium engraving plate + invisible TextField for input.
@@ -585,14 +588,14 @@ struct ChatOnboardingView: View {
                         // info-circle SVG equivalent, 16x16, stroke #60A5FA
                         ZStack {
                             Circle()
-                                .strokeBorder(Color(hex: "#60A5FA"), lineWidth: 1.2)
+                                .strokeBorder(BudgetVaultTheme.accentSoft, lineWidth: 1.2)
                                 .frame(width: 16, height: 16)
                             VStack(spacing: 1) {
                                 Rectangle()
-                                    .fill(Color(hex: "#60A5FA"))
+                                    .fill(BudgetVaultTheme.accentSoft)
                                     .frame(width: 1.2, height: 5)
                                 Rectangle()
-                                    .fill(Color(hex: "#60A5FA"))
+                                    .fill(BudgetVaultTheme.accentSoft)
                                     .frame(width: 1.2, height: 1)
                             }
                         }
@@ -602,18 +605,18 @@ struct ChatOnboardingView: View {
                         Text("Stored only in iOS Keychain on this device. We can't read it.")
                             .font(.system(size: 12))
                             .lineSpacing(6.0)   // (1.5 - 1) × 12pt
-                            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                            .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(hex: "#60A5FA").opacity(0.06))
+                            .fill(BudgetVaultTheme.accentSoft.opacity(0.06))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(Color(hex: "#60A5FA").opacity(0.2), lineWidth: 1)
+                            .strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.2), lineWidth: 1)
                     )
 
                     Spacer(minLength: 110)
@@ -625,27 +628,27 @@ struct ChatOnboardingView: View {
             Button { advanceToNextStep() } label: {
                 Text("Engrave it")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
                     .background(
                         LinearGradient(
-                            colors: [Color(hex: "#60A5FA"), Color(hex: "#2563EB"), Color(hex: "#1E40AF")],
+                            colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.electricBlue, BudgetVaultTheme.electricBlue],
                             startPoint: .top, endPoint: .bottom
                         ),
                         in: RoundedRectangle(cornerRadius: 12)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                            .strokeBorder(BudgetVaultTheme.electricBlue, lineWidth: 1)
                     )
-                    .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, y: 2)
+                    .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.4), radius: 3, y: 2)
             }
             .disabled(vaultName.trimmingCharacters(in: .whitespaces).isEmpty)
             .opacity(vaultName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1.0)
             .padding(.horizontal, 24)
             .padding(.bottom, 16)
-            .background(Color(hex: "#0F1B33").opacity(0.95))
+            .background(BudgetVaultTheme.navyDark.opacity(0.95))
         }
     }
 
@@ -659,18 +662,18 @@ struct ChatOnboardingView: View {
         } label: {
             Text(preset)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color(hex: "#60A5FA"))
+                .foregroundStyle(BudgetVaultTheme.accentSoft)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(hex: "#60A5FA")
+                        .fill(BudgetVaultTheme.accentSoft
                             .opacity(isActive ? 0.18 : 0.08))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(
-                            Color(hex: "#60A5FA").opacity(isActive ? 0.6 : 0.3),
+                            BudgetVaultTheme.accentSoft.opacity(isActive ? 0.6 : 0.3),
                             lineWidth: isActive ? 1.5 : 1
                         )
                 )
@@ -695,7 +698,7 @@ struct ChatOnboardingView: View {
     private var depthForkStep: some View {
         ZStack {
             RadialGradient(
-                colors: [Color(hex: "#14234A"), Color(hex: "#0F1B33"), Color(hex: "#070E1F")],
+                colors: [BudgetVaultTheme.navyElevated, BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                 center: UnitPoint(x: 0.5, y: 0.3),
                 startRadius: 0,
                 endRadius: 600
@@ -725,7 +728,7 @@ struct ChatOnboardingView: View {
                         .font(.system(size: 28, weight: .bold))
                         .tracking(-0.7)
                         .lineSpacing(4.2)
-                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                        .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                         .padding(.bottom, 28)
 
                     // Quick start card (recommended) — blue gradient, 2px electric border.
@@ -744,25 +747,25 @@ struct ChatOnboardingView: View {
             Button { takeDepthForkDecision() } label: {
                 Text(chosePath == .quick ? "Quick start" : "Walk me through everything")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
                     .background(
                         LinearGradient(
-                            colors: [Color(hex: "#60A5FA"), Color(hex: "#2563EB"), Color(hex: "#1E40AF")],
+                            colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.electricBlue, BudgetVaultTheme.electricBlue],
                             startPoint: .top, endPoint: .bottom
                         ),
                         in: RoundedRectangle(cornerRadius: 12)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(hex: "#1E3A8A"), lineWidth: 1)
+                            .strokeBorder(BudgetVaultTheme.electricBlue, lineWidth: 1)
                     )
-                    .shadow(color: Color(hex: "#2563EB").opacity(0.4), radius: 3, y: 2)
+                    .shadow(color: BudgetVaultTheme.electricBlue.opacity(0.4), radius: 3, y: 2)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 16)
-            .background(Color(hex: "#0F1B33").opacity(0.95))
+            .background(BudgetVaultTheme.navyDark.opacity(0.95))
         }
     }
 
@@ -777,7 +780,7 @@ struct ChatOnboardingView: View {
                     Text("Quick start")
                         .font(.system(size: 20, weight: .bold))
                         .tracking(-0.2)   // -0.01em × 20pt
-                        .foregroundStyle(Color(hex: "#E8EDF5"))
+                        .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     Spacer()
                     Text("30 Sec")
                         .font(.system(size: 9, weight: .semibold))
@@ -788,7 +791,7 @@ struct ChatOnboardingView: View {
                 Text("Go straight to your dashboard with a starter envelope. Add income and allocations when ready.")
                     .font(.system(size: 13))
                     .lineSpacing(7.15)  // (1.55 - 1) × 13pt
-                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.68))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(20)
@@ -796,7 +799,7 @@ struct ChatOnboardingView: View {
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(LinearGradient(
-                        colors: [Color(hex: "#162952"), Color(hex: "#0F1B33")],
+                        colors: [BudgetVaultTheme.navyMid, BudgetVaultTheme.navyDark],
                         startPoint: UnitPoint(x: 0.15, y: 0),
                         endPoint: UnitPoint(x: 0.85, y: 1)
                     ))
@@ -804,12 +807,12 @@ struct ChatOnboardingView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(
-                        isSelected ? Color(hex: "#2563EB") : BudgetVaultTheme.titanium700,
+                        isSelected ? BudgetVaultTheme.electricBlue : BudgetVaultTheme.titanium700,
                         lineWidth: isSelected ? 2 : 1
                     )
             )
-            .shadow(color: isSelected ? Color(hex: "#2563EB").opacity(0.2) : .clear, radius: 14, y: 4)
-            .shadow(color: isSelected ? Color(hex: "#2563EB").opacity(0.08) : .clear, radius: 24, x: 0, y: 0)
+            .shadow(color: isSelected ? BudgetVaultTheme.electricBlue.opacity(0.2) : .clear, radius: 14, y: 4)
+            .shadow(color: isSelected ? BudgetVaultTheme.electricBlue.opacity(0.08) : .clear, radius: 24, x: 0, y: 0)
             .animation(.easeInOut(duration: 0.2), value: isSelected)
             .overlay(alignment: .topLeading) {
                 // "RECOMMENDED" tab — HTML positions it top: -8px, left: 16px.
@@ -817,12 +820,12 @@ struct ChatOnboardingView: View {
                     .font(.system(size: 9, weight: .bold))
                     .textCase(.uppercase)
                     .tracking(1.8)    // 0.2em × 9pt
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 2)
                     .background(
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(Color(hex: "#2563EB"))
+                            .fill(BudgetVaultTheme.electricBlue)
                     )
                     .offset(x: 16, y: -8)
             }
@@ -842,7 +845,7 @@ struct ChatOnboardingView: View {
                     Text("Thorough setup")
                         .font(.system(size: 20, weight: .bold))
                         .tracking(-0.2)
-                        .foregroundStyle(Color(hex: "#E8EDF5").opacity(isSelected ? 1.0 : 0.68))
+                        .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(isSelected ? 1.0 : 0.68))
                     Spacer()
                     Text("2 Min")
                         .font(.system(size: 9, weight: .semibold))
@@ -853,7 +856,7 @@ struct ChatOnboardingView: View {
                 Text("Face ID, income, envelopes, and allocation. Seven more steps. Any step still skippable.")
                     .font(.system(size: 13))
                     .lineSpacing(7.15)
-                    .foregroundStyle(Color(hex: "#E8EDF5").opacity(isSelected ? 0.68 : 0.42))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(isSelected ? 0.68 : 0.42))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(20)
@@ -861,7 +864,7 @@ struct ChatOnboardingView: View {
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(LinearGradient(
-                        colors: [Color(hex: "#101A33"), Color(hex: "#070E1F")],
+                        colors: [BudgetVaultTheme.navyDark, BudgetVaultTheme.navyAbyss],
                         startPoint: UnitPoint(x: 0.15, y: 0),
                         endPoint: UnitPoint(x: 0.85, y: 1)
                     ))
@@ -869,11 +872,11 @@ struct ChatOnboardingView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(
-                        isSelected ? Color(hex: "#2563EB") : BudgetVaultTheme.titanium700,
+                        isSelected ? BudgetVaultTheme.electricBlue : BudgetVaultTheme.titanium700,
                         lineWidth: isSelected ? 2 : 1
                     )
             )
-            .shadow(color: isSelected ? Color(hex: "#2563EB").opacity(0.2) : .clear, radius: 14, y: 4)
+            .shadow(color: isSelected ? BudgetVaultTheme.electricBlue.opacity(0.2) : .clear, radius: 14, y: 4)
             .animation(.easeInOut(duration: 0.2), value: isSelected)
         }
         .buttonStyle(.plain)
@@ -929,7 +932,7 @@ struct ChatOnboardingView: View {
             Text("Choose your currency.")
                 .font(.system(size: 24, weight: .bold))
                 .tracking(-0.6)
-                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, padding)
 
@@ -960,13 +963,13 @@ struct ChatOnboardingView: View {
             } label: {
                 Text("Continue")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
                     .background(ctaPrimaryBackground, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(hex: "#1e3a8a"), lineWidth: 1)
+                            .strokeBorder(BudgetVaultTheme.electricBlue, lineWidth: 1)
                     )
             }
             .padding(.horizontal, padding)
@@ -999,7 +1002,7 @@ struct ChatOnboardingView: View {
                         Text(currency.code)
                             .font(.system(size: 13, weight: .semibold))
                     }
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(
@@ -1032,9 +1035,9 @@ struct ChatOnboardingView: View {
     private var ctaPrimaryBackground: LinearGradient {
         LinearGradient(
             stops: [
-                .init(color: Color(hex: "#60A5FA"), location: 0.0),
+                .init(color: BudgetVaultTheme.accentSoft, location: 0.0),
                 .init(color: BudgetVaultTheme.electricBlue, location: 0.55),
-                .init(color: Color(hex: "#1e40af"), location: 1.0),
+                .init(color: BudgetVaultTheme.electricBlue, location: 1.0),
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -1080,7 +1083,7 @@ struct ChatOnboardingView: View {
                 .font(.system(size: 24, weight: .bold))
                 .tracking(-0.6)
                 .lineSpacing(4.8)
-                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, padding)
@@ -1111,7 +1114,7 @@ struct ChatOnboardingView: View {
                 .font(.system(size: 9, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.16)
-                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
                 .frame(maxWidth: .infinity)
 
             Spacer().frame(height: 22)
@@ -1126,8 +1129,8 @@ struct ChatOnboardingView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(
                         hasIncome
-                            ? Color(hex: "#E8EDF5")
-                            : Color(hex: "#E8EDF5").opacity(0.4)
+                            ? BudgetVaultTheme.bodyOnDark
+                            : BudgetVaultTheme.bodyOnDark.opacity(0.4)
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
@@ -1141,7 +1144,7 @@ struct ChatOnboardingView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(
                                 hasIncome
-                                    ? Color(hex: "#1e3a8a")
+                                    ? BudgetVaultTheme.electricBlue
                                     : Color.white.opacity(0.05),
                                 lineWidth: 1
                             )
@@ -1162,7 +1165,7 @@ struct ChatOnboardingView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Why we ask")
                 .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .padding(.top, 8)
 
             Text("""
@@ -1170,7 +1173,7 @@ struct ChatOnboardingView: View {
             and envelope targets. That's it.
             """)
             .font(.system(size: 15, weight: .regular))
-            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.75))
+            .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.75))
             .fixedSize(horizontal: false, vertical: true)
 
             Text("""
@@ -1178,7 +1181,7 @@ struct ChatOnboardingView: View {
             never hits a server, never funds an ad network.
             """)
             .font(.system(size: 15, weight: .regular))
-            .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.75))
+            .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.75))
             .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
@@ -1186,13 +1189,13 @@ struct ChatOnboardingView: View {
             Button { showWhyWeAsk = false } label: {
                 Text("Got it")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
                     .background(ctaPrimaryBackground, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(hex: "#1e3a8a"), lineWidth: 1)
+                            .strokeBorder(BudgetVaultTheme.electricBlue, lineWidth: 1)
                     )
             }
             .padding(.bottom, 12)
@@ -1236,7 +1239,7 @@ struct ChatOnboardingView: View {
             Text("Split the vault into envelopes.")
                 .font(.system(size: 24, weight: .bold))
                 .tracking(-0.6)
-                .foregroundStyle(Color(hex: "#E8EDF5"))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, padding)
 
@@ -1297,8 +1300,8 @@ struct ChatOnboardingView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(
                         canContinue
-                            ? Color(hex: "#E8EDF5")
-                            : Color(hex: "#E8EDF5").opacity(0.4)
+                            ? BudgetVaultTheme.bodyOnDark
+                            : BudgetVaultTheme.bodyOnDark.opacity(0.4)
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
@@ -1312,7 +1315,7 @@ struct ChatOnboardingView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(
                                 canContinue
-                                    ? Color(hex: "#1e3a8a")
+                                    ? BudgetVaultTheme.electricBlue
                                     : Color.white.opacity(0.05),
                                 lineWidth: 1
                             )
@@ -1516,7 +1519,7 @@ struct ChatOnboardingView: View {
             (
                 Text("The vault ")
                     .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(Color(hex: "#E8EDF5"))
+                    .foregroundColor(BudgetVaultTheme.bodyOnDark)
                 +
                 Text("is open.")
                     .font(.system(size: 32, weight: .light))
@@ -1528,14 +1531,14 @@ struct ChatOnboardingView: View {
 
             Text(dayLabel)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.7))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.7))
                 .padding(.bottom, 6)
 
             Text("Day 1 of your streak")
                 .font(.system(size: 9, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(2.16)
-                .foregroundStyle(Color(hex: "#E8EDF5").opacity(0.42))
+                .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.42))
 
             Spacer()
 
@@ -1557,13 +1560,13 @@ struct ChatOnboardingView: View {
             } label: {
                 Text("Enter the vault")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#E8EDF5"))
+                    .foregroundStyle(BudgetVaultTheme.bodyOnDark)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
                     .background(ctaPrimaryBackground, in: RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(hex: "#1e3a8a"), lineWidth: 1)
+                            .strokeBorder(BudgetVaultTheme.electricBlue, lineWidth: 1)
                     )
             }
             .padding(.horizontal, 24)
@@ -1600,13 +1603,18 @@ struct ChatOnboardingView: View {
         }
         HapticManager.impact(.light)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+        // Audit 2026-04-22 P1-26: single cancellable Task replaces the
+        // nested asyncAfter chain. If the user backs out mid-animation,
+        // `welcomeAdvancing` won't get stuck in the wrong state on a
+        // dismissed view.
+        welcomeAdvanceTask?.cancel()
+        welcomeAdvanceTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
             advanceToNextStep()
-            // Reset flag so if user comes back (via back nav) and taps again,
-            // the animation fires fresh.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                welcomeAdvancing = false
-            }
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            welcomeAdvancing = false
         }
     }
 

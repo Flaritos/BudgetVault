@@ -4,7 +4,10 @@ import UserNotifications
 import BackgroundTasks
 import TipKit
 import WidgetKit
+import os
 import BudgetVaultShared
+
+private let bgTaskLog = Logger(subsystem: "io.budgetvault.app", category: "backgroundTasks")
 
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
@@ -54,6 +57,14 @@ struct BudgetVaultApp: App {
     private static let notificationDelegate = NotificationDelegate()
     static let bgRefreshIdentifier = "io.budgetvault.app.refresh"
 
+    // Audit 2026-04-22 P1-24: explicitly isolate init to MainActor.
+    // Under Swift 6 strict concurrency, `App.init()` is not implicitly
+    // MainActor-isolated (only `body` is), so calls to @MainActor
+    // services (UITestSeedService, NotificationService, UIKit appearance
+    // APIs) from a non-isolated init would error. This annotation is
+    // free at runtime — SwiftUI creates the App on the main thread —
+    // and unlocks compilation under Swift 6.
+    @MainActor
     init() {
         UNUserNotificationCenter.current().delegate = Self.notificationDelegate
 
@@ -102,15 +113,24 @@ struct BudgetVaultApp: App {
             // so they're encrypted at rest but stay readable while
             // the app is running (required for background refresh
             // and widget updates).
+            // Audit 2026-04-22 P1-22: directory-level attribute is still
+            // set every launch (cheap, single call) because it governs
+            // new files that SwiftData creates during this run. The
+            // expensive part is walking every existing file to re-stamp
+            // its attribute — gate that behind a one-shot flag since
+            // iOS persists the attribute once set.
             if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
                 try? (appSupport as NSURL).setResourceValue(
                     URLFileProtection.completeUnlessOpen,
                     forKey: .fileProtectionKey
                 )
-                Self.applyFileProtection(
-                    to: appSupport,
-                    protection: URLFileProtection.completeUnlessOpen
-                )
+                if !UserDefaults.standard.bool(forKey: AppStorageKeys.didStampFileProtection) {
+                    Self.applyFileProtection(
+                        to: appSupport,
+                        protection: URLFileProtection.completeUnlessOpen
+                    )
+                    UserDefaults.standard.set(true, forKey: AppStorageKeys.didStampFileProtection)
+                }
             }
 
             #if DEBUG
@@ -150,9 +170,21 @@ struct BudgetVaultApp: App {
                             // (they don't reveal data through the lock).
                             let biometricOn = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
                             if !biometricOn {
-                                performMonthRollover(container: container)
-                                processRecurringExpenses(container: container)
-                                StreakService.processOnForeground()
+                                // Audit 2026-04-22 P1-23: detach the
+                                // database-mutating work off the scene
+                                // transition so the first frame doesn't
+                                // stall while rollover runs. Still on
+                                // MainActor (SwiftData is MainActor-
+                                // bound) — yielding via Task.yield()
+                                // between each step gives the UI a
+                                // chance to render.
+                                Task { @MainActor in
+                                    performMonthRollover(container: container)
+                                    await Task.yield()
+                                    processRecurringExpenses(container: container)
+                                    await Task.yield()
+                                    StreakService.processOnForeground()
+                                }
                             }
                             Task { await storeKit.checkEntitlements() }
                             NotificationService.scheduleReengagementNotifications()
@@ -166,9 +198,16 @@ struct BudgetVaultApp: App {
                     // Idempotent — rollover/recurring check their own
                     // guards before inserting anything.
                     .onReceive(NotificationCenter.default.publisher(for: .biometricUnlocked)) { _ in
-                        performMonthRollover(container: container)
-                        processRecurringExpenses(container: container)
-                        StreakService.processOnForeground()
+                        // Audit 2026-04-22 P1-23: same detach pattern as
+                        // the scenePhase path. The unlock animation gets
+                        // to finish before DB work starts.
+                        Task { @MainActor in
+                            performMonthRollover(container: container)
+                            await Task.yield()
+                            processRecurringExpenses(container: container)
+                            await Task.yield()
+                            StreakService.processOnForeground()
+                        }
                     }
             } else {
                 databaseErrorView
@@ -218,24 +257,64 @@ struct BudgetVaultApp: App {
     // MARK: - Background App Refresh
 
     private func scheduleBackgroundRefresh() {
+        // Audit 2026-04-22 P1-28: gate submission on the user's
+        // background-refresh permission. Submitting to a denied or
+        // restricted system silently fails, and the attempt counts
+        // against iOS's scheduler budget — meaning legitimate future
+        // submissions get throttled for no reason.
+        let status = UIApplication.shared.backgroundRefreshStatus
+        guard status == .available else {
+            bgTaskLog.info("Skipping BG refresh schedule — backgroundRefreshStatus=\(status.rawValue, privacy: .public)")
+            return
+        }
+
         let request = BGAppRefreshTaskRequest(identifier: Self.bgRefreshIdentifier)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60) // 1 hour
-        try? BGTaskScheduler.shared.submit(request)
+
+        // Audit 2026-04-22 P1-28: log the error instead of swallowing
+        // it. Common failure modes: `.unavailable` (entitlement /
+        // Info.plist mismatch), `.tooManyPendingTaskRequests`
+        // (something else already scheduled one), or simulator
+        // rejection. Without the log, silent scheduler drops are
+        // impossible to diagnose from user reports.
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            bgTaskLog.error("BGTaskScheduler.submit failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     @MainActor
     private func handleBackgroundRefresh() async {
+        // Audit 2026-04-22 P1-29: schedule the NEXT refresh FIRST. iOS
+        // gives us ~30s to finish; if we crash or get killed partway
+        // through real work without having re-registered, iOS concludes
+        // the app can't do useful background work and throttles future
+        // scheduling. Registering up front removes that risk, even if
+        // the current run gets cancelled halfway.
+        scheduleBackgroundRefresh()
+
         guard let container else { return }
 
-        // Process overdue recurring expenses
+        // Check cancellation between each unit of work so we stop
+        // cleanly if the system deadline approaches. `.backgroundTask`
+        // cancels the Task a few seconds before the hard budget
+        // elapses; respecting that keeps our future scheduling budget
+        // intact.
+        guard !Task.isCancelled else {
+            bgTaskLog.info("BG refresh cancelled before recurring-expense pass")
+            return
+        }
+
         let _ = RecurringExpenseScheduler.processOverdue(context: container.mainContext)
 
-        // Update widget data
+        guard !Task.isCancelled else {
+            bgTaskLog.info("BG refresh cancelled before widget update")
+            return
+        }
+
         let rd = max(1, min(UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay), 28))
         WidgetDataService.update(from: container.mainContext, resetDay: rd)
-
-        // Schedule next refresh
-        scheduleBackgroundRefresh()
     }
 
     // MARK: - Database Error Recovery
@@ -281,6 +360,16 @@ struct BudgetVaultApp: App {
         // Also remove WAL and SHM files
         try? fileManager.removeItem(at: storeURL.appendingPathExtension("wal"))
         try? fileManager.removeItem(at: storeURL.appendingPathExtension("shm"))
+
+        // Audit 2026-04-22 P1-21: this emergency path (triggered when
+        // the SwiftData container fails to open) also needs to clear
+        // the Keychain premium flag and onboarding status, so the
+        // restart-for-recovery actually returns to a clean state.
+        KeychainService.delete(forKey: AppStorageKeys.isPremium)
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.hasCompletedOnboarding)
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.isPremium)
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.didStampFileProtection)
+
         // Prompt user to restart
         containerError = "Database has been reset. Please quit and relaunch the app."
     }

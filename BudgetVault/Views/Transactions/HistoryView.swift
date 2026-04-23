@@ -9,6 +9,9 @@ struct HistoryView: View {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
+    // Audit 2026-04-22 P0-7: intentionally unbounded — this IS the full
+    // history view. Pagination in Swift via displayLimit (see :23). A
+    // future fetchLimit+"show older" UX is tracked separately, not here.
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var searchText = ""
@@ -28,6 +31,16 @@ struct HistoryView: View {
     // MARK: - Cached Filter State
     @State private var cachedFilteredTransactions: [Transaction] = []
     @State private var cachedGroupedByDay: [(date: Date, transactions: [Transaction])] = []
+
+    // Audit 2026-04-22 P1-26: cancellable handle for the deferred
+    // search-field focus (100ms after opening the search toggle).
+    @State private var searchFocusTask: Task<Void, Never>?
+    // Audit 2026-04-22 P2-13: debounce handle for searchText changes.
+    // Prior behavior ran recomputeFilteredTransactions on EVERY
+    // keystroke — at 2k+ rows each recompute noticeably stuttered.
+    // 250ms debounce is long enough to coalesce typing bursts, short
+    // enough to feel responsive.
+    @State private var searchDebounceTask: Task<Void, Never>?
     @State private var totalSpent: Int64 = 0
     @State private var totalIncome: Int64 = 0
 
@@ -231,6 +244,13 @@ struct HistoryView: View {
                 }
                 recomputeFilteredTransactions()
             }
+            .onDisappear {
+                // Audit 2026-04-22 P1-26: kill the deferred search-field
+                // focus if the user navigated away before it fired.
+                searchFocusTask?.cancel()
+                // Audit 2026-04-22 P2-13: also kill any pending debounce.
+                searchDebounceTask?.cancel()
+            }
             .sheet(item: $editingTransaction, onDismiss: {
                 recomputeFilteredTransactions()
             }) { transaction in
@@ -251,7 +271,15 @@ struct HistoryView: View {
                 recomputeFilteredTransactions()
             }
             .onChange(of: searchText) { _, _ in
-                recomputeFilteredTransactions()
+                // Audit 2026-04-22 P2-13: debounce keystroke-driven
+                // refilters. Typing "grocery" used to trigger 7
+                // recomputations; now it triggers 1.
+                searchDebounceTask?.cancel()
+                searchDebounceTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { return }
+                    recomputeFilteredTransactions()
+                }
             }
             .onChange(of: sortMode) { _, _ in
                 recomputeFilteredTransactions()
@@ -354,7 +382,13 @@ struct HistoryView: View {
                         searchFieldFocused = false
                     } else {
                         // Focus on next runloop tick once the field is in the hierarchy.
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        // Audit 2026-04-22 P1-26: cancellable Task so
+                        // dismissing the search toggle before 100ms
+                        // elapses doesn't steal focus after dismiss.
+                        searchFocusTask?.cancel()
+                        searchFocusTask = Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(100))
+                            guard !Task.isCancelled else { return }
                             searchFieldFocused = true
                         }
                     }
@@ -530,12 +564,18 @@ struct HistoryView: View {
         }
     }
 
-    private var monthOnly: String {
+    // Audit 2026-04-22 P2-10: hoisted from inside `monthOnly` so the
+    // DateFormatter isn't reallocated on every body re-render.
+    private static let monthNameFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MMMM"
+        return f
+    }()
+
+    private var monthOnly: String {
         let comps = DateComponents(year: viewingYear, month: viewingYear > 0 ? viewingMonth : 1)
         if let date = Calendar.current.date(from: comps) {
-            return f.string(from: date)
+            return Self.monthNameFormatter.string(from: date)
         }
         return ""
     }
@@ -593,12 +633,18 @@ struct HistoryView: View {
         .accessibilityLabel("\(label): \(value)")
     }
 
+    // Audit 2026-04-22 P2-10: hoisted so the NumberFormatter isn't
+    // allocated once per stat-box render.
+    private static let shortCurrencyFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+
     /// Short currency — "$2,253" (no cents) for the stat boxes.
     private func shortCurrency(_ cents: Int64) -> String {
         let dollars = Int(cents / 100)
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        let num = formatter.string(from: NSNumber(value: dollars)) ?? "\(dollars)"
+        let num = Self.shortCurrencyFormatter.string(from: NSNumber(value: dollars)) ?? "\(dollars)"
         return "$\(num)"
     }
 

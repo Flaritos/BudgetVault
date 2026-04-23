@@ -14,7 +14,7 @@ The Vault metaphor is genuinely owned in 3 surfaces (VaultDialMark, navy+neon Va
 ## Top 3 Risks / Debt Items
 
 1. **Voice slippage outside the hero** — DashboardView puts the wedge in a 10pt chip ("On-device · No bank login", `DashboardView.swift:849`), Settings uses "Your data never leaves this device", PaywallView says "never leaves your phone", ShareLink says "private, on-device, and no subscription". Four phrasings of the same promise. Pick one canonical line and replace.
-2. **`accentColorOptions` (10 user-pickable hex values, `BudgetVaultTheme.swift:155`) lets users repaint the brand** — Slate, Crimson, Amber chips can override the electric-blue identity that the marketing site, App Store hero shot, and Vault ring all depend on. Acceptable as accessibility, but Wrapped/ShareCard/AppIcon must be locked to brand blue regardless of user accent.
+2. **`accentColorOptions` (10 user-pickable hex values, `BudgetVaultTheme.swift:155`) lets users repaint the brand** — Slate, Crimson, Amber chips can override the electric-blue identity that the marketing site, App Store hero shot, and Vault ring all depend on. Acceptable as accessibility, but Wrapped/ShareCard/AppIcon must be locked to brand blue regardless of user accent. _(Superseded 2026-04-22: theme picker retired in v3.3.1; `accentColorOptions` no longer exists.)_
 3. **Generic finance UI bleeds through in History, Insights, Add-Transaction, Onboarding chat bubbles** — these read like any SwiftUI Forms app. No vault metaphor, no neon, default SF Pro at default sizes. The Vault tab feels like a different app than the History tab.
 
 ## Quick Wins (<1 day each)

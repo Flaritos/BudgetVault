@@ -21,8 +21,6 @@ struct SettingsView: View {
     @AppStorage(AppStorageKeys.reviewPromptCount) private var reviewPromptCount = 0
     @AppStorage(AppStorageKeys.iCloudSyncEnabled) private var iCloudSyncEnabled = false
 
-    @AppStorage(AppStorageKeys.accentColorHex) private var accentColorHex = "#2563EB"
-
     @State private var showRecurring = false
     @State private var showRestartAlert = false
     @State private var cloudSync = CloudSyncService()
@@ -32,7 +30,6 @@ struct SettingsView: View {
     @State private var exportURL: URL?
     @State private var showExportShare = false
     @State private var tempCurrency = ""
-    @State private var showThemePicker = false
     @State private var showBudgetTemplates = false
     @State private var showAchievements = false
     @State private var templateAppliedAlert = false
@@ -145,9 +142,6 @@ struct SettingsView: View {
                 ShareSheetView(url: url)
             }
         }
-        .sheet(isPresented: $showThemePicker) {
-            ThemePickerView()
-        }
         .sheet(isPresented: $showBudgetTemplates) {
             BudgetTemplateSheetView()
         }
@@ -170,8 +164,13 @@ struct SettingsView: View {
         .onChange(of: resetDay) { _, _ in
             SettingsSyncService.pushAllSettings()
         }
-        .onChange(of: accentColorHex) { _, _ in
-            SettingsSyncService.pushAllSettings()
+        .onAppear {
+            // Audit 2026-04-22 P0-14: surface the "iCloud toggle on but
+            // no iCloud account" case every time Settings is opened, so
+            // the error state doesn't stay stale from a prior launch.
+            if iCloudSyncEnabled {
+                cloudSync.refreshAvailability()
+            }
         }
         .alert("Delete All Data?", isPresented: $showDeleteAllConfirm) {
             Button("Export Data First") {
@@ -292,6 +291,10 @@ struct SettingsView: View {
         // a green positive STAR (not a checkmark seal). Items are
         // center-aligned as a group with a 10pt gap.
         Section {
+            // Audit 2026-04-22 P1-37: group the 3 sub-elements so
+            // VoiceOver reads "BudgetVault Premium" once, not "small
+            // dial, BudgetVault Premium, star." Also adds a stable
+            // accessibilityLabel so the star glyph doesn't leak.
             HStack(spacing: 10) {
                 VaultDial(size: .small, state: .locked, showNumerals: false)
                     .frame(width: 20, height: 20)
@@ -304,6 +307,8 @@ struct SettingsView: View {
                     .foregroundStyle(BudgetVaultTheme.positive)
             }
             .frame(maxWidth: .infinity, alignment: .center)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("BudgetVault Premium, active")
             .listRowBackground(
                 BudgetVaultTheme.accentSoft.opacity(0.08)
             )
@@ -363,29 +368,13 @@ struct SettingsView: View {
                         .foregroundStyle(BudgetVaultTheme.titanium300)
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundStyle(BudgetVaultTheme.titanium500)
+                        // Audit 2026-04-22 P0-9: chevron glyph on navy —
+                        // titanium500 = 3.25:1 fails WCAG 1.4.11 (3:1 for
+                        // non-text iconography is the floor; we aim higher).
+                        // titanium400 = 5.8:1.
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
                 }
             }
-            .listRowBackground(BudgetVaultTheme.chamberDeep)
-
-            // v3.2 audit K7: accent color is FREE for all per MEMORY.md.
-            // Earlier L7 fix mistakenly locked it behind Premium — reverted.
-            Button {
-                showThemePicker = true
-            } label: {
-                HStack {
-                    Text("Accent Color")
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Circle()
-                        .fill(Color(hex: accentColorHex))
-                        .frame(width: 22, height: 22)
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(BudgetVaultTheme.titanium500)
-                }
-            }
-            .accessibilityValue(accentColorName)
             .listRowBackground(BudgetVaultTheme.chamberDeep)
 
             Picker("Budget Reset Day", selection: $resetDay) {
@@ -712,6 +701,14 @@ struct SettingsView: View {
                     // `showRestartAlert` explains the SwiftData
                     // container-level restart is still needed.
                     SettingsSyncService.iCloudToggleChanged(enabled: newValue)
+                    // Audit 2026-04-22 P0-14: surface the no-account
+                    // case immediately. Before this, toggling iCloud
+                    // on without an iCloud account silently did nothing.
+                    if newValue {
+                        cloudSync.refreshAvailability()
+                    } else {
+                        cloudSync.syncError = nil
+                    }
                     showRestartAlert = true
                 }
             ))
@@ -816,13 +813,6 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
-    /// Maps the stored accent hex to a human-readable color name for accessibility.
-    private var accentColorName: String {
-        BudgetVaultTheme.accentColorOptions
-            .first(where: { $0.hex == accentColorHex })?
-            .name ?? "Custom accent color"
-    }
-
     /// Requests notification authorization and calls `completion` on the main thread with the result.
     private func requestNotificationPermission(completion: @escaping (Bool) -> Void) {
         checkNotificationPermission()
@@ -891,6 +881,20 @@ struct SettingsView: View {
                 UserDefaults.standard.removeObject(forKey: key)
             }
         }
+
+        // Audit 2026-04-22 P1-21: previously left the Keychain premium
+        // flag in place — a user who "Deleted All Data" would return to
+        // the app with premium still unlocked (because Keychain is the
+        // authoritative source; see StoreKitManager.checkEntitlements).
+        // Also explicitly reset `hasCompletedOnboarding` so the user
+        // goes through setup again instead of landing on an empty
+        // dashboard with half the preferences gone.
+        KeychainService.delete(forKey: AppStorageKeys.isPremium)
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.hasCompletedOnboarding)
+        // Audit 2026-04-22 P1-22: reset the file-protection one-shot so
+        // the next launch re-stamps any freshly-created SwiftData files.
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.didStampFileProtection)
+
         NotificationService.cancelDailyReminder()
         NotificationService.cancelWeeklySummary()
         NotificationService.cancelMorningBriefing()

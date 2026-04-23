@@ -12,8 +12,11 @@ enum BudgetVaultTheme {
     /// Deep navy — bottom of gradients, modal base, abyss layer.
     /// One shade below navyDark.
     static let navyAbyss = Color(hex: "#070E1F")
+    // Audit 2026-04-22 P0-12: blue family collapsed to two tokens —
+    // `electricBlue` (brand CTA) and `accentSoft` (lighter accent/glow).
+    // Retired: `brightBlue`, `neonBlue`, `userAccentColor`. See
+    // `info`/`heroBrandGradient` below for the swap sites.
     static let electricBlue = Color(hex: "#2563EB")
-    static let brightBlue = Color(hex: "#3B82F6")
 
     static let brandGradient = LinearGradient(
         colors: [navyDark, electricBlue],
@@ -22,7 +25,7 @@ enum BudgetVaultTheme {
     )
 
     static let heroBrandGradient = LinearGradient(
-        colors: [navyDark, brightBlue],
+        colors: [navyDark, accentSoft],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
@@ -39,13 +42,21 @@ enum BudgetVaultTheme {
     static let negative = Color(hex: "#EF4444")
     static let caution = Color(hex: "#F59E0B")
     // Round 5 M9: collapsed the info/brightBlue drift. One accent.
-    static let info = brightBlue
+    // Audit 2026-04-22 P0-12: rebased on `accentSoft` after brightBlue
+    // retirement.
+    static let info = accentSoft
 
     // MARK: - Accent Token
     static let accentSoft = Color(hex: "#60A5FA")
 
+    // MARK: - Onboarding Text
+    // Audit 2026-04-22 P0-11: semantic token for body text on navy
+    // surfaces (primary use: ChatOnboardingView). Distinct from .white so
+    // we can tune onboarding readability without touching every surface.
+    static let bodyOnDark = Color(hex: "#E8EDF5")
+
     // MARK: - Neon Accents
-    static let neonBlue = accentSoft               // alias for #60A5FA
+    // Audit 2026-04-22 P0-12: `neonBlue` alias retired. Use `accentSoft`.
     static let neonGreen = Color(hex: "#34D399")
     static let neonPurple = Color(hex: "#A78BFA")
     static let neonOrange = Color(hex: "#FB923C")
@@ -149,28 +160,6 @@ enum BudgetVaultTheme {
     /// Subtle highlight card for celebratory moments (wrapped).
     static let surfaceCardAccent = adaptiveColor(light: "#EFF6FF", dark: "#0F1B33")
     static let surfaceBackground = adaptiveColor(light: "#F2F2F7", dark: "#000000")
-
-    // MARK: - User Accent Color
-
-    static var userAccentColor: Color {
-        let hex = UserDefaults.standard.string(forKey: AppStorageKeys.accentColorHex) ?? "#2563EB"
-        return Color(hex: hex)
-    }
-
-    // MARK: - Accent Color Options
-
-    static let accentColorOptions: [(name: String, hex: String)] = [
-        ("Electric Blue", "#2563EB"),
-        ("Emerald", "#10B981"),
-        ("Purple", "#8B5CF6"),
-        ("Rose", "#F43F5E"),
-        ("Amber", "#F59E0B"),
-        ("Teal", "#14B8A6"),
-        ("Indigo", "#6366F1"),
-        ("Orange", "#F97316"),
-        ("Slate", "#64748B"),
-        ("Crimson", "#DC2626"),
-    ]
 
     // MARK: - Titanium Scale (vault objects only)
     // Brushed cool metal, used exclusively on physical vault objects:

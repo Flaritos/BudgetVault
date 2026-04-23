@@ -15,16 +15,26 @@ public enum AppStorageKeys {
     public static let lastPaywallDecline = "lastPaywallDecline"
     public static let reviewPromptCount = "reviewPromptCount"
     public static let transactionCount = "transactionCount"
+    /// Audit 2026-04-22 P1-34: per-install timestamp used to anchor the
+    /// launch-pricing countdown. Prior implementation hardcoded a wall-
+    /// clock end date — if App Review slipped, the banner expired
+    /// before any user saw the app. Each user now gets their own
+    /// 30-day launch window from first app open.
+    public static let installDate = "installDate"
     // Audit note: `hasSeenTransactionPaywall` / `hasSeenStreakPaywall`
     // were defined but never read in production. Removed as dead code.
 
     // MARK: - Appearance
     public static let selectedCurrency = "selectedCurrency"
-    public static let accentColorHex = "accentColorHex"
+    // `accentColorHex` removed in v3.3.1 (theme picker retired).
 
     // MARK: - Security
     public static let biometricLockEnabled = "biometricLockEnabled"
     public static let vaultName = "vaultName"
+    /// Audit 2026-04-22 P1-22: one-shot flag that flips true the first
+    /// time the app successfully stamps `FileProtectionType.complete`
+    /// onto Application Support. Subsequent launches skip the walk.
+    public static let didStampFileProtection = "didStampFileProtection"
 
     // MARK: - Streak
     public static let currentStreak = "currentStreak"
@@ -34,6 +44,14 @@ public enum AppStorageKeys {
 
     // MARK: - Dashboard
     public static let lastSummaryViewed = "lastSummaryViewed"
+    /// Audit 2026-04-22 P2-1: hoisted from bare string literals in
+    /// DashboardView + FinanceTabView. Tracks the last-viewed month
+    /// key for the Monthly Wrapped badge.
+    public static let lastWrappedViewed = "lastWrappedViewed"
+    /// Audit 2026-04-22 P2-1: hoisted from bare string literal in
+    /// DashboardView. Tracks the highest streak day the user has
+    /// already celebrated so we don't re-fire the sheet.
+    public static let lastCelebratedMilestone = "lastCelebratedMilestone"
 
     // MARK: - Notifications
     public static let dailyReminderEnabled = "dailyReminderEnabled"

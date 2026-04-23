@@ -64,9 +64,14 @@ struct PaywallView: View {
                         titleBlock
 
                         if isSuccess {
+                            // Audit 2026-04-22 P1-37: respect reduceMotion.
+                            // The scaleEffect is a celebratory flourish;
+                            // a user with motion sensitivity should still
+                            // see the chip appear (via opacity) but not
+                            // the spring bounce.
                             purchaseCompleteChip
                                 .opacity(chipVisible ? 1 : 0)
-                                .scaleEffect(chipVisible ? 1 : 0.9)
+                                .scaleEffect(reduceMotion ? 1 : (chipVisible ? 1 : 0.9))
                         } else {
                             priceChamber
                             featureList
@@ -347,7 +352,7 @@ struct PaywallView: View {
             }
             .background(
                 LinearGradient(
-                    colors: [BudgetVaultTheme.brightBlue, BudgetVaultTheme.electricBlue],
+                    colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.electricBlue],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -415,7 +420,7 @@ struct PaywallView: View {
         }
         .background(
             LinearGradient(
-                colors: [BudgetVaultTheme.brightBlue, BudgetVaultTheme.electricBlue],
+                colors: [BudgetVaultTheme.accentSoft, BudgetVaultTheme.electricBlue],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

@@ -12,8 +12,23 @@ struct TransactionEntryView: View {
     var prefillCategoryName: String?
     var prefillNote: String?
 
-    // TODO: iOS 18 - Add @Query predicate for budget filtering to avoid loading all records
-    @Query(sort: \Transaction.date, order: .reverse) private var allRecentTransactions: [Transaction]
+    // Audit 2026-04-22 P0-7: bounded to last 90 days. Used only for
+    // category learning + note suggestions — recent patterns are what
+    // matter, stale history just inflates memory.
+    @Query private var allRecentTransactions: [Transaction]
+
+    init(budget: Budget, categories: [Category], prefillAmount: Double? = nil, prefillCategoryName: String? = nil, prefillNote: String? = nil) {
+        self.budget = budget
+        self.categories = categories
+        self.prefillAmount = prefillAmount
+        self.prefillCategoryName = prefillCategoryName
+        self.prefillNote = prefillNote
+        let cutoff = Calendar.current.date(byAdding: .day, value: -90, to: Date()) ?? .distantPast
+        _allRecentTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: [SortDescriptor(\Transaction.date, order: .reverse)]
+        )
+    }
 
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
 
@@ -438,8 +453,12 @@ struct TransactionEntryView: View {
                 .onChange(of: note) { _, newValue in
                     showNoteSuggestions = newValue.count >= 2 && !noteSuggestions.isEmpty
                     if !manualCategorySelection {
+                        // Audit 2026-04-22 P1-31: case-insensitive match
+                        // so a stored learning entry for "Food" still
+                        // auto-selects if the user later renamed the
+                        // category to "food".
                         if let suggestion = categoryLearning.suggestCategory(for: newValue),
-                           let match = categories.first(where: { $0.name == suggestion.categoryName }) {
+                           let match = categories.first(where: { $0.name.caseInsensitiveCompare(suggestion.categoryName) == .orderedSame }) {
                             selectedCategory = match
                             categoryAutoSelected = true
                             categoryConfidence = suggestion.confidence
@@ -467,8 +486,9 @@ struct TransactionEntryView: View {
                         showNoteSuggestions = false
                         noteFocused = false
                         if !manualCategorySelection {
+                            // Audit 2026-04-22 P1-31: case-insensitive.
                             if let learned = categoryLearning.suggestCategory(for: suggestion),
-                               let match = categories.first(where: { $0.name == learned.categoryName }) {
+                               let match = categories.first(where: { $0.name.caseInsensitiveCompare(learned.categoryName) == .orderedSame }) {
                                 selectedCategory = match
                                 categoryAutoSelected = true
                                 categoryConfidence = learned.confidence
