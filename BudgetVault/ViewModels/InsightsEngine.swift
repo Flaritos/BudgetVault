@@ -146,7 +146,8 @@ enum InsightsEngine {
             insights.append(Insight(
                 icon: "🔥",
                 title: "\(streak)-day streak!",
-                message: "You've logged expenses \(streak) days in a row. Keep it up!",
+                // Audit 2026-04-23 Brand: softer declarative, drop exclamation.
+                message: "\(streak)-day logging streak active.",
                 severity: .success
             ))
         }
@@ -362,7 +363,8 @@ enum InsightsEngine {
                 insights.append(Insight(
                     icon: "🎯",
                     title: "Budget fit: \(fitScore)%",
-                    message: "Your spending closely matches your planned budget. Great discipline!",
+                    // Audit 2026-04-23 Brand: declarative tone.
+                    message: "Your spending tracks your plan closely this month.",
                     severity: .success
                 ))
             } else if fitScore < 50 && daysSoFar > 7 {
@@ -425,7 +427,8 @@ enum InsightsEngine {
                 insights.append(Insight(
                     icon: "🧘",
                     title: "\(zeroSpendDays) no-spend days",
-                    message: "You've had \(zeroSpendDays) days without spending this month. Nice restraint!",
+                    // Audit 2026-04-23 Brand: declarative tone.
+                    message: "\(zeroSpendDays) no-spend days logged this month.",
                     severity: .success
                 ))
             }

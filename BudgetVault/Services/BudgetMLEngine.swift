@@ -248,7 +248,8 @@ enum BudgetMLEngine {
             type: .steadyEddie,
             title: "Steady Eddie",
             description: "You spend consistently day to day. Very disciplined!",
-            tip: "Your consistency makes it easy to predict and plan. Keep it up!",
+            // Audit 2026-04-23 Brand: declarative, no exclamation.
+            tip: "Consistent daily spending makes forecasts reliable.",
             confidence: steadyConfidence
         ))
 
