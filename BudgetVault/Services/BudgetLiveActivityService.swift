@@ -1,5 +1,6 @@
 import Foundation
 import os
+import BudgetVaultShared
 #if canImport(ActivityKit) && os(iOS)
 import ActivityKit
 #endif
@@ -56,6 +57,15 @@ enum BudgetLiveActivityService {
         periodEndDate: Date
     ) async {
         guard areActivitiesEnabled else { return }
+        // Audit 2026-04-23 Security P1: when the user enables App Lock
+        // (biometricLockEnabled), the whole point is that financial
+        // data stays behind the lock. A Live Activity on the lock
+        // screen rendering exact $ amounts directly contradicts that
+        // promise. Skip starting any activity while App Lock is on.
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled) {
+            await endAllActivities()
+            return
+        }
         // v3.3 P0 fix: end any stale activity (periodEndDate in the past) before
         // requesting a new one — race-free via async/await rather than fire-and-forget.
         await endStaleActivities()
@@ -116,9 +126,17 @@ enum BudgetLiveActivityService {
     /// the user disables them.
     static func endAll() {
         Task {
-            for activity in Activity<BudgetActivityAttributes>.activities {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            }
+            await endAllActivities()
+        }
+    }
+
+    /// Audit 2026-04-23 Security P1: async variant used by `start()`
+    /// when biometric lock is enabled. Synchronously awaits all
+    /// `activity.end()` calls so the Lock Screen is cleared before
+    /// `start()` returns.
+    static func endAllActivities() async {
+        for activity in Activity<BudgetActivityAttributes>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 }

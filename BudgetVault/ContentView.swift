@@ -10,6 +10,9 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var authService = BiometricAuthService()
     @State private var showLaunchScreen = true
+    // Audit 2026-04-23 Security P1: inactivity timeout for biometric
+    // re-auth. Stamp on .background transition, compare on .active.
+    @AppStorage("lastBackgroundDate") private var lastBackgroundDate: Double = 0
     // Audit 2026-04-22 P2-9: the app-switcher snapshot is captured at
     // `.inactive`, BEFORE `.background`. Previously the biometric lock
     // only engaged on `.background`, so financial data was visible in
@@ -71,10 +74,26 @@ struct ContentView: View {
             case .inactive:
                 // Snapshot capture happens here. Obscure before
                 // iOS grabs the frame for app-switcher.
-                obscureForSnapshot = true
+                // Audit 2026-04-23 Security S2: apply the overlay
+                // synchronously (no animation) so iOS can't snapshot a
+                // half-faded frame.
+                withTransaction(SwiftUI.Transaction(animation: nil)) {
+                    obscureForSnapshot = true
+                }
             case .active:
+                // Audit 2026-04-23 Security P1: inactivity timeout on
+                // biometric re-auth. Track last-background timestamp;
+                // force re-auth if > 30s elapsed. Prevents the
+                // borrowed-phone attacker-with-unlocked-device from
+                // browsing a live session.
+                if biometricLockEnabled,
+                   lastBackgroundDate > 0,
+                   Date().timeIntervalSince1970 - lastBackgroundDate > 30 {
+                    authService.isAuthenticated = false
+                }
                 obscureForSnapshot = false
             case .background:
+                lastBackgroundDate = Date().timeIntervalSince1970
                 if biometricLockEnabled {
                     authService.isAuthenticated = false
                 }

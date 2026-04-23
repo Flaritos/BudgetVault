@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import StoreKit
 import TipKit
+import WidgetKit
 import os
 import BudgetVaultShared
 
@@ -323,7 +324,19 @@ struct SettingsView: View {
 
     private var securitySection: some View {
         Section {
-            Toggle(isOn: $biometricLockEnabled) {
+            Toggle(isOn: Binding(
+                get: { biometricLockEnabled },
+                set: { newValue in
+                    biometricLockEnabled = newValue
+                    // Audit 2026-04-23 Security P1: when the lock turns
+                    // on, also end any live Lock-Screen Activity that's
+                    // currently showing balances. Activity renders on
+                    // the lock screen and would contradict the lock.
+                    if newValue {
+                        BudgetLiveActivityService.endAll()
+                    }
+                }
+            )) {
                 Label("Biometric Lock", systemImage: "faceid")
             }
             .tint(BudgetVaultTheme.electricBlue)
@@ -905,6 +918,16 @@ struct SettingsView: View {
         // Audit 2026-04-22 P1-22: reset the file-protection one-shot so
         // the next launch re-stamps any freshly-created SwiftData files.
         UserDefaults.standard.set(false, forKey: AppStorageKeys.didStampFileProtection)
+
+        // Audit 2026-04-23 Security P1: wipe App Group UserDefaults
+        // (widget snapshot data) + end all Live Activities. Without
+        // these, the user's remaining budget is still visible on the
+        // lock screen / home screen after "Delete All Data".
+        if let appGroup = UserDefaults(suiteName: "group.io.budgetvault.shared") {
+            appGroup.removePersistentDomain(forName: "group.io.budgetvault.shared")
+        }
+        BudgetLiveActivityService.endAll()
+        WidgetCenter.shared.reloadAllTimelines()
 
         NotificationService.cancelDailyReminder()
         NotificationService.cancelWeeklySummary()

@@ -52,6 +52,14 @@ final class BiometricAuthService {
         // the user responds to the live prompt.
         errorMessage = nil
 
+        // Audit 2026-04-23 Security P1: prefer biometric-only policy so
+        // a shoulder-surfer who knows the device passcode can't open
+        // the vault. Only fall through to passcode-allowed policy if
+        // biometrics are not currently enrolled (returns .biometryLockout
+        // after too many failures or .biometryNotEnrolled).
+        var biometryError: NSError?
+        let biometryAvailable = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometryError)
+
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
             // Audit fix: was `isAuthenticated = true` (fail open). For a
@@ -66,9 +74,15 @@ final class BiometricAuthService {
             return
         }
 
+        // Pick the stricter policy if biometrics are available; fall
+        // back to the passcode-inclusive policy only as a last resort.
+        let policy: LAPolicy = biometryAvailable
+            ? .deviceOwnerAuthenticationWithBiometrics
+            : .deviceOwnerAuthentication
+
         do {
             let success = try await context.evaluatePolicy(
-                .deviceOwnerAuthentication,
+                policy,
                 localizedReason: "Unlock BudgetVault"
             )
             isAuthenticated = success
