@@ -20,6 +20,9 @@ struct PaywallView: View {
 
     @State private var dialFaceRotation: Double = 0
     @State private var chipVisible: Bool = false
+    // Audit 2026-04-23 UX P1: surfaces after 5s of product-load spin
+    // so first-launch StoreKit stalls don't look like a frozen modal.
+    @State private var showLoadTimeoutHint = false
 
     private var isSuccess: Bool {
         storeKit.purchaseState == .success
@@ -372,9 +375,37 @@ struct PaywallView: View {
                 .buttonStyle(PrimaryButtonStyle())
             }
         } else if storeKit.premiumProduct == nil {
-            ProgressView()
-                .tint(BudgetVaultTheme.accentSoft)
-                .padding(.vertical, 8)
+            // Audit 2026-04-23 UX P1: pair the spinner with a short
+            // timeout-hint so first-launch StoreKit stalls don't
+            // look like a frozen modal. The spinner stays running;
+            // the hint appears after 5s.
+            VStack(spacing: 10) {
+                ProgressView()
+                    .tint(BudgetVaultTheme.accentSoft)
+
+                if showLoadTimeoutHint {
+                    Text("Taking longer than usual. Check your connection?")
+                        .font(.caption)
+                        .foregroundStyle(BudgetVaultTheme.titanium400)
+                        .multilineTextAlignment(.center)
+                    Button {
+                        storeKit.retryLoadProducts()
+                    } label: {
+                        Text("Retry")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(BudgetVaultTheme.accentSoft)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+            .task {
+                // Reset on every re-appear.
+                showLoadTimeoutHint = false
+                try? await Task.sleep(for: .seconds(5))
+                if storeKit.premiumProduct == nil && storeKit.productLoadError == nil {
+                    showLoadTimeoutHint = true
+                }
+            }
         } else {
             VStack(spacing: 4) {
                 purchasePrimaryButton

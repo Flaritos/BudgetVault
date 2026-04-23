@@ -237,8 +237,21 @@ struct RecurringExpenseListView: View {
                     Label("Activate", systemImage: "play.circle")
                 }
             }
+
+            // Audit 2026-04-23 UX P1: destructive delete affordance.
+            // List-style swipe-to-delete isn't available in ScrollView
+            // (see class comment top of file for retirement rationale);
+            // context-menu delete is the discoverable substitute.
+            Button(role: .destructive) {
+                modelContext.delete(expense)
+                if !SafeSave.save(modelContext) {
+                    modelContext.rollback()
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
-        .accessibilityHint("Double tap to edit. Press and hold for more actions.")
+        .accessibilityHint("Double tap to edit. Press and hold for more actions including delete.")
 
         if !isLast {
             HingeRule(weight: .thin)
