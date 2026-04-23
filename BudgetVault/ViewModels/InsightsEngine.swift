@@ -264,11 +264,16 @@ enum InsightsEngine {
                 dayUniqueDates[weekday, default: []].insert(txDay)
             }
 
-            // Find day with lowest average (total per weekday / unique dates with that weekday)
+            // Find day with lowest average (total per weekday / unique dates with that weekday).
+            // Audit 2026-04-23 AI P2: require each weekday to appear
+            // ≥2× before inclusion. Otherwise a single Monday with $5
+            // beats a well-sampled Tuesday with $40/day avg — the
+            // label "your lightest day is Monday" misrepresents N=1.
             var bestDay = 0
             var bestAvg = Int64.max
             for (day, total) in dayTotals {
                 let uniqueDateCount = dayUniqueDates[day]?.count ?? 1
+                guard uniqueDateCount >= 2 else { continue }
                 let avg = total / Int64(max(1, uniqueDateCount))
                 if avg < bestAvg {
                     bestAvg = avg
@@ -434,12 +439,24 @@ enum InsightsEngine {
             }
         }
 
-        // 15. Seasonal Trend — same month last year comparison
+        // 15. Seasonal Trend — same month last year comparison.
+        // Audit 2026-04-23 AI P1: prior implementation compared the
+        // totalSpentCents of THIS year's month vs LAST year's month
+        // without checking that the budgets had overlapping category
+        // structure. User who renamed "Dining Out" to "Food" or who
+        // deleted categories got apples-to-oranges comparisons
+        // labeled as if they were trends. Now gate on ≥60% category-
+        // name overlap between the two budgets.
         if allBudgets.count >= 12 {
             let lastYearBudget = allBudgets.first { $0.month == budget.month && $0.year == budget.year - 1 }
             if let lastYear = lastYearBudget {
+                let thisYearNames = Set((budget.categories ?? []).map { $0.name.lowercased() })
+                let lastYearNames = Set((lastYear.categories ?? []).map { $0.name.lowercased() })
+                let overlap = thisYearNames.intersection(lastYearNames)
+                let unionSize = thisYearNames.union(lastYearNames).count
+                let overlapRatio = unionSize > 0 ? Double(overlap.count) / Double(unionSize) : 0
                 let lastYearSpent = lastYear.totalSpentCents()
-                if lastYearSpent > 0 {
+                if overlapRatio >= 0.6 && lastYearSpent > 0 {
                     let diff = totalSpent - lastYearSpent
                     let pctChange = abs(Double(diff) / Double(lastYearSpent) * 100)
                     if diff < 0 && pctChange >= 10 {
