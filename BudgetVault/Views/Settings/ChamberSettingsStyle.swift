@@ -65,3 +65,27 @@ extension View {
             .listRowBackground(BudgetVaultTheme.chamberRowGradient)
     }
 }
+
+/// Bare role-tinted tile icon for rows that can't use `Label` (Profile
+/// HStacks with inline TextField/Picker, bare About rows, Toggles that
+/// use a plain string title). Mirrors the tile dimensions from
+/// `ChamberLabelStyle` so everything lines up vertically.
+struct ChamberTileIcon: View {
+    let symbol: String
+    var role: ChamberRole = .standard
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(role.tint)
+            .frame(width: 32, height: 32)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(role.tint.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(role.tint.opacity(0.22), lineWidth: 1)
+            )
+    }
+}

@@ -425,7 +425,12 @@ struct SettingsView: View {
                     }
                 }
             )) {
+                // Audit 2026-04-23 Smoke-8: Toggle's Label slot doesn't
+                // inherit the Form-level `.labelStyle(ChamberLabelStyle())`
+                // reliably on iOS 18, so apply the tile style
+                // explicitly at every Toggle callsite.
                 Label("Biometric Lock", systemImage: "faceid")
+                    .labelStyle(ChamberLabelStyle())
             }
             .tint(BudgetVaultTheme.electricBlue)
             .listRowBackground(BudgetVaultTheme.chamberRowGradient)
@@ -438,7 +443,8 @@ struct SettingsView: View {
 
     private var profileSection: some View {
         Section {
-            HStack {
+            HStack(spacing: 12) {
+                ChamberTileIcon(symbol: "person.fill")
                 Text("Name")
                 Spacer()
                 // Audit fix: TextField without submitLabel traps users
@@ -464,7 +470,8 @@ struct SettingsView: View {
                 tempCurrency = selectedCurrency
                 showCurrencyPicker = true
             } label: {
-                HStack {
+                HStack(spacing: 12) {
+                    ChamberTileIcon(symbol: "dollarsign.circle.fill")
                     Text("Currency")
                         .foregroundStyle(.primary)
                     Spacer()
@@ -481,12 +488,19 @@ struct SettingsView: View {
             }
             .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
-            Picker("Budget Reset Day", selection: $resetDay) {
-                ForEach(1...28, id: \.self) { day in
-                    Text("\(day)").tag(day)
+            // Audit 2026-04-23 Smoke-8: `Picker("Budget Reset Day", ...)`
+            // renders its title as a plain Text — no Label, no tile.
+            // Wrap in an HStack so we can prepend a ChamberTileIcon
+            // while keeping the Picker's inline selection display.
+            HStack(spacing: 12) {
+                ChamberTileIcon(symbol: "calendar")
+                Picker("Budget Reset Day", selection: $resetDay) {
+                    ForEach(1...28, id: \.self) { day in
+                        Text("\(day)").tag(day)
+                    }
                 }
+                .tint(BudgetVaultTheme.accentSoft)
             }
-            .tint(BudgetVaultTheme.accentSoft)
             .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             Text("Changing the reset day takes effect next month.")
@@ -599,7 +613,10 @@ struct SettingsView: View {
 
     private var notificationsSection: some View {
         Section {
-            Toggle("Daily Reminder", isOn: $dailyReminderEnabled)
+            Toggle(isOn: $dailyReminderEnabled) {
+                Label("Daily Reminder", systemImage: "bell.fill")
+                    .labelStyle(ChamberLabelStyle())
+            }
                 .tint(BudgetVaultTheme.electricBlue)
                 .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: dailyReminderEnabled) { _, enabled in
@@ -629,7 +646,10 @@ struct SettingsView: View {
                 }
             }
 
-            Toggle("Weekly Summary", isOn: $weeklyDigestEnabled)
+            Toggle(isOn: $weeklyDigestEnabled) {
+                Label("Weekly Summary", systemImage: "calendar")
+                    .labelStyle(ChamberLabelStyle())
+            }
                 .tint(BudgetVaultTheme.electricBlue)
                 .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: weeklyDigestEnabled) { _, enabled in
@@ -650,7 +670,10 @@ struct SettingsView: View {
                     }
                 }
 
-            Toggle("Bill Due Reminders", isOn: $billDueReminders)
+            Toggle(isOn: $billDueReminders) {
+                Label("Bill Due Reminders", systemImage: "creditcard.fill")
+                    .labelStyle(ChamberLabelStyle())
+            }
                 .tint(BudgetVaultTheme.electricBlue)
                 .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: billDueReminders) { _, enabled in
@@ -663,7 +686,10 @@ struct SettingsView: View {
                     }
                 }
 
-            Toggle("Morning Briefing", isOn: $morningBriefingEnabled)
+            Toggle(isOn: $morningBriefingEnabled) {
+                Label("Morning Briefing", systemImage: "sun.max.fill")
+                    .labelStyle(ChamberLabelStyle())
+            }
                 .tint(BudgetVaultTheme.electricBlue)
                 .listRowBackground(BudgetVaultTheme.chamberRowGradient)
                 .onChange(of: morningBriefingEnabled) { _, enabled in
@@ -717,9 +743,8 @@ struct SettingsView: View {
                 Button {
                     Task { await storeKit.purchase(tipProduct) }
                 } label: {
-                    HStack {
-                        Image(systemName: "heart.fill")
-                            .foregroundStyle(BudgetVaultTheme.negative)
+                    HStack(spacing: 12) {
+                        ChamberTileIcon(symbol: "heart.fill", role: .destructive)
                         Text("Leave a Tip")
                         Spacer()
                         Text(tipProduct.displayPrice)
@@ -806,7 +831,7 @@ struct SettingsView: View {
 
     private var iCloudSection: some View {
         Section {
-            Toggle("iCloud Sync", isOn: Binding(
+            Toggle(isOn: Binding(
                 get: { iCloudSyncEnabled },
                 set: { newValue in
                     iCloudSyncEnabled = newValue
@@ -826,7 +851,10 @@ struct SettingsView: View {
                     }
                     showRestartAlert = true
                 }
-            ))
+            )) {
+                Label("iCloud Sync", systemImage: "icloud.fill")
+                    .labelStyle(ChamberLabelStyle(role: .info))
+            }
             .tint(BudgetVaultTheme.electricBlue)
             .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
@@ -876,7 +904,8 @@ struct SettingsView: View {
 
     private var aboutSection: some View {
         Section {
-            HStack {
+            HStack(spacing: 12) {
+                ChamberTileIcon(symbol: "info.circle.fill")
                 Text("Version")
                 Spacer()
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
