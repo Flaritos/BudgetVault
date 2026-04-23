@@ -22,21 +22,30 @@ final class StoreKitManager {
     /// and give every user a 30-day window from their own first open.
     private static let launchPricingWindow: TimeInterval = 30 * 24 * 60 * 60
 
-    /// The absolute launch-pricing end date for THIS install. Computed
-    /// lazily from the stamped install date. Nil until the first access
-    /// (which writes the stamp) — treat nil as "still in launch window."
+    /// Audit 2026-04-23 R2: pure getter — reads the stamped install
+    /// date if present, otherwise assumes "stamped now" for display
+    /// purposes WITHOUT mutating UserDefaults. Stamping happens once
+    /// in `stampInstallDateIfNeeded()`, called from `init()`.
+    ///
+    /// Prior implementation wrote to UserDefaults inside the getter,
+    /// which polluted StoreKitManagerTests (first test run permanently
+    /// stamped the install date into the prod defaults store).
     static var launchPricingEndDate: Date {
-        let defaults = UserDefaults.standard
-        let key = AppStorageKeys.installDate
-        let stamped = defaults.double(forKey: key)
-        let installDate: Date
-        if stamped > 0 {
-            installDate = Date(timeIntervalSince1970: stamped)
-        } else {
-            installDate = Date()
-            defaults.set(installDate.timeIntervalSince1970, forKey: key)
-        }
+        let stamped = UserDefaults.standard.double(forKey: AppStorageKeys.installDate)
+        let installDate = stamped > 0
+            ? Date(timeIntervalSince1970: stamped)
+            : Date() // Not stamped yet; use "now" for display, don't persist.
         return installDate.addingTimeInterval(launchPricingWindow)
+    }
+
+    /// Stamps the install date if not already set. Idempotent.
+    /// Called once from `init()` on first app launch so the 30-day
+    /// window anchors to the user's actual first open.
+    static func stampInstallDateIfNeeded() {
+        let defaults = UserDefaults.standard
+        if defaults.double(forKey: AppStorageKeys.installDate) == 0 {
+            defaults.set(Date().timeIntervalSince1970, forKey: AppStorageKeys.installDate)
+        }
     }
 
     var products: [Product] = []
@@ -82,6 +91,10 @@ final class StoreKitManager {
     private nonisolated(unsafe) var updateTask: Task<Void, Never>?
 
     init() {
+        // Audit 2026-04-23 R2: stamp install date on first launch,
+        // side-effect-free from `launchPricingEndDate` getter.
+        Self.stampInstallDateIfNeeded()
+
         updateTask = Task { [weak self] in
             await self?.listenForTransactions()
         }

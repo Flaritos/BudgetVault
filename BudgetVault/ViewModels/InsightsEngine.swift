@@ -115,26 +115,28 @@ enum InsightsEngine {
             let prevDaysInPeriod = calendar.dateComponents([.day], from: prev.periodStart, to: prev.nextPeriodStart).day ?? daysInPeriod
             let elapsedFraction = Double(daysSoFar) / Double(daysInPeriod)
             let prevCutoffDays = max(1, Int((elapsedFraction * Double(prevDaysInPeriod)).rounded()))
-            guard let prevCutoff = calendar.date(byAdding: .day, value: prevCutoffDays, to: prev.periodStart) else {
-                return insights
-            }
-            let prevSpentAtSamePoint = (prev.categories ?? [])
-                .flatMap { $0.transactions ?? [] }
-                .filter {
-                    !$0.isIncome &&
-                    $0.date >= prev.periodStart &&
-                    $0.date < min(prevCutoff, prev.nextPeriodStart)
-                }
-                .reduce(Int64(0)) { $0 + $1.amountCents }
+            // Audit 2026-04-23 R1: prior guard used `return insights`
+            // which short-circuited insights 5–16 on a calendar-edge
+            // nil. Now skip this insight only via if-let.
+            if let prevCutoff = calendar.date(byAdding: .day, value: prevCutoffDays, to: prev.periodStart) {
+                let prevSpentAtSamePoint = (prev.categories ?? [])
+                    .flatMap { $0.transactions ?? [] }
+                    .filter {
+                        !$0.isIncome &&
+                        $0.date >= prev.periodStart &&
+                        $0.date < min(prevCutoff, prev.nextPeriodStart)
+                    }
+                    .reduce(Int64(0)) { $0 + $1.amountCents }
 
-            if totalSpent < prevSpentAtSamePoint && prevSpentAtSamePoint > 0 {
-                let saved = prevSpentAtSamePoint - totalSpent
-                insights.append(Insight(
-                    icon: "🎉",
-                    title: "Spending less than last month",
-                    message: "You've spent \(CurrencyFormatter.format(cents: saved)) less than this point last month.",
-                    severity: .success
-                ))
+                if totalSpent < prevSpentAtSamePoint && prevSpentAtSamePoint > 0 {
+                    let saved = prevSpentAtSamePoint - totalSpent
+                    insights.append(Insight(
+                        icon: "🎉",
+                        title: "Spending less than last month",
+                        message: "You've spent \(CurrencyFormatter.format(cents: saved)) less than this point last month.",
+                        severity: .success
+                    ))
+                }
             }
         }
 
@@ -271,9 +273,10 @@ enum InsightsEngine {
             // return nil for certain edge cases (calendar boundary
             // overflows). Guard and skip the Payday Splurge insight
             // rather than crash.
-            guard let first3End = calendar.date(byAdding: .day, value: 3, to: budget.periodStart) else {
-                return insights
-            }
+            // Audit 2026-04-23 R1: prior `return insights` here short-
+            // circuited remaining insights. Swap to if-let so only this
+            // insight skips on nil.
+            if let first3End = calendar.date(byAdding: .day, value: 3, to: budget.periodStart) {
             let first3Spent = allTxs.filter { $0.date >= budget.periodStart && $0.date < first3End }
                 .reduce(Int64(0)) { $0 + $1.amountCents }
             let restSpent = totalSpent - first3Spent
@@ -294,6 +297,7 @@ enum InsightsEngine {
                     severity: .nudge
                 ))
             }
+            } // if let first3End
         }
 
         // 11. Savings Rate
