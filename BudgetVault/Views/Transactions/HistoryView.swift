@@ -325,6 +325,11 @@ struct HistoryView: View {
                             return
                         }
                         HapticManager.notification(.warning)
+                        // Audit 2026-04-23 UX P1: refresh widget + Live
+                        // Activity after delete so home-screen widget
+                        // doesn't show the deleted row's phantom spend
+                        // until next foreground.
+                        WidgetDataService.update(from: modelContext, resetDay: resetDay)
                         transactionToDelete = nil
                     }
                 }

@@ -202,7 +202,21 @@ struct SettingsView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will permanently delete all budgets, transactions, and settings. This action cannot be undone.")
+            // Audit 2026-04-23 UX P1: prior copy said "budgets, transactions,
+            // and settings" but silently also wiped Keychain (premium),
+            // iCloud sync, biometric lock, Live Activity + widget data,
+            // and re-ran onboarding. Full disclosure.
+            Text("""
+            This permanently deletes:
+            • All budgets, transactions, recurring rules, debts
+            • All categories and preferences
+            • Premium unlock (tap Restore Purchases in Settings to recover)
+            • iCloud sync (Apple-side data unaffected)
+            • Live Activity + widget data
+            • Onboarding progress (you'll set up again)
+
+            Cannot be undone.
+            """)
         }
     }
 

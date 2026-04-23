@@ -207,6 +207,10 @@ struct TransactionEditView: View {
             return
         }
         HapticManager.notification(.warning)
+        // Audit 2026-04-23 UX P1: refresh widget timeline after delete
+        // so the home-screen widget doesn't show phantom spend.
+        let resetDay = max(1, min(UserDefaults.standard.integer(forKey: AppStorageKeys.resetDay), 28))
+        WidgetDataService.update(from: modelContext, resetDay: resetDay)
         dismiss()
     }
 

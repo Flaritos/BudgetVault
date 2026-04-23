@@ -59,6 +59,10 @@ struct DashboardView: View {
         case streakMilestone
         case shareCard
         case bufferInfo
+        // Audit 2026-04-23 UX P0: inline budget editor sheet so the
+        // "Set Income" / "Create Budget" CTAs don't bounce users
+        // through the entire 7-step Vault Unlocking Ceremony.
+        case budgetEditor
         case newAchievement(AchievementService.Achievement)
 
         var id: String {
@@ -195,12 +199,16 @@ struct DashboardView: View {
 
                 if let budget = currentBudget {
                     if budget.totalIncomeCents == 0 {
+                        // Audit 2026-04-23 UX P0: was
+                        // `hasCompletedOnboarding = false` which dumped
+                        // users back into the entire Vault Unlocking
+                        // Ceremony. Now opens the inline budget editor.
                         EmptyStateView(
                             icon: "dollarsign.circle",
                             title: "Set Your Income",
                             message: "Set your monthly income to get started.",
                             actionLabel: "Set Income",
-                            action: { hasCompletedOnboarding = false }
+                            action: { activeSheet = .budgetEditor }
                         )
                     } else if visibleCategories.isEmpty && recentTransactions.isEmpty {
                         EmptyStateView(
@@ -214,12 +222,14 @@ struct DashboardView: View {
                         dashboardContent(budget: budget)
                     }
                 } else {
+                    // Audit 2026-04-23 UX P0: "Create Budget" also no
+                    // longer relaunches the onboarding ceremony.
                     EmptyStateView(
                         icon: "calendar.badge.exclamationmark",
                         title: "No Budget for This Period",
                         message: "Create a new budget to start tracking your spending.",
                         actionLabel: "Create Budget",
-                        action: { hasCompletedOnboarding = false }
+                        action: { activeSheet = .budgetEditor }
                     )
                 }
             }
@@ -421,6 +431,9 @@ struct DashboardView: View {
                     .padding()
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
+                case .budgetEditor:
+                    BudgetView()
+                        .presentationDragIndicator(.visible)
                 }
             }
             .task {

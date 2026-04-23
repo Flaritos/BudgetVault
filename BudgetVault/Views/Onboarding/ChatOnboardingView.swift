@@ -907,18 +907,24 @@ struct ChatOnboardingView: View {
 
     private func takeDepthForkDecision() {
         if chosePath == .quick {
-            // Auto-defaults so the user lands on a working Home without
-            // revisiting currency/income/envelopes in onboarding.
+            // Audit 2026-04-23 UX P0 / D7: prior Quick Start hardcoded
+            // `incomeText = "5000"` and skipped straight to createBudget
+            // — every insight, allowance, and Wrapped slide then
+            // computed from fiction. Now Quick still auto-defaults
+            // currency + envelopes but ALWAYS asks for income via the
+            // existing income step. The depth fork's promise is
+            // "fewer screens," not "lie to us about your paycheck."
             tempCurrency = "USD"
             selectedCurrency = "USD"
-            incomeText = "5000"
+            incomeText = "" // user must enter actual income
             selectedTemplate = .single
             editableCategories = Array(BudgetTemplates.OnboardingTemplate.single.categories.prefix(categoryLimit))
 
-            // Commit the budget now (same path as Looks Good), then jump
-            // to the unlocked step. createBudget() handles the transition
-            // to .unlocked via its internal animation.
-            createBudget()
+            // Jump to the income step — createBudget() fires after
+            // the user taps Next/Continue on that step as normal.
+            withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.6)) {
+                currentStep = .income
+            }
         } else {
             // Thorough path: advance normally to .currency.
             advanceToNextStep()
