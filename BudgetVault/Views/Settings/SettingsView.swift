@@ -1094,6 +1094,9 @@ struct SettingsView: View {
             "lastActiveDate", "morningBriefing", "catchUpDismissed",
             "categoryLearningMappings", "reviewTriggered_", "lastReviewPrompt",
             "transactionCount", "hasSeenTransaction", "hasSeenStreak", "installDate",
+            // Audit 2026-04-23 Max Audit P2: extra orphan prefixes the
+            // earlier sweep missed.
+            "lastBackgroundDate", "closeVaultReminder", "lastNotificationScheduleHour",
         ]
         for key in UserDefaults.standard.dictionaryRepresentation().keys {
             if appPrefixes.contains(where: { key.hasPrefix($0) }) {

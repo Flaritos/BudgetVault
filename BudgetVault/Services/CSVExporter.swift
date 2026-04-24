@@ -24,6 +24,8 @@ enum CSVExporter {
     /// full history exported for everyone.
     static func export(context: ModelContext, premiumOnly: Bool = true, resetDay: Int) throws -> URL {
         _ = premiumOnly // silence unused-parameter warning; retained for call-site stability
+        // Note: SwiftData's FetchDescriptor lacks a public batch-size
+        // knob as of iOS 26 SDK. Audit P2 (fetchBatchSize) deferred.
         let descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\Transaction.date)])
         guard let transactions = try? context.fetch(descriptor) else {
             throw ExportError.fetchFailed

@@ -663,8 +663,25 @@ struct HistoryView: View {
                 .padding(.top, 40)
             Spacer()
         } else if cachedFilteredTransactions.isEmpty && !searchText.isEmpty {
-            ContentUnavailableView.search(text: searchText)
-                .foregroundStyle(BudgetVaultTheme.ledgerInk)
+            VStack(spacing: 14) {
+                ContentUnavailableView.search(text: searchText)
+                    .foregroundStyle(BudgetVaultTheme.ledgerInk)
+                // Audit 2026-04-23 Max Audit P2: inline Clear button
+                // so a user with a typo'd search ("grocries") doesn't
+                // need to scroll to the search bar and tap its xmark.
+                Button {
+                    searchText = ""
+                } label: {
+                    Text("Clear search")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule().strokeBorder(BudgetVaultTheme.accentSoft.opacity(0.3), lineWidth: 1)
+                        )
+                }
+            }
             Spacer()
         } else if cachedFilteredTransactions.isEmpty {
             EmptyStateView(

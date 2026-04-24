@@ -168,7 +168,16 @@ struct DashboardView: View {
         let key = "\(budget.year)-\(budget.month)"
         guard lastWrappedViewed != key else { return false }
         let fraction = DashboardViewModel.dayProgressFraction(periodStart: budget.periodStart, nextPeriodStart: budget.nextPeriodStart)
-        return fraction >= 0.8 || previousBudget != nil
+        // Audit 2026-04-23 Max Audit P2: require at least 5 transactions
+        // before surfacing Wrapped. Previous rule fired on Day 1 of
+        // month-2 with a ~week of sparse data; Wrapped slides then
+        // rendered empty/zero numbers that confused users.
+        let prevBudgetHasEnoughData: Bool = {
+            guard let prev = previousBudget else { return false }
+            let prevTx = (prev.categories ?? []).reduce(0) { $0 + ($1.transactions?.count ?? 0) }
+            return prevTx >= 5
+        }()
+        return fraction >= 0.8 || prevBudgetHasEnoughData
     }
 
     private var recentTransactions: [Transaction] {

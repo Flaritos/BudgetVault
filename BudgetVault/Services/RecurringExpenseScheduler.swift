@@ -1,10 +1,18 @@
 import Foundation
 import SwiftData
+import os
 import BudgetVaultShared
 
 enum RecurringExpenseScheduler {
 
     static let maxPerLaunch = 50
+
+    // Audit 2026-04-23 Max Audit P2-12: surface truncation via log.
+    // A user returning from a long sabbatical with many active
+    // recurring expenses will hit the 50-cap. Prior behavior silently
+    // stopped; the log gives production debuggability (no user-facing
+    // banner — the next foreground picks up the rest).
+    private static let logger = Logger(subsystem: "io.budgetvault.app", category: "recurring-scheduler")
 
     /// Process all overdue recurring expenses. Returns the number of transactions created.
     /// Call this AFTER month rollover in the scenePhase .active handler.
@@ -86,6 +94,10 @@ enum RecurringExpenseScheduler {
 
         if transactionsCreated > 0 {
             if !SafeSave.save(context) { context.rollback() }
+        }
+
+        if transactionsCreated >= maxPerLaunch {
+            logger.info("RecurringExpenseScheduler hit maxPerLaunch cap (\(maxPerLaunch, privacy: .public)); remaining overdue postings deferred to next foreground.")
         }
 
         return transactionsCreated
