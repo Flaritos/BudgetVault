@@ -350,10 +350,26 @@ struct TransactionEntryView: View {
     @ViewBuilder
     private var depositBoxCategoryRow: some View {
         if categories.isEmpty {
-            Text("Create a category in Settings first.")
-                .font(.subheadline)
-                .foregroundStyle(BudgetVaultTheme.titanium300)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Audit 2026-04-23 Max Audit P1-32: non-interactive text
+            // required the user to cancel the sheet, find Settings,
+            // create a category, and return. Dismiss button completes
+            // half of that path in one tap.
+            VStack(alignment: .leading, spacing: 8) {
+                Text("You have no categories yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(BudgetVaultTheme.titanium200)
+                Text("Create one from Settings to start logging expenses.")
+                    .font(.caption)
+                    .foregroundStyle(BudgetVaultTheme.titanium300)
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Close — you can add one from Settings")
+                        .font(.caption.bold())
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             let visible = Array(categories.prefix(4))
             let overflow = categories.count > 4

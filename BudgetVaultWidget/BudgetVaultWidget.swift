@@ -321,8 +321,15 @@ struct AccessoryRectangularBudgetView: View {
                 HStack(spacing: 2) {
                     Text(topCat.emoji)
                         .font(.system(size: 9))
-                    Text(topCat.name)
-                        .font(.system(size: 9))
+                    // Audit 2026-04-23 Max Audit P0-6: name is
+                    // intentionally redacted to "" on the main-app
+                    // side when biometric lock is on. Hide the text
+                    // entirely so the widget renders emoji + amount
+                    // (no name leakage on the lock screen).
+                    if !topCat.name.isEmpty {
+                        Text(topCat.name)
+                            .font(.system(size: 9))
+                    }
                     Text(formatCents(topCat.spentCents, code: entry.data.currencyCode))
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)

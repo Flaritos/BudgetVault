@@ -54,6 +54,14 @@ enum WidgetDataService {
         )
         guard let budget = try? context.fetch(descriptor).first else { return }
 
+        // Audit 2026-04-23 Max Audit P0-6: when biometric lock is ON,
+        // redact category names so the widget on the lock screen
+        // shows only emoji + spent, never "Therapy" / "Legal" / etc.
+        // Category emoji is already user-picked and considered
+        // non-sensitive (it's a preset glyph, not a free-form
+        // identifier), so the widget stays useful without leaking
+        // verbatim category labels.
+        let redactCategoryNames = UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled)
         let categories = (budget.categories ?? [])
             .filter { !$0.isHidden }
             .sorted { $0.spentCents(in: budget) > $1.spentCents(in: budget) }
@@ -61,7 +69,7 @@ enum WidgetDataService {
             .map { cat in
                 WidgetData.CategorySummary(
                     emoji: cat.emoji,
-                    name: cat.name,
+                    name: redactCategoryNames ? "" : cat.name,
                     spentCents: cat.spentCents(in: budget),
                     budgetedCents: cat.budgetedAmountCents
                 )

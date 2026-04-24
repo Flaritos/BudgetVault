@@ -125,6 +125,39 @@ struct RecurringExpenseListView: View {
     private var expenseScroll: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: BudgetVaultTheme.spacingLG) {
+                // Audit 2026-04-23 Max Audit P1-28: surface the
+                // `needsReassignment` flag set by
+                // RecurringExpenseScheduler when a category no longer
+                // exists in the current budget. Prior behavior was
+                // silent — the recurring rule just stopped posting.
+                // Now: a small amber banner lists affected rules so
+                // the user knows to open + re-pick a category.
+                let needsReassignment = activeExpenses.filter { $0.needsReassignment }
+                if !needsReassignment.isEmpty {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(BudgetVaultTheme.caution)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(needsReassignment.count) recurring \(needsReassignment.count == 1 ? "rule" : "rules") paused")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(BudgetVaultTheme.bodyOnDark)
+                            Text("Category not found in this month's budget. Tap a rule to re-pick a category — posts will resume.")
+                                .font(.caption)
+                                .foregroundStyle(BudgetVaultTheme.titanium300)
+                        }
+                    }
+                    .padding(14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(BudgetVaultTheme.caution.opacity(0.1))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(BudgetVaultTheme.caution.opacity(0.3), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 4)
+                }
+
                 if !activeExpenses.isEmpty {
                     section(
                         title: "Upcoming",

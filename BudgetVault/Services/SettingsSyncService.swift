@@ -1,5 +1,8 @@
 import Foundation
+import os
 import BudgetVaultShared
+
+private let syncLog = Logger(subsystem: "io.budgetvault.app", category: "settings-sync")
 
 /// Syncs key user settings across devices via NSUbiquitousKeyValueStore (iCloud KVS).
 /// Listens for external changes and writes local changes on mutation.
@@ -78,9 +81,19 @@ enum SettingsSyncService {
     }
 
     /// Write a setting to both UserDefaults and iCloud KVS.
+    /// Audit 2026-04-23 Max Audit P1-21: validate outbound values too.
+    /// Prior code trusted the local UserDefaults; a corrupted local
+    /// value (from a prior bug / crash) would silently propagate
+    /// garbage to other devices, which would then REJECT via the
+    /// inbound validator — a confusing "sync broke with no signal"
+    /// story. Fail silently but log.
     static func set(_ value: Any?, forKey key: String) {
         UserDefaults.standard.set(value, forKey: key)
         if iCloudSyncEnabled && syncedKeys.contains(key) {
+            if let value, !isValid(value: value, forKey: key) {
+                syncLog.info("SettingsSyncService.set rejected invalid outbound value for \(key, privacy: .public).")
+                return
+            }
             kvStore.set(value, forKey: key)
         }
     }
