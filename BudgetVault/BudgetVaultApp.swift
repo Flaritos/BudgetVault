@@ -211,6 +211,12 @@ struct BudgetVaultApp: App {
                                 }
                             }
                             Task { await storeKit.checkEntitlements() }
+                            // Audit 2026-04-23 Max Audit P1-47: end
+                            // any stale Live Activity (period boundary
+                            // crossed while the app was killed).
+                            // `endStaleActivities` is idempotent and
+                            // cheap — safe to call every foreground.
+                            Task { await BudgetLiveActivityService.endStaleActivities() }
                             // Audit 2026-04-23 Max Audit P1-46: only
                             // re-arm re-engagement notifications once
                             // the user has actually completed onboarding.
@@ -540,6 +546,13 @@ struct BudgetVaultApp: App {
                         cat.budget = existing
                     }
                 }
+                // Audit 2026-04-23 Max Audit P1-10: save between
+                // re-parent and delete. Without this, the cascade
+                // delete rule on Budget.categories may race the
+                // inverse-update flush and destroy categories we just
+                // re-parented to the keeper. `SafeSave` is a no-op if
+                // there's nothing to persist.
+                _ = SafeSave.save(context)
                 context.delete(budget)
             } else {
                 seen[key] = budget

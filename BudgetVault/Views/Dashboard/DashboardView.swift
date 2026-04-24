@@ -476,21 +476,31 @@ struct DashboardView: View {
                 #endif
 
                 if let budget = currentBudget {
-                    NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
+                    // Audit 2026-04-23 Max Audit P1-43: gate the
+                    // notification-scheduling cluster on a once-per-hour
+                    // throttle. Prior code re-ran all five schedulers
+                    // on every foreground / tab-switch, each doing
+                    // cancel + add round-trips. Idempotent but wasted.
+                    let nowHour = Int(Date().timeIntervalSince1970) / 3600
+                    let lastHour = UserDefaults.standard.integer(forKey: "lastNotificationScheduleHour")
+                    if nowHour != lastHour {
+                        UserDefaults.standard.set(nowHour, forKey: "lastNotificationScheduleHour")
+                        NotificationService.checkAndScheduleCategoryAlerts(budget: budget)
 
-                    if weeklyDigestEnabled {
-                        schedulePersonalizedWeeklySummary(budget: budget)
+                        if weeklyDigestEnabled {
+                            schedulePersonalizedWeeklySummary(budget: budget)
+                        }
+
+                        if morningBriefingEnabled {
+                            scheduleMorningBriefingWithData(budget: budget)
+                        }
+
+                        NotificationService.scheduleEndOfPeriodNotifications(
+                            periodEnd: budget.nextPeriodStart,
+                            remainingCents: budget.remainingCents,
+                            currencyCode: selectedCurrency
+                        )
                     }
-
-                    if morningBriefingEnabled {
-                        scheduleMorningBriefingWithData(budget: budget)
-                    }
-
-                    NotificationService.scheduleEndOfPeriodNotifications(
-                        periodEnd: budget.nextPeriodStart,
-                        remainingCents: budget.remainingCents,
-                        currencyCode: selectedCurrency
-                    )
 
                     // v3.3.0: Re-check achievements via checkForNewAchievements()
                     // which also runs on .onChange(of: allTransactions.count) below.

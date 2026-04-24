@@ -31,6 +31,8 @@ enum CSVExporter {
 
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withFullDate]
+        let isoTimestampFormatter = ISO8601DateFormatter()
+        isoTimestampFormatter.formatOptions = [.withInternetDateTime]
 
         // Audit fix: use `en_US_POSIX` for consistent `.` decimal
         // separator. Without this, German/Spanish/etc. locales emit
@@ -42,7 +44,19 @@ enum CSVExporter {
         amountFormatter.decimalSeparator = "."
         amountFormatter.usesGroupingSeparator = false
 
-        var lines = ["Date,Category,Emoji,Note,Amount,Type"]
+        // Audit 2026-04-23 Max Audit P1-20: GDPR Article 20 export
+        // must include ALL user data, not just Transactions. Added
+        // section-delimited blocks for Budgets, Categories,
+        // RecurringExpenses, DebtAccounts, and DebtPayments so the
+        // export is a complete on-device data snapshot. YNAB-style
+        // third-party parsers can read the first "Transactions"
+        // block and ignore the rest; DSAR reviewers see everything.
+        var lines: [String] = []
+        lines.append("# BudgetVault GDPR Export")
+        lines.append("# Generated: \(isoTimestampFormatter.string(from: Date()))")
+        lines.append("")
+        lines.append("### Transactions")
+        lines.append("Date,Category,Emoji,Note,Amount,Type")
         for tx in transactions {
             let dateStr = isoFormatter.string(from: tx.date)
             let cat = Self.escapeCSVField(tx.category?.name ?? "")
@@ -51,6 +65,75 @@ enum CSVExporter {
             let amount = amountFormatter.string(from: NSNumber(value: Double(tx.amountCents) / 100.0)) ?? "0.00"
             let type = tx.isIncome ? "Income" : "Expense"
             lines.append("\(dateStr),\"\(cat)\",\"\(emoji)\",\"\(note)\",\(amount),\(type)")
+        }
+
+        // Budgets
+        let budgetDescriptor = FetchDescriptor<Budget>(sortBy: [SortDescriptor(\Budget.year), SortDescriptor(\Budget.month)])
+        if let budgets = try? context.fetch(budgetDescriptor), !budgets.isEmpty {
+            lines.append("")
+            lines.append("### Budgets")
+            lines.append("Year,Month,TotalIncomeCents,ResetDay,IsAutoCreated")
+            for b in budgets {
+                lines.append("\(b.year),\(b.month),\(b.totalIncomeCents),\(b.resetDay),\(b.isAutoCreated)")
+            }
+        }
+
+        // Categories
+        let catDescriptor = FetchDescriptor<Category>(sortBy: [SortDescriptor(\Category.sortOrder)])
+        if let categories = try? context.fetch(catDescriptor), !categories.isEmpty {
+            lines.append("")
+            lines.append("### Categories")
+            lines.append("BudgetYear,BudgetMonth,Name,Emoji,BudgetedCents,Color,SortOrder,IsHidden,RollOverUnspent,GoalCents,GoalType")
+            for c in categories {
+                let byr = c.budget?.year ?? 0
+                let bmo = c.budget?.month ?? 0
+                let name = Self.escapeCSVField(c.name)
+                let emoji = Self.escapeCSVField(c.emoji)
+                let goal = c.goalAmountCents.map(String.init) ?? ""
+                let goalType = Self.escapeCSVField(c.goalType ?? "")
+                lines.append("\(byr),\(bmo),\"\(name)\",\"\(emoji)\",\(c.budgetedAmountCents),\(c.color),\(c.sortOrder),\(c.isHidden),\(c.rollOverUnspent),\(goal),\"\(goalType)\"")
+            }
+        }
+
+        // Recurring expenses
+        let recDescriptor = FetchDescriptor<RecurringExpense>(sortBy: [SortDescriptor(\RecurringExpense.nextDueDate)])
+        if let recurring = try? context.fetch(recDescriptor), !recurring.isEmpty {
+            lines.append("")
+            lines.append("### RecurringExpenses")
+            lines.append("Name,AmountCents,Frequency,NextDueDate,IsActive,CategoryName,NeedsReassignment")
+            for r in recurring {
+                let name = Self.escapeCSVField(r.name)
+                let dateStr = isoFormatter.string(from: r.nextDueDate)
+                let catName = Self.escapeCSVField(r.category?.name ?? "")
+                lines.append("\"\(name)\",\(r.amountCents),\(r.frequency),\(dateStr),\(r.isActive),\"\(catName)\",\(r.needsReassignment)")
+            }
+        }
+
+        // Debt accounts + payments
+        let debtDescriptor = FetchDescriptor<DebtAccount>(sortBy: [SortDescriptor(\DebtAccount.createdAt)])
+        if let debts = try? context.fetch(debtDescriptor), !debts.isEmpty {
+            lines.append("")
+            lines.append("### DebtAccounts")
+            lines.append("Name,Emoji,OriginalBalanceCents,CurrentBalanceCents,InterestRate,MinPaymentCents,DueDay,IsActive,CreatedAt")
+            for d in debts {
+                let name = Self.escapeCSVField(d.name)
+                let emoji = Self.escapeCSVField(d.emoji)
+                let created = isoTimestampFormatter.string(from: d.createdAt)
+                lines.append("\"\(name)\",\"\(emoji)\",\(d.originalBalanceCents),\(d.currentBalanceCents),\(d.interestRate),\(d.minimumPaymentCents),\(d.dueDay),\(d.isActive),\(created)")
+            }
+
+            let paymentDescriptor = FetchDescriptor<DebtPayment>(sortBy: [SortDescriptor(\DebtPayment.date)])
+            if let payments = try? context.fetch(paymentDescriptor), !payments.isEmpty {
+                lines.append("")
+                lines.append("### DebtPayments")
+                lines.append("DebtAccountName,AmountCents,Date,Note")
+                for p in payments {
+                    let accName = Self.escapeCSVField(p.debtAccount?.name ?? "")
+                    let dateStr = isoFormatter.string(from: p.date)
+                    let note = Self.escapeCSVField(p.note)
+                    lines.append("\"\(accName)\",\(p.amountCents),\(dateStr),\"\(note)\"")
+                }
+            }
         }
 
         let csv = lines.joined(separator: "\n")

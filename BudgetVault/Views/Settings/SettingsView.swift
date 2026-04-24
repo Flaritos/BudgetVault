@@ -659,11 +659,18 @@ struct SettingsView: View {
                     if enabled {
                         requestNotificationPermission { granted in
                             if granted {
-                                // The personalized weekly summary is scheduled
-                                // by DashboardView.task whenever weeklyDigestEnabled
-                                // is on AND a current budget exists. The toggle
-                                // here just persists the flag — DashboardView
-                                // takes care of the actual scheduling.
+                                // Audit 2026-04-23 Max Audit P1-33:
+                                // register a placeholder weekly summary
+                                // immediately so Sunday 6pm fires even
+                                // if the user never visits Dashboard.
+                                // DashboardView.task overwrites with the
+                                // personalized payload on next foreground.
+                                NotificationService.scheduleWeeklySummary(
+                                    weeklySpent: 0,
+                                    transactionCount: 0,
+                                    remaining: 0,
+                                    currencyCode: selectedCurrency
+                                )
                             } else {
                                 weeklyDigestEnabled = false
                             }

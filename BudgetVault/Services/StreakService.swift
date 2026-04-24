@@ -88,6 +88,15 @@ enum StreakService {
     /// for streak purposes. Returns the new streak value.
     @discardableResult
     static func markNoSpendDay() -> Int {
+        // Audit 2026-04-23 Max Audit P1-8: the prior implementation
+        // could race processOnForeground. A fast user tapping
+        // "no-spend" before the scenePhase .active handler fires
+        // would reach `recordLogEntry()` (which assumes
+        // lastLogDate == yesterday) before the freeze logic had a
+        // chance to absorb multi-day gaps — streak would reset to 1
+        // instead of being preserved via a freeze. Run the foreground
+        // pass inline first.
+        processOnForeground()
         let today = calendar.startOfDay(for: Date())
         let todayString = DateHelpers.dateString(today)
         let lastLogDate = UserDefaults.standard.string(forKey: AppStorageKeys.lastLogDate) ?? ""
