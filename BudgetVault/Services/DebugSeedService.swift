@@ -160,33 +160,38 @@ enum DebugSeedService {
         slPayment.debtAccount = studentLoan
         context.insert(slPayment)
 
-        // MARK: - Net Worth Accounts
+        // Audit 2026-04-23 Max Audit P0-13: NetWorth* entities are
+        // retired and marked @available(*, deprecated). Previously this
+        // debug seeder still created rows on every DEBUG seed —
+        // polluting tests + local installs with rows that V2 migration
+        // will have to clean up. Gated behind an explicit launch arg
+        // so the seeder defaults to NOT creating them.
+        if ProcessInfo.processInfo.arguments.contains("-seedLegacyNetWorth") {
+            let checking = NetWorthAccount(name: "Checking", emoji: "\u{1F3E6}", balanceCents: 350000, accountType: "asset")
+            let savings = NetWorthAccount(name: "Savings", emoji: "\u{1F4B0}", balanceCents: 1200000, accountType: "asset")
+            let retirement = NetWorthAccount(name: "401k", emoji: "\u{1F4C8}", balanceCents: 4500000, accountType: "asset")
+            let ccDebt = NetWorthAccount(name: "Credit Card", emoji: "\u{1F4B3}", balanceCents: 620000, accountType: "liability")
+            let slDebt = NetWorthAccount(name: "Student Loan", emoji: "\u{1F393}", balanceCents: 1800000, accountType: "liability")
 
-        let checking = NetWorthAccount(name: "Checking", emoji: "\u{1F3E6}", balanceCents: 350000, accountType: "asset")
-        let savings = NetWorthAccount(name: "Savings", emoji: "\u{1F4B0}", balanceCents: 1200000, accountType: "asset")
-        let retirement = NetWorthAccount(name: "401k", emoji: "\u{1F4C8}", balanceCents: 4500000, accountType: "asset")
-        let ccDebt = NetWorthAccount(name: "Credit Card", emoji: "\u{1F4B3}", balanceCents: 620000, accountType: "liability")
-        let slDebt = NetWorthAccount(name: "Student Loan", emoji: "\u{1F393}", balanceCents: 1800000, accountType: "liability")
+            [checking, savings, retirement, ccDebt, slDebt].forEach { context.insert($0) }
 
-        [checking, savings, retirement, ccDebt, slDebt].forEach { context.insert($0) }
-
-        // Net worth snapshots (3 months of history)
-        let snap1 = NetWorthSnapshot(
-            date: calendar.date(from: DateComponents(year: 2026, month: 1, day: 1))!,
-            totalAssetsCents: 5800000,
-            totalLiabilitiesCents: 2600000
-        )
-        let snap2 = NetWorthSnapshot(
-            date: calendar.date(from: DateComponents(year: 2026, month: 2, day: 1))!,
-            totalAssetsCents: 5950000,
-            totalLiabilitiesCents: 2500000
-        )
-        let snap3 = NetWorthSnapshot(
-            date: calendar.date(from: DateComponents(year: 2026, month: 3, day: 1))!,
-            totalAssetsCents: 6050000,
-            totalLiabilitiesCents: 2420000
-        )
-        [snap1, snap2, snap3].forEach { context.insert($0) }
+            let snap1 = NetWorthSnapshot(
+                date: calendar.date(from: DateComponents(year: 2026, month: 1, day: 1))!,
+                totalAssetsCents: 5800000,
+                totalLiabilitiesCents: 2600000
+            )
+            let snap2 = NetWorthSnapshot(
+                date: calendar.date(from: DateComponents(year: 2026, month: 2, day: 1))!,
+                totalAssetsCents: 5950000,
+                totalLiabilitiesCents: 2500000
+            )
+            let snap3 = NetWorthSnapshot(
+                date: calendar.date(from: DateComponents(year: 2026, month: 3, day: 1))!,
+                totalAssetsCents: 6050000,
+                totalLiabilitiesCents: 2420000
+            )
+            [snap1, snap2, snap3].forEach { context.insert($0) }
+        }
 
         // MARK: - Streak Data
 

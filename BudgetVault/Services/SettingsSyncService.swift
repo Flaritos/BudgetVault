@@ -85,12 +85,23 @@ enum SettingsSyncService {
         }
     }
 
+    // Audit 2026-04-23 Max Audit P1-13: coalesce rapid-fire pushes
+    // (currency picker scroll, reset-day picker scrub) so we don't
+    // hammer `NSUbiquitousKeyValueStore` at keystroke speed — iCloud
+    // KVS is rate-limited.
+    nonisolated(unsafe) private static var pushDebounceTask: Task<Void, Never>?
+
     /// Push all synced settings from UserDefaults to KVS (used after local changes).
     static func pushAllSettings() {
         guard iCloudSyncEnabled else { return }
-        for key in syncedKeys {
-            if let value = UserDefaults.standard.object(forKey: key) {
-                kvStore.set(value, forKey: key)
+        pushDebounceTask?.cancel()
+        pushDebounceTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            for key in syncedKeys {
+                if let value = UserDefaults.standard.object(forKey: key) {
+                    kvStore.set(value, forKey: key)
+                }
             }
         }
     }

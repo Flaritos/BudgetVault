@@ -59,7 +59,10 @@ enum LocalMetricsService {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let data = try? encoder.encode(dict) {
-            try? data.write(to: fileURL, options: .atomic)
+            // Audit 2026-04-23 Max Audit P1-19: stamp .complete file
+            // protection on Documents/ writes so local metrics counts
+            // aren't readable off a locked device.
+            try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
         }
     }
 }

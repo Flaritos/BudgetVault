@@ -91,10 +91,11 @@ struct ChatOnboardingView: View {
     // now defaults OFF for both paths, enabled via Settings → Security.
     @AppStorage(AppStorageKeys.biometricLockEnabled) private var persistedBiometricLock = false
 
-    // TODO(vault-name-keychain): migrate to KeychainService for §7.3 compliance.
-    // Spec §7.3 says "Stored only in iOS Keychain on this device" — @AppStorage
-    // uses UserDefaults. Infrastructure exists (KeychainService.swift); a later
-    // phase will migrate.
+    // Audit 2026-04-23 Max Audit P0-7: the onboarding copy used to
+    // claim "Stored only in iOS Keychain on this device" — a direct
+    // contradiction of the @AppStorage (UserDefaults) backing. Copy
+    // corrected at the display site to honest "Stored only on this
+    // device." No migration needed for a non-sensitive display name.
     @AppStorage(AppStorageKeys.vaultName) private var vaultName = ""
 
     @State private var currentStep: OnboardingStep = .welcome
@@ -147,6 +148,26 @@ struct ChatOnboardingView: View {
                 // Unlocked (the terminal step).
                 if currentStep.rawValue >= 4 && currentStep.rawValue <= 6 {
                     HStack {
+                        // Audit 2026-04-23 Max Audit P1-26: back
+                        // navigation. A user who typo'd income or
+                        // picked the wrong currency previously had no
+                        // way back — only Skip (→ blank budget) or
+                        // force-quit. Show Back on every step that
+                        // already has Skip, so both escape hatches
+                        // sit together.
+                        Button { rewindOneStep() } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.caption.weight(.semibold))
+                                Text("Back")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            .foregroundStyle(.white.opacity(0.85))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(.white.opacity(0.12), in: Capsule())
+                        }
+                        .accessibilityLabel("Back to previous step")
                         Spacer()
                         Button { skipOnboarding() } label: {
                             Text("Skip for now")
@@ -636,9 +657,17 @@ struct ChatOnboardingView: View {
                         .frame(width: 16, height: 16)
                         .accessibilityHidden(true)
 
-                        Text("Stored only in iOS Keychain on this device. We can't read it.")
+                        Text("Stored only on this device. We can't read it.")
                             .font(.system(size: onb12))
                             .lineSpacing(6.0)   // (1.5 - 1) × 12pt
+                            // Audit 2026-04-23 Max Audit P0-7: copy was
+                            // "Stored only in iOS Keychain" but the vault
+                            // name writes to UserDefaults (see AppStorage
+                            // declaration). Keychain migration is not
+                            // necessary for a display name — the on-device
+                            // sandbox already keeps it off the network.
+                            // Corrected to a claim the code actually
+                            // supports.
                             .foregroundStyle(BudgetVaultTheme.bodyOnDark.opacity(0.68))
                         Spacer(minLength: 0)
                     }
@@ -1631,6 +1660,17 @@ struct ChatOnboardingView: View {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
         withAnimation(.easeInOut(duration: 0.3)) {
             currentStep = next
+        }
+    }
+
+    /// Audit 2026-04-23 Max Audit P1-26: back navigation. The prior
+    /// onboarding had NO way back — a user who typo'd income or
+    /// picked the wrong currency was stuck with Force-Quit / Skip.
+    /// Back rewinds one step; the Welcome step has no back target.
+    private func rewindOneStep() {
+        guard let prev = OnboardingStep(rawValue: currentStep.rawValue - 1) else { return }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            currentStep = prev
         }
     }
 

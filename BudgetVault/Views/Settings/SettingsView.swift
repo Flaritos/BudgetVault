@@ -931,10 +931,15 @@ struct SettingsView: View {
         } header: {
             EngravedSectionHeader(title: "iCloud Sync")
         }
-        .alert("Restart Required", isPresented: $showRestartAlert) {
+        .alert("Restart the App", isPresented: $showRestartAlert) {
+            // Audit 2026-04-23 Max Audit P1-29 + gap-finder Lens 8:
+            // only the SwiftData CloudKit container requires a
+            // relaunch; KVS settings sync activates immediately. Soft
+            // copy + OK is honest — iOS apps can't force-quit
+            // themselves.
             Button("OK") {}
         } message: {
-            Text("Enabling or disabling iCloud sync requires restarting the app. Please quit and relaunch BudgetVault.")
+            Text("iCloud data sync activates the next time you open BudgetVault. Swipe up to close, then tap to reopen when ready.")
         }
     }
 

@@ -61,7 +61,12 @@ enum FeedbackService {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let data = try? encoder.encode(entries) {
-            try? data.write(to: fileURL, options: .atomic)
+            // Audit 2026-04-23 Max Audit P1-19: stamp .complete file
+            // protection on Documents/ writes. iOS default is
+            // completeUntilFirstUserAuthentication — user-typed bug-
+            // report text may contain PII and would otherwise be
+            // readable while the device is locked post-first-unlock.
+            try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
         }
     }
 

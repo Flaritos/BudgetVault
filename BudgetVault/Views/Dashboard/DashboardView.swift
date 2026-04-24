@@ -113,6 +113,10 @@ struct DashboardView: View {
     // `budget.totalSpentCents()` call site in the render tree can hit
     // the pre-computed value instead of re-walking categories.
     @State private var cachedTotalSpent: Int64 = 0
+    // Audit 2026-04-23 Max Audit P1-25: hash-key cache for
+    // InsightsEngine.generateInsights so repeat foregrounds don't
+    // re-run the 16-rule engine when nothing changed.
+    @State private var cachedInsightsKey: String = ""
     @State private var cachedInsights: [Insight] = []
     // Audit 2026-04-23 Perf P1: visibleCategories cache.
     @State private var cachedVisibleCategories: [Category] = []
@@ -1920,12 +1924,20 @@ struct DashboardView: View {
         // instead.
         cachedTotalSpent = map.values.reduce(0, +)
         cachedVisibleCategories = computeVisibleCategories()
-        cachedInsights = InsightsEngine.generateInsights(
-            budget: budget,
-            previousBudget: previousBudget,
-            allBudgets: allBudgets,
-            currentStreak: currentStreak
-        )
+        // Audit 2026-04-23 Max Audit P1-25: skip the 16-rule insights
+        // recomputation when inputs haven't changed. Prior code ran
+        // every foreground / tab-switch — O(cats × tx × insights) on
+        // stale data.
+        let insightsKey = "\(budget.id.uuidString)|\(cachedTotalSpent)|\(allTransactions.count)|\(allTransactions.first?.date.timeIntervalSince1970 ?? 0)|\(currentStreak)"
+        if insightsKey != cachedInsightsKey {
+            cachedInsights = InsightsEngine.generateInsights(
+                budget: budget,
+                previousBudget: previousBudget,
+                allBudgets: allBudgets,
+                currentStreak: currentStreak
+            )
+            cachedInsightsKey = insightsKey
+        }
         refreshLiveActivity(budget: budget)
     }
 
