@@ -234,6 +234,15 @@ enum InsightsEngine {
                     }
                     if missingOrZero || series.count < 3 { continue }
 
+                    // Audit 2026-04-23 Max Audit P2-F: skip "category
+                    // creep" firings on low-value streams (e.g. a brand-
+                    // new subscription going $5 → $10 → $15). The rising
+                    // pattern is technically true but user-hostile at
+                    // noise-level dollar amounts. Require at least one
+                    // month with > $5 spend.
+                    let minMeaningfulCents: Int64 = 500
+                    if let maxValue = series.max(), maxValue < minMeaningfulCents { continue }
+
                     var monthsIncreasing = 0
                     var allIncreasing = true
                     for i in 1..<series.count {

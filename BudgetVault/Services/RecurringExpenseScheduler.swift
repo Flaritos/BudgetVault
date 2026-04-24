@@ -41,6 +41,16 @@ enum RecurringExpenseScheduler {
             while expense.nextDueDate <= today && transactionsCreated < maxPerLaunch {
                 // H1: Resolve category to the current budget period
                 var resolvedCategory = expense.category
+                // Audit 2026-04-23 Max Audit P2-4: if the category was
+                // deleted entirely (cascade delete nullified
+                // `expense.category` to nil), flag for reassignment so
+                // the UI can prompt. Without this the loop silently
+                // treated `nil` as "current-period match" and posted a
+                // transaction with no category (orphan).
+                if resolvedCategory == nil {
+                    expense.needsReassignment = true
+                    break
+                }
                 if let cat = resolvedCategory, cat.budget?.id != currentBudget?.id {
                     // Category belongs to an old budget — find equivalent in current budget by name.
                     // Audit 2026-04-22 P1-32: match case-insensitively so
