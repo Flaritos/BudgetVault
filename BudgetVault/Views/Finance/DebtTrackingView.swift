@@ -4,6 +4,8 @@ import BudgetVaultShared
 
 struct DebtTrackingView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @Environment(StoreKitManager.self) private var storeKit
+    private var premium: Bool { isPremium || storeKit.isPremium }
     @Environment(\.modelContext) private var modelContext
 
     @Query(filter: #Predicate<DebtAccount> { $0.isActive }, sort: \DebtAccount.createdAt)
@@ -78,7 +80,7 @@ struct DebtTrackingView: View {
                         }
                         Spacer()
                         Button {
-                            if isPremium {
+                            if premium {
                                 showAddDebt = true
                             } else {
                                 showPaywall = true
@@ -412,7 +414,7 @@ struct DebtTrackingView: View {
                 .multilineTextAlignment(.center)
 
             Button {
-                if isPremium {
+                if premium {
                     showAddDebt = true
                 } else {
                     showPaywall = true

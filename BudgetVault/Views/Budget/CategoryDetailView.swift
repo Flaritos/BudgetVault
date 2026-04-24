@@ -7,7 +7,9 @@ struct CategoryDetailView: View {
     let budget: Budget
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(StoreKitManager.self) private var storeKit
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    private var premium: Bool { isPremium || storeKit.isPremium }
     @State private var editingTransaction: Transaction?
     @State private var showPaywall = false
     @State private var showAddTransaction = false
@@ -56,7 +58,7 @@ struct CategoryDetailView: View {
             }
 
             // Settings
-            if isPremium {
+            if premium {
                 Section("Settings") {
                     Toggle("Roll over unspent amount", isOn: Binding(
                         get: { category.rollOverUnspent },

@@ -6,6 +6,8 @@ struct SpendingHeatmapView: View {
     let allTransactions: [Transaction]
 
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @Environment(StoreKitManager.self) private var storeKit
+    private var premium: Bool { isPremium || storeKit.isPremium }
     @State private var selectedDay: DayData?
     @State private var popoverAnchor: CGPoint = .zero
 
@@ -92,7 +94,7 @@ struct SpendingHeatmapView: View {
                 Text("Spending Heatmap")
                     .font(.headline)
                 Spacer()
-                if !isPremium {
+                if !premium {
                     Image(systemName: "lock.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -149,7 +151,7 @@ struct SpendingHeatmapView: View {
                 }
 
                 // Premium lock overlay
-                if !isPremium {
+                if !premium {
                     RoundedRectangle(cornerRadius: BudgetVaultTheme.radiusMD)
                         .fill(BudgetVaultTheme.navyDark.opacity(0.82))
                         .overlay(
@@ -200,7 +202,7 @@ struct SpendingHeatmapView: View {
             }
             .shadow(color: color.opacity(0.3), radius: 2, y: 1)
             .onTapGesture {
-                if isPremium {
+                if premium {
                     selectedDay = data
                 }
             }

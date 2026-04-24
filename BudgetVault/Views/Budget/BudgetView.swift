@@ -5,8 +5,10 @@ import BudgetVaultShared
 
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(StoreKitManager.self) private var storeKit
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    private var premium: Bool { isPremium || storeKit.isPremium }
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
 
@@ -486,7 +488,7 @@ struct BudgetView: View {
 
     @ViewBuilder
     private func rolloverToggle(category: Category) -> some View {
-        if isPremium {
+        if premium {
             Toggle("Roll over unspent", isOn: Binding(
                 get: { category.rollOverUnspent },
                 set: { newVal in
@@ -527,7 +529,7 @@ struct BudgetView: View {
     private var addEnvelopeButton: some View {
         Button {
             let count = visibleCategories.count
-            if !isPremium && count >= 6 {
+            if !premium && count >= 6 {
                 showPaywall = true
             } else {
                 showAddCategory = true
@@ -538,7 +540,7 @@ struct BudgetView: View {
                     .font(.body.weight(.medium))
                 Text("Add Envelope")
                     .font(.subheadline.weight(.medium))
-                if !isPremium {
+                if !premium {
                     Spacer()
                     Text("\(visibleCategories.count)/6")
                         .font(.caption)
@@ -571,7 +573,7 @@ struct BudgetView: View {
 
                         if isCurrentPeriod {
                             Button("Restore") {
-                                if !isPremium && visibleCategories.count >= 6 {
+                                if !premium && visibleCategories.count >= 6 {
                                     showPaywall = true
                                 } else {
                                     category.isHidden = false

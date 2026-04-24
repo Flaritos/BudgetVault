@@ -12,6 +12,8 @@ import BudgetVaultShared
 /// but can't unlock — it just lives inside the chamber cohesion now.
 struct AchievementGridView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @Environment(StoreKitManager.self) private var storeKit
+    private var premium: Bool { isPremium || storeKit.isPremium }
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
     @Environment(\.dismiss) private var dismiss
 
@@ -23,7 +25,7 @@ struct AchievementGridView: View {
         Set(unlocked.map(\.id))
     }
 
-    private var earnedCount: Int { isPremium ? unlocked.count : 0 }
+    private var earnedCount: Int { premium ?unlocked.count : 0 }
     private var totalCount: Int { AchievementService.allAchievements.count }
 
     private var earnedAchievements: [AchievementService.Achievement] {
@@ -44,7 +46,7 @@ struct AchievementGridView: View {
                         summaryStrip
                             .padding(.top, BudgetVaultTheme.spacingMD)
 
-                        if !earnedAchievements.isEmpty && isPremium {
+                        if !earnedAchievements.isEmpty && premium {
                             milestonesSection(
                                 title: "Earned",
                                 count: earnedAchievements.count,
@@ -56,11 +58,11 @@ struct AchievementGridView: View {
                         milestonesSection(
                             title: "Locked",
                             count: lockedAchievements.count,
-                            achievements: isPremium ? lockedAchievements : AchievementService.allAchievements,
+                            achievements: premium ?lockedAchievements : AchievementService.allAchievements,
                             isLocked: true
                         )
 
-                        if !isPremium {
+                        if !premium {
                             premiumPromptCard
                         }
                     }
@@ -156,7 +158,7 @@ struct AchievementGridView: View {
     @ViewBuilder
     private func milestoneRow(_ achievement: AchievementService.Achievement, isLocked: Bool) -> some View {
         let tier = badgeTier(for: achievement.tier)
-        let isAchUnlocked = unlockedIDs.contains(achievement.id) && isPremium
+        let isAchUnlocked = unlockedIDs.contains(achievement.id) && premium
 
         HStack(spacing: 14) {
             AchievementBadge(
