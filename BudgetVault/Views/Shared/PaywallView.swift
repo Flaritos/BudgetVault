@@ -115,6 +115,14 @@ struct PaywallView: View {
                 get: { storeKit.purchaseState == .error },
                 set: { if !$0 { storeKit.purchaseState = .idle } }
             )) {
+                // Audit 2026-04-23 Max Audit P0-8: verification-failure
+                // copy told users to "tap Restore Purchases below," but
+                // the alert only offered Retry (→ "already purchased")
+                // and Cancel. Surface Restore as an explicit action so
+                // the advertised recovery path is one tap away.
+                Button("Restore Purchases") {
+                    Task { await storeKit.restorePurchases() }
+                }
                 Button("Retry") {
                     if let product = storeKit.premiumProduct {
                         Task { await storeKit.purchase(product) }

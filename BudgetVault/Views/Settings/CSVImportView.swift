@@ -8,6 +8,9 @@ struct CSVImportView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    // Audit 2026-04-23 Max Audit P0-1: storeKit.isPremium is authoritative.
+    @Environment(StoreKitManager.self) private var storeKit
+    private var premium: Bool { isPremium || storeKit.isPremium }
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
 
     @State private var showFilePicker = false
@@ -362,7 +365,7 @@ struct CSVImportView: View {
                 detectedFormat = parsed.format
                 parsedRows = parsed.rows
                 uniqueCategories = Array(Set(parsedRows.map(\.category))).sorted()
-                selectedCategories = Set(uniqueCategories.prefix(isPremium ? uniqueCategories.count : Self.freeCategoryLimit))
+                selectedCategories = Set(uniqueCategories.prefix(premium ? uniqueCategories.count : Self.freeCategoryLimit))
 
                 if parsedRows.isEmpty {
                     fileError = "No transactions found in this \(encodingUsed)-decoded file. Supported formats: YNAB export or generic CSV with Date, Category, Amount columns."
@@ -424,7 +427,7 @@ struct CSVImportView: View {
     }
 
     private func proceedFromPreview() {
-        if !isPremium && uniqueCategories.count > Self.freeCategoryLimit {
+        if !premium && uniqueCategories.count > Self.freeCategoryLimit {
             step = .categorySelection
         } else {
             performImport()
@@ -444,7 +447,7 @@ struct CSVImportView: View {
 
         // Build category map — unselected categories map to "Other"
         var map: [String: String] = [:]
-        if !isPremium && uniqueCategories.count > Self.freeCategoryLimit {
+        if !premium && uniqueCategories.count > Self.freeCategoryLimit {
             for cat in uniqueCategories {
                 map[cat] = selectedCategories.contains(cat) ? cat : "Other"
             }

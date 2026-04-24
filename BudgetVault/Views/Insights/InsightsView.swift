@@ -4,8 +4,12 @@ import Charts
 import BudgetVaultShared
 
 struct InsightsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(StoreKitManager.self) private var storeKit
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    // Audit 2026-04-23 Max Audit P0-1: authoritative gate per CLAUDE.md.
+    private var premium: Bool { isPremium || storeKit.isPremium }
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
     // Audit 2026-04-22 P0-7: bounded to last 13 months. Insight #15
@@ -273,12 +277,33 @@ struct InsightsView: View {
                             }
                         }
                     } else {
-                        EmptyStateView(
-                            icon: "lightbulb.fill",
-                            title: "No Data",
-                            message: "Start logging expenses to see insights."
-                        )
-                        .environment(\.colorScheme, .dark)
+                        // Audit 2026-04-23 Max Audit P0-10: prior empty
+                        // state had no CTA — pure dead-end from every
+                        // entry point. Wrap EmptyStateView with an
+                        // action button that dismisses back to Dashboard
+                        // where the user can set income / log an
+                        // expense.
+                        VStack(spacing: 16) {
+                            EmptyStateView(
+                                icon: "lightbulb.fill",
+                                title: "No Data Yet",
+                                message: "Log your first expense to see insights."
+                            )
+                            .environment(\.colorScheme, .dark)
+
+                            Button {
+                                dismiss()
+                            } label: {
+                                Text("Back to Home")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 28)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        Capsule().fill(BudgetVaultTheme.accentSoft)
+                                    )
+                            }
+                        }
                     }
                 }
                 .padding(.vertical)
@@ -345,7 +370,7 @@ struct InsightsView: View {
 
     @ViewBuilder
     private func premiumSection<Content: View>(_ title: String, dotColor: Color, @ViewBuilder content: () -> Content) -> some View {
-        if isPremium {
+        if premium {
             insightsDarkCard {
                 sectionLabel(title, dotColor: dotColor)
                 content()

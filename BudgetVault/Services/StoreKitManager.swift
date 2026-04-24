@@ -1,5 +1,6 @@
 import StoreKit
 import SwiftUI
+import WidgetKit
 import os
 import BudgetVaultShared
 
@@ -275,10 +276,22 @@ final class StoreKitManager {
         //     (true entitlement OR true revocation)
         var hasPremium = false
         var hasRevokedPremium = false
+        // Audit 2026-04-23 Max Audit P1-2: distinguish "stream was
+        // empty" (network issue) from "stream iterated but every
+        // transaction failed verification". Prior code treated both
+        // as "no positive signal" and kept cached Keychain — a
+        // jailbroken user who once pulled premium from Keychain
+        // would stay premium forever even when every subsequent
+        // entitlement came back `.unverified`. Now we track
+        // iteration-was-non-empty and revoke on unverified-only.
+        var iterated = false
+        var anyVerifiedForProduct = false
 
         for await result in StoreTransaction.currentEntitlements {
+            iterated = true
             guard let transaction = try? checkVerified(result),
                   transaction.productID == Self.premiumProductID else { continue }
+            anyVerifiedForProduct = true
             if transaction.revocationDate != nil {
                 hasRevokedPremium = true
             } else {
@@ -294,6 +307,15 @@ final class StoreKitManager {
             isPremium = false
             UserDefaults.standard.set(false, forKey: AppStorageKeys.isPremium)
             KeychainService.delete(forKey: "isPremium")
+        } else if iterated && !anyVerifiedForProduct {
+            // P1-2: we iterated the stream AND every matching
+            // transaction was unverified. That's a tampering/jailbreak
+            // signal — revoke to fail closed. Empty stream (no
+            // iterations) still falls through to the cache path.
+            isPremium = false
+            UserDefaults.standard.set(false, forKey: AppStorageKeys.isPremium)
+            KeychainService.delete(forKey: "isPremium")
+            storeKitLog.error("checkEntitlements iterated but all transactions were unverified; revoking premium.")
         } else {
             // No positive signal either way. Don't clobber the Keychain
             // authoritative value — trust the prior state. On a fresh
@@ -328,8 +350,25 @@ final class StoreKitManager {
     private func listenForTransactions() async {
         for await result in StoreTransaction.updates {
             if let transaction = try? checkVerified(result) {
+                // Audit 2026-04-23 Max Audit P1-1: inspect
+                // `revocationDate` inline. A server-side refund
+                // arriving via the `updates` stream previously waited
+                // until the NEXT `currentEntitlements` pass to flip
+                // the user off premium; combined with the "don't
+                // clobber on empty" policy in checkEntitlements, this
+                // could leave a revoked user premium across several
+                // launches. Revoke immediately.
+                if transaction.revocationDate != nil {
+                    isPremium = false
+                    Self.setPremiumKeychain(false, callsite: "listener.revoked")
+                    storeKitLog.info("Transaction revoked inline via listener.")
+                }
                 await transaction.finish()
                 await checkEntitlements()
+                // Audit 2026-04-23 Max Audit P1-45: reload widgets
+                // so their `isPremium` snapshot tracks purchases
+                // mid-session.
+                WidgetCenter.shared.reloadAllTimelines()
             }
         }
     }

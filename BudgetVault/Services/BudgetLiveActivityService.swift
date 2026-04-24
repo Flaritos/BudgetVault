@@ -99,6 +99,12 @@ enum BudgetLiveActivityService {
         }
     }
 
+    /// Payload dedup so Dashboard `.task` / sheet-dismiss / .refreshable
+    /// don't burn an ActivityKit IPC per trigger when the state hasn't
+    /// actually changed. WidgetDataService already does this — Live
+    /// Activity needed the same pattern (Max Audit P0-4).
+    nonisolated(unsafe) private static var lastPushedState: BudgetActivityAttributes.ContentState?
+
     /// Push a fresh content state to the running activity. No-op if none.
     static func update(
         remainingCents: Int64,
@@ -117,6 +123,13 @@ enum BudgetLiveActivityService {
             totalDays: totalDays,
             currencyCode: currencyCode
         )
+        // Audit 2026-04-23 Max Audit P0-4: skip the update call if the
+        // payload is byte-identical to the last push. Dashboard fires
+        // this from 4 triggers (task, .onChange txCount, .refreshable,
+        // sheet dismiss) — without dedup, 5 transactions = 5 IPC
+        // round-trips.
+        if lastPushedState == state { return }
+        lastPushedState = state
         Task {
             await activity.update(.init(state: state, staleDate: nil))
         }

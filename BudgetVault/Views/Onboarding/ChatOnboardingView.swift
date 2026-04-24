@@ -1700,8 +1700,18 @@ struct ChatOnboardingView: View {
         modelContext.insert(budget)
 
         let categoriesToCreate = Array(editableCategories.prefix(categoryLimit))
+        // Audit 2026-04-23 Max Audit P0-11: route the income→category
+        // split through Decimal + banker's rounding per CLAUDE.md
+        // money rule. Prior `Int64(Double(incomeCents) * cat.pct)`
+        // truncated toward zero — up to 1-cent drift per category on
+        // the very first data a user creates.
+        let incomeDecimal = Decimal(incomeCents)
         for (index, cat) in categoriesToCreate.enumerated() {
-            let catCents = Int64(Double(incomeCents) * cat.pct)
+            let pctDecimal = Decimal(cat.pct)
+            var raw = incomeDecimal * pctDecimal
+            var rounded = Decimal()
+            NSDecimalRound(&rounded, &raw, 0, .bankers)
+            let catCents = NSDecimalNumber(decimal: rounded).int64Value
             let category = Category(
                 name: cat.name,
                 emoji: cat.emoji,

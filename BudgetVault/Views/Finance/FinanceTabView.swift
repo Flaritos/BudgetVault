@@ -7,6 +7,8 @@ struct FinanceTabView: View {
     @AppStorage(AppStorageKeys.selectedCurrency) private var selectedCurrency = "USD"
     @AppStorage(AppStorageKeys.currentStreak) private var currentStreak = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    // Audit 2026-04-23 Max Audit P0-1: authoritative gate.
+    private var premium: Bool { isPremium || storeKit.isPremium }
     @AppStorage(AppStorageKeys.lastWrappedViewed) private var lastWrappedViewed = ""
     @Environment(StoreKitManager.self) private var storeKit
 
@@ -119,7 +121,7 @@ struct FinanceTabView: View {
 
     var body: some View {
         NavigationStack {
-            if isPremium {
+            if premium {
                 premiumContent
             } else {
                 nonPremiumContent

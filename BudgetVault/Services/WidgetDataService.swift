@@ -67,8 +67,14 @@ enum WidgetDataService {
                 )
             }
 
-        // Compute daily allowance
-        let daysRemaining = max(Calendar.current.dateComponents([.day], from: Date(), to: budget.nextPeriodStart).day ?? 0, 1)
+        // Compute daily allowance.
+        // Audit 2026-04-23 Max Audit P1-4: `.day` component from
+        // `Date()` (current instant) to `nextPeriodStart` flips
+        // between 0 and 1 depending on time-of-day on the last day of
+        // the period. Anchor to `startOfDay` so the widget shows the
+        // same "X days left" all day long.
+        let today = Calendar.current.startOfDay(for: Date())
+        let daysRemaining = max(Calendar.current.dateComponents([.day], from: today, to: budget.nextPeriodStart).day ?? 0, 1)
         let dailyAllowance = budget.remainingCents / Int64(daysRemaining)
 
         let data = WidgetData(

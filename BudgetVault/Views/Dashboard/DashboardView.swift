@@ -87,6 +87,9 @@ struct DashboardView: View {
     @State private var shareCardImage: UIImage?
     @State private var streakMilestoneValue = 0
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    @Environment(StoreKitManager.self) private var storeKit
+    // Audit 2026-04-23 Max Audit P0-1: authoritative gate per CLAUDE.md.
+    private var premium: Bool { isPremium || storeKit.isPremium }
     @AppStorage(AppStorageKeys.transactionCount) private var transactionCount = 0
     @AppStorage(AppStorageKeys.lastWrappedViewed) private var lastWrappedViewed = ""
     @AppStorage(AppStorageKeys.lastCelebratedMilestone) private var lastCelebratedMilestone = 0
@@ -106,6 +109,10 @@ struct DashboardView: View {
     // Cached computations (0.1 — avoid recomputing in view body)
     @State private var cachedBudget: Budget?
     @State private var cachedSpentMap: [UUID: Int64] = [:]
+    // Audit 2026-04-23 Max Audit P0-3: cache the period total so every
+    // `budget.totalSpentCents()` call site in the render tree can hit
+    // the pre-computed value instead of re-walking categories.
+    @State private var cachedTotalSpent: Int64 = 0
     @State private var cachedInsights: [Insight] = []
     // Audit 2026-04-23 Perf P1: visibleCategories cache.
     @State private var cachedVisibleCategories: [Category] = []
@@ -1009,8 +1016,9 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func statsRow(budget: Budget, dayProgressFraction: Double) -> some View {
-        let remaining = max(Int64(0), budget.remainingCents)
-        let spent = budget.totalSpentCents()
+        // Audit 2026-04-23 Max Audit P0-3: prefer the pre-summed cache.
+        let spent = (cachedBudget?.id == budget.id) ? cachedTotalSpent : budget.totalSpentCents()
+        let remaining = max(Int64(0), budget.totalIncomeCents - spent)
         let savedCents = savedThisPeriodCents(budget: budget)
 
         HStack(spacing: 8) {
@@ -1058,7 +1066,8 @@ struct DashboardView: View {
 
     /// Compute (text, color) for the buffer-days chamber.
     private func bufferDaysSummary(budget: Budget, dayProgressFraction: Double) -> (text: String, color: Color) {
-        let totalSpent = budget.totalSpentCents()
+        // Audit 2026-04-23 Max Audit P0-3: cached path.
+        let totalSpent = (cachedBudget?.id == budget.id) ? cachedTotalSpent : budget.totalSpentCents()
         let daysElapsed = max(Int(dayProgressFraction * Double(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)), 1)
         let daysInPeriod = max(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30, 1)
         let daysRemaining = daysInPeriod - daysElapsed
@@ -1151,7 +1160,8 @@ struct DashboardView: View {
 
     /// Buffer days stat: remainingCents / avgDailySpend. Shows how many extra days the budget could last.
     private func bufferDaysStat(budget: Budget, dayProgressFraction: Double) -> some View {
-        let totalSpent = budget.totalSpentCents()
+        // Audit 2026-04-23 Max Audit P0-3: cached path.
+        let totalSpent = (cachedBudget?.id == budget.id) ? cachedTotalSpent : budget.totalSpentCents()
         let daysElapsed = max(Int(dayProgressFraction * Double(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30)), 1)
         let daysInPeriod = max(Calendar.current.dateComponents([.day], from: budget.periodStart, to: budget.nextPeriodStart).day ?? 30, 1)
         let daysRemaining = daysInPeriod - daysElapsed
@@ -1413,7 +1423,7 @@ struct DashboardView: View {
     private func insightCard(budget: Budget) -> some View {
         if let topInsight = cachedInsights.first {
             Button {
-                if isPremium {
+                if premium {
                     activeSheet = .insights
                 } else {
                     activeSheet = .paywall
@@ -1746,7 +1756,7 @@ struct DashboardView: View {
         // Move Money) only.
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: BudgetVaultTheme.spacingSM) {
-                if isPremium {
+                if premium {
                     quickActionChip(icon: "arrow.left.arrow.right", label: "Move Money") {
                         activeSheet = .moveMoney
                     }
@@ -1893,6 +1903,7 @@ struct DashboardView: View {
         cachedBudget = budget
         guard let budget else {
             cachedSpentMap = [:]
+            cachedTotalSpent = 0
             cachedInsights = []
             return
         }
@@ -1901,6 +1912,13 @@ struct DashboardView: View {
             map[cat.id] = cat.spentCents(in: budget)
         }
         cachedSpentMap = map
+        // Audit 2026-04-23 Max Audit P0-3: sum once. Previously every
+        // render's `budget.totalSpentCents()` re-walked categories
+        // AND `Category.spentCents(in:)` scanned each category's full
+        // transaction relation — O(cats × txs) per read × multiple
+        // reads per render. Sum the just-built per-category map
+        // instead.
+        cachedTotalSpent = map.values.reduce(0, +)
         cachedVisibleCategories = computeVisibleCategories()
         cachedInsights = InsightsEngine.generateInsights(
             budget: budget,

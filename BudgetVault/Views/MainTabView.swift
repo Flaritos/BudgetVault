@@ -3,6 +3,12 @@ import BudgetVaultShared
 
 struct MainTabView: View {
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    // Audit 2026-04-23 Max Audit P0-1: per CLAUDE.md rule 9, the
+    // AppStorage cache is UI-instant only — `storeKit.isPremium` is
+    // authoritative. Vault-tab icon was the single highest-visibility
+    // drift site post-purchase (stays "locked" until next AppStorage
+    // write propagates).
+    @Environment(StoreKitManager.self) private var storeKit
     @State private var selectedTab = 0
 
     var body: some View {
@@ -22,7 +28,7 @@ struct MainTabView: View {
             FinanceTabView()
                 .tag(2)
                 .tabItem {
-                    Label("Vault", systemImage: isPremium ? "lock.open.fill" : "lock.fill")
+                    Label("Vault", systemImage: (isPremium || storeKit.isPremium) ? "lock.open.fill" : "lock.fill")
                 }
 
             NavigationStack {

@@ -319,6 +319,17 @@ struct BudgetVaultApp: App {
 
         guard let container else { return }
 
+        // Audit 2026-04-23 Max Audit P1-7: run month rollover before
+        // recurring-expense processing. On day 1 of the month, BG
+        // refresh running before any foreground pass would otherwise
+        // call `processOverdue` against last month's budget — the
+        // current-period fetch at `RecurringExpenseScheduler:30`
+        // returns nil and every category lookup fails the "in current
+        // budget" guard, causing the scheduler to advance nextDueDate
+        // for every rule without actually posting. Running rollover
+        // first ensures the current-period budget exists.
+        performMonthRollover(container: container)
+
         // Check cancellation between each unit of work so we stop
         // cleanly if the system deadline approaches. `.backgroundTask`
         // cancels the Task a few seconds before the hard budget

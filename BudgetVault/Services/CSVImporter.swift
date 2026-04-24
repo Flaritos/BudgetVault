@@ -225,17 +225,22 @@ enum CSVImporter {
         return fields
     }
 
+    /// Audit 2026-04-23 Max Audit P1-3: hoisted out of `parseDate`.
+    /// Previously rebuilt 5 DateFormatters on every row — a 10k-row
+    /// import allocated 50k formatters. Static = one-shot.
+    private static let dateFormatters: [DateFormatter] = {
+        let formats = ["yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy", "M/d/yyyy", "yyyy-MM-dd'T'HH:mm:ss"]
+        return formats.map { fmt in
+            let f = DateFormatter()
+            f.dateFormat = fmt
+            f.locale = Locale(identifier: "en_US_POSIX")
+            return f
+        }
+    }()
+
     private static func parseDate(_ string: String) -> Date? {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        let formatters: [DateFormatter] = {
-            let formats = ["yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy", "M/d/yyyy", "yyyy-MM-dd'T'HH:mm:ss"]
-            return formats.map { fmt in
-                let f = DateFormatter()
-                f.dateFormat = fmt
-                f.locale = Locale(identifier: "en_US_POSIX")
-                return f
-            }
-        }()
+        let formatters = Self.dateFormatters
 
         // Try ISO 8601 first
         let iso = ISO8601DateFormatter()

@@ -17,7 +17,10 @@ import BudgetVaultShared
 /// sheet, so the primary interaction is unchanged.
 struct RecurringExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(StoreKitManager.self) private var storeKit
     @AppStorage(AppStorageKeys.isPremium) private var isPremium = false
+    // Audit 2026-04-23 Max Audit P0-1: authoritative gate.
+    private var premium: Bool { isPremium || storeKit.isPremium }
 
     @Query(sort: \RecurringExpense.nextDueDate) private var allExpenses: [RecurringExpense]
     // Audit 2026-04-22 P0-7: bounded to last 90 days. Used to resolve
@@ -68,7 +71,7 @@ struct RecurringExpenseListView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     let activeCount = activeExpenses.count
-                    if !isPremium && activeCount >= 3 {
+                    if !premium && activeCount >= 3 {
                         showPaywall = true
                     } else {
                         showForm = true
@@ -79,7 +82,7 @@ struct RecurringExpenseListView: View {
                 .tint(BudgetVaultTheme.accentSoft)
                 .accessibilityLabel("Add recurring expense")
             }
-            if !isPremium {
+            if !premium {
                 ToolbarItem(placement: .bottomBar) {
                     Text("\(activeExpenses.count)/3 active")
                         .font(.caption)
@@ -225,7 +228,7 @@ struct RecurringExpenseListView: View {
                 }
             } else {
                 Button {
-                    if !isPremium && activeExpenses.count >= 3 {
+                    if !premium && activeExpenses.count >= 3 {
                         showPaywall = true
                     } else {
                         expense.isActive = true

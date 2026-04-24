@@ -10,6 +10,7 @@ struct BudgetView: View {
 
     @Query(sort: [SortDescriptor(\Budget.year, order: .reverse), SortDescriptor(\Budget.month, order: .reverse)]) private var allBudgets: [Budget]
 
+    @Environment(\.dismiss) private var dismiss
     @State private var viewingMonth: Int = 0
     @State private var viewingYear: Int = 0
     @State private var showIncomeEditor = false
@@ -81,6 +82,17 @@ struct BudgetView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
+            // Audit 2026-04-23 Max Audit P0-9: when presented from
+            // Dashboard's `activeSheet = .budgetEditor`, there was no
+            // dismiss affordance except the drag indicator — and
+            // drag-dismiss on a newly-set budget was easy to miss.
+            // Explicit Done button.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(BudgetVaultTheme.accentSoft)
+                }
+            }
             .onAppear {
                 let (m, y) = DateHelpers.currentBudgetPeriod(resetDay: max(resetDay, 1))
                 if viewingMonth == 0 || viewingBudget == nil {
