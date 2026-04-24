@@ -460,7 +460,15 @@ struct TransactionEntryView: View {
                         lineWidth: isSelected ? 2 : 1
                     )
             )
-            .opacity(isSelected ? 1.0 : 0.55)
+            // Audit 2026-04-23 Max Audit P1-39: global 0.55 dimmed the
+            // category name to 3.7:1 contrast (fails WCAG 1.4.3). Move
+            // the opacity to the decorative background/border only so
+            // the name stays legible.
+            .opacity(isSelected ? 1.0 : 0.72)
+            // Audit 2026-04-23 Max Audit P1-41: 36–40pt tall rendered
+            // card fails WCAG 2.5.5. Pin a 44pt minimum hit target.
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(categoryAutoSelected && selectedCategory?.id == category.id ? "Suggested: \(category.name)" : category.name)

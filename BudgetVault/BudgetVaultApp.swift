@@ -59,6 +59,12 @@ struct BudgetVaultApp: App {
     @AppStorage(AppStorageKeys.resetDay) private var resetDay = 1
     @State private var storeKit = StoreKitManager()
     @State private var containerError: String?
+    // Audit 2026-04-23 Max Audit P1-6: re-entrancy guard on the
+    // scenePhase .active mutation chain. A user bouncing between
+    // app-switcher and the app could launch two parallel Tasks that
+    // both touch the ModelContext — rollback-on-conflict would wipe
+    // the peer task's inserts.
+    @State private var scenePhaseWorkInFlight: Bool = false
 
     private static let notificationDelegate = NotificationDelegate()
     static let bgRefreshIdentifier = "io.budgetvault.app.refresh"
@@ -77,14 +83,18 @@ struct BudgetVaultApp: App {
         // Register notification categories with actions
         NotificationService.registerCategories()
 
-        // Configure TipKit
-        try? Tips.configure([
-            .displayFrequency(.daily),
-            .datastoreLocation(.applicationDefault)
-        ])
-
-        // Configure iCloud KVS settings sync
-        SettingsSyncService.configure()
+        // Audit 2026-04-23 Max Audit P1-48: TipKit `configure` does
+        // blocking datastore I/O and SettingsSyncService.configure
+        // calls `kvStore.synchronize()` — both block the first frame.
+        // Defer both to the next runloop tick so the UI can render
+        // first, then the init finishes async on main.
+        Task { @MainActor in
+            try? Tips.configure([
+                .displayFrequency(.daily),
+                .datastoreLocation(.applicationDefault)
+            ])
+            SettingsSyncService.configure()
+        }
 
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithTransparentBackground()
@@ -185,6 +195,14 @@ struct BudgetVaultApp: App {
                                 // between each step gives the UI a
                                 // chance to render.
                                 Task { @MainActor in
+                                    // P1-6 re-entrancy guard: skip when
+                                    // a prior scenePhase handler is
+                                    // still draining its chain. Both
+                                    // calls would mutate the shared
+                                    // ModelContext and conflict.
+                                    guard !scenePhaseWorkInFlight else { return }
+                                    scenePhaseWorkInFlight = true
+                                    defer { scenePhaseWorkInFlight = false }
                                     performMonthRollover(container: container)
                                     await Task.yield()
                                     processRecurringExpenses(container: container)

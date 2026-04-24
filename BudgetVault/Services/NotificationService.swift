@@ -133,11 +133,25 @@ enum NotificationService {
     /// v3.2 audit L1: skip this push if a streak-at-risk reminder is
     /// already scheduled today. Back-to-back 8pm + 9pm pings read as
     /// nagging rather than helpful.
+    // Audit 2026-04-23 Max Audit P1-16: generation counter so a
+    // cancel that lands while the async-guard closure is in flight
+    // wins the race. Each schedule call stamps its generation; when
+    // the closure finally runs, it only commits if the generation
+    // still matches (cancel increments it to invalidate).
+    nonisolated(unsafe) private static var closeVaultGeneration: Int = 0
+
     static func scheduleEveningCloseVault(hour: Int = 21) {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["closeVault"])
 
+        closeVaultGeneration += 1
+        let gen = closeVaultGeneration
+
         center.getPendingNotificationRequests { requests in
+            guard gen == Self.closeVaultGeneration else {
+                notificationLog.info("scheduleEveningCloseVault cancel raced — skipping add (gen=\(gen, privacy: .public)).")
+                return
+            }
             let hasStreakAtRisk = requests.contains { $0.identifier == "streakAtRisk" }
             guard !hasStreakAtRisk else { return }
 
@@ -159,6 +173,10 @@ enum NotificationService {
     }
 
     static func cancelEveningCloseVault() {
+        // P1-16: bump the generation so any in-flight async closure
+        // from a previous `scheduleEveningCloseVault` call exits
+        // without adding its request.
+        closeVaultGeneration += 1
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["closeVault"])
     }
 
