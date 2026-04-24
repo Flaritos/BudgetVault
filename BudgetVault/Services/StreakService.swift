@@ -191,7 +191,10 @@ enum StreakService {
                 dots.append(.empty) // Future
             } else {
                 let dayStr = DateHelpers.dateString(day)
-                if dayStr == lastLogDateStr || dayStr == DateHelpers.dateString(today) && lastLogDateStr == dayStr {
+                // Audit 2026-04-23 Max Audit P2-13: the right side of
+                // the `||` was tautological (redundant with the left).
+                // Reduced to the meaningful predicate.
+                if dayStr == lastLogDateStr {
                     dots.append(.logged)
                 } else {
                     // Simple heuristic: if streak is intact and day is in the past, it was either logged or frozen

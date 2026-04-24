@@ -963,14 +963,19 @@ struct SettingsView: View {
             }
             .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
-            ShareLink(item: URL(string: "https://budgetvault.io")!,
-                       subject: Text("BudgetVault"),
-                       // Audit 2026-04-23 Brand: canonical hero privacy wedge.
-                       message: Text("BudgetVault. On-device. No bank login. Ever. $14.99 once.")) {
-                Label("Share BudgetVault", systemImage: "heart.fill")
+            // Audit 2026-04-23 Max Audit P2: replaced force-unwrapped
+            // URLs with safely-resolved ones. Hardcoded URL strings are
+            // safe today but a future refactor typo would crash.
+            if let homeURL = URL(string: "https://budgetvault.io") {
+                ShareLink(item: homeURL,
+                           subject: Text("BudgetVault"),
+                           // Audit 2026-04-23 Brand: canonical hero privacy wedge.
+                           message: Text("BudgetVault. On-device. No bank login. Ever. $14.99 once.")) {
+                    Label("Share BudgetVault", systemImage: "heart.fill")
+                }
+                .tint(BudgetVaultTheme.accentSoft)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             }
-            .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
             // v3.2 audit L9: removed the .foregroundStyle(.primary)
             // override that rendered the bubble icon black; now it
@@ -990,17 +995,21 @@ struct SettingsView: View {
                 .foregroundStyle(BudgetVaultTheme.titanium400)
                 .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
-            Link(destination: URL(string: "https://budgetvault.io/privacy")!) {
-                Label("Privacy Policy", systemImage: "hand.raised.fill")
+            if let privacyURL = URL(string: "https://budgetvault.io/privacy") {
+                Link(destination: privacyURL) {
+                    Label("Privacy Policy", systemImage: "hand.raised.fill")
+                }
+                .tint(BudgetVaultTheme.accentSoft)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             }
-            .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
 
-            Link(destination: URL(string: "https://budgetvault.io/terms")!) {
-                Label("Terms of Service", systemImage: "doc.text.fill")
+            if let termsURL = URL(string: "https://budgetvault.io/terms") {
+                Link(destination: termsURL) {
+                    Label("Terms of Service", systemImage: "doc.text.fill")
+                }
+                .tint(BudgetVaultTheme.accentSoft)
+                .listRowBackground(BudgetVaultTheme.chamberRowGradient)
             }
-            .tint(BudgetVaultTheme.accentSoft)
-            .listRowBackground(BudgetVaultTheme.chamberRowGradient)
         } header: {
             EngravedSectionHeader(title: "About")
         }

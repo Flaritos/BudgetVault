@@ -316,7 +316,10 @@ enum BudgetVaultSchemaV1: VersionedSchema {
             }
         }
 
-        /// Advance nextDueDate by one frequency interval
+        /// Advance nextDueDate by one frequency interval.
+        /// Audit 2026-04-23 Max Audit P2-11: for `.monthly`, anchor to
+        /// the current day-of-month so a rule due on the 31st doesn't
+        /// permanently drift earlier after February/April/etc.
         func advanceNextDueDate() {
             let calendar = Calendar.current
             switch frequencyEnum {
@@ -325,7 +328,15 @@ enum BudgetVaultSchemaV1: VersionedSchema {
             case .biweekly:
                 nextDueDate = calendar.date(byAdding: .day, value: 14, to: nextDueDate) ?? nextDueDate
             case .monthly:
-                nextDueDate = calendar.date(byAdding: .month, value: 1, to: nextDueDate) ?? nextDueDate
+                let originalDay = calendar.component(.day, from: nextDueDate)
+                guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: nextDueDate) else {
+                    return
+                }
+                let daysInNext = calendar.range(of: .day, in: .month, for: nextMonth)?.count ?? 28
+                let targetDay = min(originalDay, daysInNext)
+                var comps = calendar.dateComponents([.year, .month, .hour, .minute, .second], from: nextMonth)
+                comps.day = targetDay
+                nextDueDate = calendar.date(from: comps) ?? nextMonth
             case .yearly:
                 nextDueDate = calendar.date(byAdding: .year, value: 1, to: nextDueDate) ?? nextDueDate
             }

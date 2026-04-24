@@ -76,8 +76,12 @@ enum CSVImporter {
             guard fields.count > max(dateIdx, categoryIdx, memoIdx, outflowIdx, inflowIdx) else { return nil }
             guard let date = parseDate(fields[dateIdx]) else { return nil }
 
-            let outflow = parseAmount(fields[outflowIdx])
-            let inflow = parseAmount(fields[inflowIdx])
+            // YNAB rows have either outflow OR inflow set; treat a
+            // failed parse as 0 for the missing side. If BOTH sides
+            // fail to parse, skip the row.
+            let outflow = parseAmount(fields[outflowIdx]) ?? 0
+            let inflow = parseAmount(fields[inflowIdx]) ?? 0
+            guard outflow != 0 || inflow != 0 else { return nil }
             let isIncome = inflow > 0 && outflow == 0
             let amount = isIncome ? inflow : outflow
 
@@ -104,7 +108,10 @@ enum CSVImporter {
             guard fields.count > max(dateIdx, amountIdx) else { return nil }
             guard let date = parseDate(fields[dateIdx]) else { return nil }
 
-            let amount = abs(parseAmount(fields[amountIdx]))
+            // Skip rows whose amount won't parse — prior behavior
+            // ingested them as $0 transactions.
+            guard let parsedAmount = parseAmount(fields[amountIdx]) else { return nil }
+            let amount = abs(parsedAmount)
             let category = categoryIdx.flatMap { fields.count > $0 ? fields[$0] : nil } ?? "Other"
             let note = noteIdx.flatMap { fields.count > $0 ? fields[$0] : nil } ?? ""
 
@@ -112,7 +119,7 @@ enum CSVImporter {
             if let ti = typeIdx, fields.count > ti {
                 isIncome = fields[ti].lowercased().contains("income")
             } else {
-                isIncome = parseAmount(fields[amountIdx]) > 0 && fields[amountIdx].contains("+")
+                isIncome = parsedAmount > 0 && fields[amountIdx].contains("+")
             }
 
             return CSVImportRow(date: date, category: category, note: note, amount: amount, isIncome: isIncome)
@@ -253,11 +260,15 @@ enum CSVImporter {
         return nil
     }
 
-    private static func parseAmount(_ string: String) -> Double {
+    /// Audit 2026-04-23 Max Audit P2-14: returns nil on parse failure
+    /// so callers skip the row instead of silently inserting a $0
+    /// transaction. Callers that tolerate missing values (generic
+    /// parser's outflow/inflow dual-check) use `?? 0`.
+    private static func parseAmount(_ string: String) -> Double? {
         let cleaned = string
             .replacingOccurrences(of: "$", with: "")
             .replacingOccurrences(of: ",", with: "")
             .trimmingCharacters(in: .whitespaces)
-        return Double(cleaned) ?? 0
+        return Double(cleaned)
     }
 }
