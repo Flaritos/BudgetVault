@@ -38,11 +38,23 @@ enum DashboardViewModel {
         return "Day \(dayNumber) of \(totalDays)"
     }
 
-    /// Daily spending allowance in cents based on remaining budget and days left.
-    static func dailyAllowanceCents(remainingCents: Int64, periodStart: Date, nextPeriodStart: Date) -> Int64 {
-        guard remainingCents > 0 else { return 0 }
-        let days = daysRemainingInPeriod(periodStart: periodStart, nextPeriodStart: nextPeriodStart)
-        return remainingCents / Int64(max(days, 1))
+    /// Daily spending allowance in cents — the period's natural pace.
+    /// Audit 2026-04-27: switched from burn-rate (remaining ÷
+    /// days_remaining) to flat-rate (income ÷ days_in_period). The
+    /// burn-rate math produced unintuitive results: a user installing
+    /// on day 27 of a 30-day period with $10,000 income and no
+    /// transactions logged saw "$3,333/day allowance" because the
+    /// unspent budget got distributed across only 3 remaining days.
+    /// Industry standard (Mint, Copilot, Empower) is flat-rate, which
+    /// matches the user's mental model of "$10k/month → $333/day."
+    /// The "buffer days" chamber on Home still surfaces the burn-rate
+    /// metric ("at your current spend pace, you can last X more days")
+    /// for users who want that signal.
+    static func dailyAllowanceCents(totalIncomeCents: Int64, periodStart: Date, nextPeriodStart: Date) -> Int64 {
+        guard totalIncomeCents > 0 else { return 0 }
+        let calendar = Calendar.current
+        let totalDays = max(calendar.dateComponents([.day], from: periodStart, to: nextPeriodStart).day ?? 30, 1)
+        return totalIncomeCents / Int64(totalDays)
     }
 
     // MARK: - Status

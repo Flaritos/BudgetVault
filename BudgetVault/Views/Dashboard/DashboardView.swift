@@ -653,7 +653,7 @@ struct DashboardView: View {
     @ViewBuilder
     private func dashboardContent(budget: Budget) -> some View {
         let dailyAllowanceCents = DashboardViewModel.dailyAllowanceCents(
-            remainingCents: budget.remainingCents,
+            totalIncomeCents: budget.totalIncomeCents,
             periodStart: budget.periodStart,
             nextPeriodStart: budget.nextPeriodStart
         )
@@ -1967,7 +1967,7 @@ struct DashboardView: View {
     private func refreshLiveActivity(budget: Budget) {
         let remainingCents = budget.remainingCents
         let dailyAllowance = DashboardViewModel.dailyAllowanceCents(
-            remainingCents: remainingCents,
+            totalIncomeCents: budget.totalIncomeCents,
             periodStart: budget.periodStart,
             nextPeriodStart: budget.nextPeriodStart
         )
