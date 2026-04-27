@@ -143,6 +143,14 @@ enum SettingsSyncService {
         for key in syncedKeys {
             if kvStore.object(forKey: key) == nil,
                let localValue = UserDefaults.standard.object(forKey: key) {
+                // Audit 2026-04-27 L-4: validate before pushing local
+                // values to KVS. The receiving device's validator would
+                // reject junk on inbound, but the leak still crosses
+                // the wire — defense in depth catches it on outbound.
+                guard isValid(value: localValue, forKey: key) else {
+                    syncLog.info("pushLocalSettingsIfNeeded skipped invalid local value for \(key, privacy: .public).")
+                    continue
+                }
                 kvStore.set(localValue, forKey: key)
             }
         }
@@ -171,6 +179,14 @@ enum SettingsSyncService {
     /// `resetDay` must be 1–28 (cap matches the picker's range and the
     /// "all months work" rule); `selectedCurrency` must be a known
     /// ISO code. Unknown keys are rejected outright.
+    ///
+    /// Audit 2026-04-27 M-2: prior implementation only handled `resetDay`
+    /// and `selectedCurrency`; every other key in `syncedKeys` (the seven
+    /// notification-preference toggles + hour pickers added by P1-12)
+    /// fell through to `default: return false` — meaning the sync surface
+    /// claimed to mirror them but the validator silently rejected every
+    /// inbound + outbound write. Notification keys now type-checked +
+    /// hour keys range-checked.
     private static func isValid(value: Any, forKey key: String) -> Bool {
         switch key {
         case AppStorageKeys.resetDay:
@@ -182,6 +198,22 @@ enum SettingsSyncService {
             // immediately so we don't even do the list lookup on junk.
             guard code.count == 3, code.allSatisfy({ $0.isASCII && $0.isUppercase }) else { return false }
             return Locale.commonISOCurrencyCodes.contains(code)
+        case AppStorageKeys.dailyReminderEnabled,
+             AppStorageKeys.weeklyDigestEnabled,
+             AppStorageKeys.billDueReminders,
+             AppStorageKeys.closeVaultReminderEnabled,
+             AppStorageKeys.morningBriefingEnabled:
+            // Bool toggles — accept only true/false. NSNumber backs
+            // UserDefaults boolean storage so an `as? Bool` works for
+            // both literal Bool and NSNumber-wrapped values.
+            return value is Bool
+        case AppStorageKeys.dailyReminderHour,
+             AppStorageKeys.morningBriefingHour:
+            // Audit 2026-04-27 L-5: range-clamp 0–23 so a malicious
+            // (or restored-from-old-version) value can't construct a
+            // DateComponents that silently builds a nil trigger.
+            guard let hour = value as? Int else { return false }
+            return (0...23).contains(hour)
         default:
             return false
         }

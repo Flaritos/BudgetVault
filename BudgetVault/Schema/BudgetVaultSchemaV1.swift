@@ -448,9 +448,18 @@ enum BudgetVaultSchemaV1: VersionedSchema {
     //
     // Interim posture (chosen today): keep the entities in V1 so
     // existing installs don't migrate, but:
-    //   1. no code path creates NetWorthAccount / NetWorthSnapshot
-    //   2. inits emit a warning log if anything tries to
-    //   3. tests verify no NetWorth rows are written
+    //   1. no production code path creates NetWorthAccount /
+    //      NetWorthSnapshot. The DebugSeedService legacy-seed path is
+    //      gated behind the `-seedLegacyNetWorth` launch argument
+    //      (P0-13) so default DEBUG seeds and all non-DEBUG paths
+    //      stay clean. Audit 2026-04-27 M-8: comment updated to
+    //      reflect the gate; the prior "no code path creates" claim
+    //      was technically false (DebugSeedService had an unguarded
+    //      seed) before P0-13 added the launch-arg opt-in.
+    //   2. inits emit a deprecation warning + #if DEBUG runtime print
+    //      so any new caller surfaces in Xcode + Console.app.
+    //   3. tests verify no NetWorth rows are written under default
+    //      seeding.
     // Retirement finishes when V2 is authored (tracked separately).
 
     @Model

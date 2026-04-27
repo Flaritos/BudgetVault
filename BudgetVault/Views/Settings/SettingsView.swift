@@ -234,14 +234,24 @@ struct SettingsView: View {
             // and settings" but silently also wiped Keychain (premium),
             // iCloud sync, biometric lock, Live Activity + widget data,
             // and re-ran onboarding. Full disclosure.
+            //
+            // Audit 2026-04-27 H-2: prior copy claimed "Apple-side data
+            // unaffected" — technically true but read by users as "we
+            // can't see Apple's copy" rather than "your data still lives
+            // in iCloud." The wipe now disables iCloud sync (so Apple's
+            // copy stops mirroring back), and the message points users
+            // at iOS Settings for a true CloudKit-side wipe.
             Text("""
             This permanently deletes:
             • All budgets, transactions, recurring rules, debts
             • All categories and preferences
             • Premium unlock (tap Restore Purchases in Settings to recover)
-            • iCloud sync (Apple-side data unaffected)
             • Live Activity + widget data
             • Onboarding progress (you'll set up again)
+
+            iCloud sync will be turned off. To also remove your data from \
+            iCloud, open iOS Settings → [your name] → iCloud → Manage \
+            Account Storage → BudgetVault → Delete Data.
 
             Cannot be undone.
             """)
@@ -1103,6 +1113,17 @@ struct SettingsView: View {
                 UserDefaults.standard.removeObject(forKey: key)
             }
         }
+
+        // Audit 2026-04-27 H-2: turn iCloud sync off BEFORE the rest of
+        // the wipe. The local SwiftData store is mirrored to a CloudKit
+        // private database; if the user reopens with sync still on, the
+        // CloudKit mirror immediately repopulates everything we just
+        // deleted, breaking the "Delete All Data" privacy contract.
+        // Tearing down the KVS observer here also stops a remote-device
+        // sync write from racing the deletion. The user is told via the
+        // alert message how to also remove the iCloud-side copy.
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.iCloudSyncEnabled)
+        SettingsSyncService.iCloudToggleChanged(enabled: false)
 
         // Audit 2026-04-22 P1-21: previously left the Keychain premium
         // flag in place — a user who "Deleted All Data" would return to

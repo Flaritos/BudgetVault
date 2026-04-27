@@ -65,6 +65,15 @@ struct BudgetRemainingIntent: AppIntent {
     static var description = IntentDescription("Check your remaining budget in BudgetVault.")
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        // Audit 2026-04-27 H-1: respect the in-app biometric lock. A
+        // locked phone in someone else's hands could otherwise ask Siri
+        // for the user's remaining balance and hear it spoken aloud,
+        // bypassing the lock entirely. When App Lock is on, refuse to
+        // disclose the figure and direct the user to open the app.
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.biometricLockEnabled) {
+            return .result(dialog: "Open BudgetVault to view your balance.")
+        }
+
         let suiteName = "group.io.budgetvault.shared"
         let dataKey = "widgetData"
 

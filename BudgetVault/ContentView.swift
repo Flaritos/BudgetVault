@@ -89,13 +89,13 @@ struct ContentView: View {
                 if biometricLockEnabled,
                    lastBackgroundDate > 0,
                    Date().timeIntervalSince1970 - lastBackgroundDate > 30 {
-                    authService.isAuthenticated = false
+                    authService.lock()
                 }
                 obscureForSnapshot = false
             case .background:
                 lastBackgroundDate = Date().timeIntervalSince1970
                 if biometricLockEnabled {
-                    authService.isAuthenticated = false
+                    authService.lock()
                 }
             @unknown default:
                 break

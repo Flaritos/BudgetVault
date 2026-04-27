@@ -317,17 +317,19 @@ final class StoreKitManager {
             KeychainService.delete(forKey: "isPremium")
             storeKitLog.error("checkEntitlements iterated but all transactions were unverified; revoking premium.")
         } else {
-            // No positive signal either way. Don't clobber the Keychain
-            // authoritative value — trust the prior state. On a fresh
-            // install with no prior Keychain entry, this leaves isPremium
-            // at its init default (false) — correct.
-            // If the user WAS premium and we just couldn't reach Apple
-            // this call, premium stays unlocked until the next successful
-            // `currentEntitlements` call.
-            if let cached = KeychainService.getBool(forKey: "isPremium") {
-                isPremium = cached
-                UserDefaults.standard.set(cached, forKey: AppStorageKeys.isPremium)
-            }
+            // No positive signal either way. Trust Keychain — the
+            // tamper-resistant authoritative source — and force the
+            // UserDefaults cache to match it (or to false if Keychain
+            // is empty). Audit 2026-04-27 H-3: prior behavior left
+            // `@AppStorage(isPremium)` untouched on an empty Keychain,
+            // which let a `defaults write io.budgetvault.app isPremium 1`
+            // attack survive launches indefinitely — every gate site
+            // computes `isPremium || storeKit.isPremium`, so a stale-true
+            // cache silently granted premium even when Keychain + StoreKit
+            // both disagreed.
+            let cached = KeychainService.getBool(forKey: "isPremium") ?? false
+            isPremium = cached
+            UserDefaults.standard.set(cached, forKey: AppStorageKeys.isPremium)
         }
     }
 

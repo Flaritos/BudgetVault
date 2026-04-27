@@ -67,6 +67,16 @@ enum FeedbackService {
             // report text may contain PII and would otherwise be
             // readable while the device is locked post-first-unlock.
             try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+            // Audit 2026-04-27 L-6: exclude the feedback log from iCloud
+            // Backup. Documents/ is included by default; the user-typed
+            // bug-report text is the most free-form on-disk content the
+            // app produces and may contain PII the user wouldn't want
+            // crossing to Apple's backup servers. Setting the resource
+            // value is idempotent — safe to set on every write.
+            var url = fileURL
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? url.setResourceValues(values)
         }
     }
 

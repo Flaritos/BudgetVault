@@ -34,6 +34,16 @@ enum WidgetDataService {
         let dailyAllowanceCents: Int64
         let currentStreak: Int
         let daysRemaining: Int
+        /// Audit 2026-04-27 M-1: signals to the lock-screen accessory
+        /// widgets that the user has App Lock on, so they should render
+        /// a "Tap to open" affordance instead of dollar amounts. Home-
+        /// screen widgets ignore this flag — they're behind device
+        /// unlock already and that's where users explicitly opt in.
+        ///
+        /// Optional with default `false` for forward-compat with
+        /// previously-encoded JSON blobs sitting in the App Group from
+        /// older app versions; `decodeIfPresent` falls through cleanly.
+        let redactAmounts: Bool?
 
         struct CategorySummary: Codable {
             let emoji: String
@@ -94,7 +104,8 @@ enum WidgetDataService {
             topCategories: categories,
             dailyAllowanceCents: dailyAllowance,
             currentStreak: UserDefaults.standard.integer(forKey: AppStorageKeys.currentStreak),
-            daysRemaining: daysRemaining
+            daysRemaining: daysRemaining,
+            redactAmounts: redactCategoryNames
         )
 
         guard let encoded = try? JSONEncoder().encode(data) else { return }

@@ -14,6 +14,12 @@ struct WidgetBudgetData: Codable {
     let dailyAllowanceCents: Int64
     let currentStreak: Int
     let daysRemaining: Int
+    // Audit 2026-04-27 M-1: signal from the main app that App Lock is
+    // on — lock-screen accessory views switch to a "Tap to open"
+    // affordance to avoid leaking dollar amounts to anyone glancing at
+    // a locked phone. Optional/`decodeIfPresent` for forward-compat
+    // with payloads written before this field was added.
+    let redactAmounts: Bool?
 
     struct CategorySummary: Codable {
         let emoji: String
@@ -74,7 +80,8 @@ extension WidgetBudgetData {
             ],
             dailyAllowanceCents: 10_200,
             currentStreak: 12,
-            daysRemaining: 18
+            daysRemaining: 18,
+            redactAmounts: false
         )
     }
 }
@@ -274,20 +281,34 @@ struct MediumBudgetWidgetView: View {
 
 #if os(iOS)
 
+// Audit 2026-04-27 M-1: lock-screen accessory views are visible without
+// device unlock. When App Lock is on, the main app stamps
+// `redactAmounts = true` into the App Group payload; these views then
+// switch to a "Tap to open" affordance so dollar amounts and category
+// emoji never render past the system lock. Home-screen widgets sit
+// behind device unlock and continue to render normally.
+
 struct AccessoryCircularBudgetView: View {
     let entry: BudgetEntry
 
     var body: some View {
-        Gauge(value: max(0, min(entry.data.percentRemaining, 1.0))) {
-            Image(systemName: "vault.fill")
-                .font(.system(size: 10))
-        } currentValueLabel: {
-            Text(compactAmount(entry.data.remainingBudgetCents))
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .minimumScaleFactor(0.5)
+        if entry.data.redactAmounts == true {
+            // Generic vault glyph — no amount, no progress signal.
+            Image(systemName: "lock.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .containerBackground(.fill.tertiary, for: .widget)
+        } else {
+            Gauge(value: max(0, min(entry.data.percentRemaining, 1.0))) {
+                Image(systemName: "vault.fill")
+                    .font(.system(size: 10))
+            } currentValueLabel: {
+                Text(compactAmount(entry.data.remainingBudgetCents))
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.5)
+            }
+            .gaugeStyle(.accessoryCircular)
+            .containerBackground(.fill.tertiary, for: .widget)
         }
-        .gaugeStyle(.accessoryCircular)
-        .containerBackground(.fill.tertiary, for: .widget)
     }
 }
 
@@ -295,8 +316,13 @@ struct AccessoryInlineBudgetView: View {
     let entry: BudgetEntry
 
     var body: some View {
-        Text("\(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining")
-            .containerBackground(.fill.tertiary, for: .widget)
+        if entry.data.redactAmounts == true {
+            Text("BudgetVault — tap to open")
+                .containerBackground(.fill.tertiary, for: .widget)
+        } else {
+            Text("\(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode)) remaining")
+                .containerBackground(.fill.tertiary, for: .widget)
+        }
     }
 }
 
@@ -304,39 +330,56 @@ struct AccessoryRectangularBudgetView: View {
     let entry: BudgetEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Image(systemName: "vault.fill")
-                    .font(.system(size: 9))
-                Text("BudgetVault")
-                    .font(.system(size: 10, weight: .semibold))
+        if entry.data.redactAmounts == true {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9))
+                    Text("BudgetVault")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(.secondary)
+
+                Text("Tap to open")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
             }
-            .foregroundStyle(.secondary)
-
-            Text(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode))
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .minimumScaleFactor(0.6)
-
-            if let topCat = entry.data.topCategories.first {
-                HStack(spacing: 2) {
-                    Text(topCat.emoji)
+            .containerBackground(.fill.tertiary, for: .widget)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: "vault.fill")
                         .font(.system(size: 9))
-                    // Audit 2026-04-23 Max Audit P0-6: name is
-                    // intentionally redacted to "" on the main-app
-                    // side when biometric lock is on. Hide the text
-                    // entirely so the widget renders emoji + amount
-                    // (no name leakage on the lock screen).
-                    if !topCat.name.isEmpty {
-                        Text(topCat.name)
+                    Text("BudgetVault")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(.secondary)
+
+                Text(formatCents(entry.data.remainingBudgetCents, code: entry.data.currencyCode))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.6)
+
+                if let topCat = entry.data.topCategories.first {
+                    HStack(spacing: 2) {
+                        Text(topCat.emoji)
                             .font(.system(size: 9))
+                        // Audit 2026-04-23 Max Audit P0-6: name is
+                        // intentionally redacted to "" on the main-app
+                        // side when biometric lock is on. Hide the text
+                        // entirely so the widget renders emoji + amount
+                        // (no name leakage on the lock screen).
+                        if !topCat.name.isEmpty {
+                            Text(topCat.name)
+                                .font(.system(size: 9))
+                        }
+                        Text(formatCents(topCat.spentCents, code: entry.data.currencyCode))
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
                     }
-                    Text(formatCents(topCat.spentCents, code: entry.data.currencyCode))
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
                 }
             }
+            .containerBackground(.fill.tertiary, for: .widget)
         }
-        .containerBackground(.fill.tertiary, for: .widget)
     }
 }
 

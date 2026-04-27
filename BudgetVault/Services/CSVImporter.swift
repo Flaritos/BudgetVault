@@ -213,13 +213,28 @@ enum CSVImporter {
 
     // MARK: - CSV Parsing Helpers
 
+    /// Audit 2026-04-27 M-5: walk by index so a doubled-quote (`""`)
+    /// inside a quoted field is recognized as an escaped literal `"`
+    /// instead of toggling `inQuotes` off-then-on and silently dropping
+    /// both characters. Without this, a note exported as
+    /// `"She said ""ok"""` re-imported as `She said ok` (lost the
+    /// embedded quotes), corrupting round-tripped data.
     static func parseCSVLine(_ line: String) -> [String] {
         var fields: [String] = []
         var current = ""
         var inQuotes = false
 
-        for char in line {
+        let chars = Array(line)
+        var i = 0
+        while i < chars.count {
+            let char = chars[i]
             if char == "\"" {
+                if inQuotes && i + 1 < chars.count && chars[i + 1] == "\"" {
+                    // Escaped literal quote inside a quoted field.
+                    current.append("\"")
+                    i += 2
+                    continue
+                }
                 inQuotes.toggle()
             } else if char == "," && !inQuotes {
                 fields.append(current.trimmingCharacters(in: .whitespaces))
@@ -227,6 +242,7 @@ enum CSVImporter {
             } else {
                 current.append(char)
             }
+            i += 1
         }
         fields.append(current.trimmingCharacters(in: .whitespaces))
         return fields
@@ -264,11 +280,20 @@ enum CSVImporter {
     /// so callers skip the row instead of silently inserting a $0
     /// transaction. Callers that tolerate missing values (generic
     /// parser's outflow/inflow dual-check) use `?? 0`.
+    ///
+    /// Audit 2026-04-27 M-4: range-clamp the parsed value. `Double()`
+    /// accepts scientific notation and astronomical magnitudes (1e308),
+    /// and the downstream `Int64(truncating: NSDecimalNumber)` is
+    /// undefined behavior when the decimal exceeds Int64 range. Cap at
+    /// $1B per row — three orders of magnitude above any plausible
+    /// personal-finance transaction — and reject NaN/inf outright.
     private static func parseAmount(_ string: String) -> Double? {
         let cleaned = string
             .replacingOccurrences(of: "$", with: "")
             .replacingOccurrences(of: ",", with: "")
             .trimmingCharacters(in: .whitespaces)
-        return Double(cleaned)
+        guard let value = Double(cleaned), value.isFinite else { return nil }
+        guard abs(value) < 1_000_000_000 else { return nil }
+        return value
     }
 }

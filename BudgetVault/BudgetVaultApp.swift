@@ -386,7 +386,13 @@ struct BudgetVaultApp: App {
             Text("Database Error")
                 .font(.title2.bold())
 
-            Text(containerError ?? "An unknown error occurred while opening the database.")
+            // Audit 2026-04-27 M-6: previously surfaced raw
+            // `error.localizedDescription` from `ModelContainer(for:)`
+            // failures — could leak file paths, SwiftData internals,
+            // or migration details to end users. Show generic copy
+            // instead; the raw error is still logged (privately) for
+            // diagnostics by way of `_containerError` capture in init.
+            Text(Self.userFacingDatabaseError(containerError))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -410,6 +416,25 @@ struct BudgetVaultApp: App {
         }
     }
 
+    /// Audit 2026-04-27 M-6: classify the captured database error into
+    /// a small set of user-actionable buckets. Keeps internal details
+    /// (file paths, SwiftData enum names, migration internals) out of
+    /// the UI while still telling the user whether the issue is likely
+    /// disk-space, migration, or unknown.
+    private static func userFacingDatabaseError(_ raw: String?) -> String {
+        guard let raw, !raw.isEmpty else {
+            return "An unexpected database error occurred. Tap Reset Database below if this keeps happening."
+        }
+        let lower = raw.lowercased()
+        if lower.contains("disk") || lower.contains("no space") {
+            return "Your device is low on storage. Free up some space and relaunch BudgetVault."
+        }
+        if lower.contains("migration") || lower.contains("schema") {
+            return "BudgetVault couldn't upgrade your data to the new format. Tap Reset Database to start fresh."
+        }
+        return "An unexpected database error occurred. Tap Reset Database below if this keeps happening."
+    }
+
     private func resetDatabase() {
         let fileManager = FileManager.default
         guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
@@ -427,6 +452,15 @@ struct BudgetVaultApp: App {
         UserDefaults.standard.set(false, forKey: AppStorageKeys.hasCompletedOnboarding)
         UserDefaults.standard.set(false, forKey: AppStorageKeys.isPremium)
         UserDefaults.standard.set(false, forKey: AppStorageKeys.didStampFileProtection)
+        // Audit 2026-04-27 M-7: also clear iCloudSyncEnabled. Without
+        // this, a relaunch into a working ModelContainer reattaches to
+        // the same CloudKit private database that — by definition — we
+        // just couldn't open locally. The most likely cause of a fatal
+        // open failure that warrants a Reset is a corrupt CloudKit
+        // mirror; rejoining sync immediately re-pulls the corrupt
+        // state. Force the user to opt back into sync explicitly from
+        // Settings after recovery.
+        UserDefaults.standard.set(false, forKey: AppStorageKeys.iCloudSyncEnabled)
 
         // Prompt user to restart
         containerError = "Database has been reset. Please quit and relaunch the app."

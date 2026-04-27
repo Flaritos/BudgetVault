@@ -4,7 +4,13 @@ import LocalAuthentication
 @Observable
 final class BiometricAuthService {
 
-    var isAuthenticated = false
+    // Audit 2026-04-27 M-3: `isAuthenticated` is now `private(set)` so
+    // only the service itself can flip the flag true. Callers that need
+    // to force a re-auth (scenePhase .background, inactivity timeout,
+    // explicit sign-out) call `lock()` below. Prior public `var` allowed
+    // any caller to write `service.isAuthenticated = true`, silently
+    // bypassing the entire biometric gate.
+    private(set) var isAuthenticated = false
     var biometricType: LABiometryType = .none
     var errorMessage: String?
     /// Audit 2026-04-27: re-entrancy guard. Prior code allowed a rapid
@@ -25,6 +31,13 @@ final class BiometricAuthService {
 
     init() {
         refreshBiometryType()
+    }
+
+    /// Audit 2026-04-27 M-3: explicit re-lock. Use this from scenePhase
+    /// transitions, inactivity timeouts, or any other "force re-auth"
+    /// site instead of writing `isAuthenticated = false` directly.
+    func lock() {
+        isAuthenticated = false
     }
 
     /// Audit 2026-04-23 M6: split biometry-type detection out of init

@@ -49,10 +49,16 @@ enum KeychainService {
         // cached state, which is OK but suboptimal. Prefer an atomic
         // SecItemUpdate when the item already exists; fall back to
         // SecItemAdd only when SecItemUpdate returns errSecItemNotFound.
+        // Audit 2026-04-27 L-1: explicit `kSecAttrSynchronizable: false`
+        // is defense-in-depth against future iCloud Keychain default
+        // changes. The `ThisDeviceOnly` accessibility class already
+        // blocks sync on supported items, but pinning the attribute
+        // makes the intent explicit at the call site.
         let lookup: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: key
+            kSecAttrAccount as String: key,
+            kSecAttrSynchronizable as String: kCFBooleanFalse as Any
         ]
         let attributesToUpdate: [String: Any] = [
             kSecValueData as String: data,
@@ -79,6 +85,7 @@ enum KeychainService {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
+            kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -95,7 +102,8 @@ enum KeychainService {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: key
+            kSecAttrAccount as String: key,
+            kSecAttrSynchronizable as String: kCFBooleanFalse as Any
         ]
         SecItemDelete(query as CFDictionary)
     }
