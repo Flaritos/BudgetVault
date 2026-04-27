@@ -88,15 +88,18 @@ struct BiometricLockView: View {
         }
         // Audit 2026-04-23 M6: previously auto-called `authenticate()`
         // from `.task`. On devices with no biometric enrollment AND no
-        // passcode set (common in simulators upgrading from no-auth
-        // state), the auto-call surfaced an iOS system prompt that can
-        // only be dismissed by setting a passcode — effectively
-        // locking the user out. Require an explicit button tap instead.
-        // The manual "Unlock with Face ID" button is already present.
+        // passcode set (sim edge case), the auto-call surfaced an iOS
+        // system prompt that could only be dismissed by setting a
+        // passcode — effectively locking the user out.
+        // Audit 2026-04-27: re-add the auto-trigger but gate on
+        // `canAutoPrompt` (= biometric enrolled). Real-device users
+        // shouldn't have to tap a button before Face ID even shows up.
+        // The fallback button stays for the no-biometric case.
         .task {
-            // Refresh biometryType detection in case the user enrolled
-            // a new face/finger between app opens.
             authService.refreshBiometryType()
+            if authService.canAutoPrompt && !authService.isAuthenticated {
+                await authService.authenticate()
+            }
         }
         .onChange(of: authService.isAuthenticated) { _, newValue in
             // Audit fix: single source of the post. The prior version

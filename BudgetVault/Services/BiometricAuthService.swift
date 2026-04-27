@@ -7,6 +7,21 @@ final class BiometricAuthService {
     var isAuthenticated = false
     var biometricType: LABiometryType = .none
     var errorMessage: String?
+    /// Audit 2026-04-27: re-entrancy guard. Prior code allowed a rapid
+    /// double-tap to fire two concurrent `LAContext.evaluatePolicy`
+    /// calls; iOS would queue or reject the second, leaving the user
+    /// staring at a frozen lock screen.
+    private var isAuthenticating = false
+
+    /// Whether biometric auth is currently usable on this device. Used
+    /// by callers (BiometricLockView) to gate auto-trigger behavior so
+    /// we never auto-prompt on a device with no biometric enrollment +
+    /// no passcode (the simulator edge case audit M6 protected against).
+    var canAutoPrompt: Bool {
+        let context = LAContext()
+        var error: NSError?
+        return context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+    }
 
     init() {
         refreshBiometryType()
@@ -44,6 +59,15 @@ final class BiometricAuthService {
     }
 
     func authenticate() async {
+        // Audit 2026-04-27: double-tap guard. Without this, two
+        // concurrent invocations could spawn two `evaluatePolicy`
+        // calls on separate `LAContext` instances — iOS handling of
+        // overlapping prompts is undefined and shows up to users as
+        // "Face ID prompt didn't appear" or "took multiple tries."
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
+        defer { isAuthenticating = false }
+
         let context = LAContext()
         context.localizedFallbackTitle = "Use Passcode"
 
